@@ -4,7 +4,7 @@ import { NextResponse } from 'next/server';
 import { z } from 'zod';
 
 export const runtime = 'nodejs';
-export const maxDuration = 60;
+export const maxDuration = 300;
 
 const lessonSchema = z.object({
   duration: z.number().min(0.5).max(2).multipleOf(0.5),
@@ -95,7 +95,11 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'INVALID_ACCESS_CODE' }, { status: 401 });
     }
 
-    const client = new OpenAI({ apiKey });
+    const client = new OpenAI({
+      apiKey,
+      timeout: 240000,
+      maxRetries: 0
+    });
     const response = await client.responses.parse({
       model: process.env.OPENAI_MODEL || 'gpt-5-mini',
       input: [
@@ -103,7 +107,8 @@ export async function POST(request: Request) {
         { role: 'user', content: buildInput(parsed.data) }
       ],
       text: { format: zodTextFormat(reportSchema, 'sat_trial_report') },
-      max_output_tokens: 12000
+      reasoning: { effort: 'low' },
+      max_output_tokens: 8000
     });
 
     if (!response.output_parsed) {

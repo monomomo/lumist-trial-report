@@ -224,7 +224,7 @@ $('#report-form').addEventListener('submit', async (event) => {
   button.disabled = true;
   button.textContent = 'AI 正在分析并生成课程规划…';
   notice.classList.remove('error');
-  notice.innerHTML = '<strong>正在生成：</strong>通常需要 10–30 秒，请不要重复提交。';
+  notice.innerHTML = '<strong>正在生成：</strong>通常需要 30–90 秒，详细课时规划可能更久，请不要重复提交或关闭页面。';
   localStorage.setItem('lumist-report-access-code', $('#access-code').value);
   try {
     currentReportData = await generateAiReport();
