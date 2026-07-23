@@ -84,29 +84,23 @@ function renderCoursePlan(coursePlan) {
     currentStageIndex = -1;
   };
 
-  const createStageRow = (stage, stageIndex, continued) => {
-    const row = document.createElement('tr');
-    row.className = 'plan-stage-row';
-    row.dataset.stageIndex = String(stageIndex);
-    row.innerHTML = `<td colspan="3"><div><b>${escapeHtml(stage.title)}${continued ? ' · 续' : ''}</b><span>${escapeHtml(stage.description)}</span></div></td>`;
-    return row;
+  const createStageLabel = (stage, continued) => {
+    const label = document.createElement('div');
+    label.className = 'plan-stage-inline';
+    label.innerHTML = `<strong>${escapeHtml(stage.title)}${continued ? ' · 续' : ''}</strong>`;
+    return label;
   };
 
-  const addStageRow = (stage, stageIndex, continued) => {
-    const row = createStageRow(stage, stageIndex, continued);
-    currentTableBody.appendChild(row);
-    currentStageIndex = stageIndex;
-    return row;
-  };
-
-  const addLessonRow = (lesson, stageIndex, stageLessonIndex) => {
+  const addLessonRow = (lesson, stageIndex, stageLessonIndex, showStageLabel, continued) => {
     lessonIndex += 1;
     const row = document.createElement('tr');
     row.className = 'plan-lesson-row';
     row.dataset.stageIndex = String(stageIndex);
     row.dataset.stageLessonIndex = String(stageLessonIndex);
     row.innerHTML = `<td class="plan-sequence-cell"><b>${String(lessonIndex).padStart(2, '0')}</b><span>课时</span></td><td class="plan-duration-cell">${escapeHtml(lesson.duration)}h</td><td class="plan-detail-cell"><b>${escapeHtml(lesson.theme)}</b><p><span>目标：</span>${escapeHtml(lesson.goal)}</p><p><span>内容：</span>${escapeHtml(lesson.content)}</p><p><span>重难点：</span>${escapeHtml(lesson.difficulty)}</p></td>`;
+    if (showStageLabel) row.querySelector('.plan-detail-cell').prepend(createStageLabel(coursePlan.stages[stageIndex], continued));
     currentTableBody.appendChild(row);
+    currentStageIndex = stageIndex;
     return row;
   };
 
@@ -119,15 +113,13 @@ function renderCoursePlan(coursePlan) {
   createPage();
   coursePlan.stages.forEach((stage, stageIndex) => {
     stage.lessons.forEach((lesson, stageLessonIndex) => {
-      const stageRow = currentStageIndex === stageIndex ? null : addStageRow(stage, stageIndex, stageLessonIndex > 0);
-      const lessonRow = addLessonRow(lesson, stageIndex, stageLessonIndex);
+      const showStageLabel = currentStageIndex !== stageIndex;
+      const lessonRow = addLessonRow(lesson, stageIndex, stageLessonIndex, showStageLabel, stageLessonIndex > 0);
       if (pageOverflows(currentPage) && currentPage.querySelectorAll('.plan-lesson-row').length > 1) {
         lessonRow.remove();
         lessonIndex -= 1;
-        if (stageRow) stageRow.remove();
         createPage();
-        addStageRow(stage, stageIndex, stageLessonIndex > 0);
-        addLessonRow(lesson, stageIndex, stageLessonIndex);
+        addLessonRow(lesson, stageIndex, stageLessonIndex, true, stageLessonIndex > 0);
       }
     });
   });
@@ -138,8 +130,9 @@ function renderCoursePlan(coursePlan) {
     let stageIndex = -1;
     lessonRows.forEach((row) => {
       const rowStageIndex = Number(row.dataset.stageIndex);
+      row.querySelector('.plan-stage-inline')?.remove();
       if (rowStageIndex !== stageIndex) {
-        tableBody.appendChild(createStageRow(coursePlan.stages[rowStageIndex], rowStageIndex, Number(row.dataset.stageLessonIndex) > 0));
+        row.querySelector('.plan-detail-cell').prepend(createStageLabel(coursePlan.stages[rowStageIndex], Number(row.dataset.stageLessonIndex) > 0));
         stageIndex = rowStageIndex;
       }
       tableBody.appendChild(row);
