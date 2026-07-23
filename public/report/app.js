@@ -164,11 +164,7 @@ $('#report-form').addEventListener('submit', async (event) => {
   event.preventDefault();
   renderReport();
   changeView('report');
-  try {
-    await saveReport();
-  } catch {
-    document.querySelector('#report-view .eyebrow').textContent = '报告已生成 · 保存失败';
-  }
+  document.querySelector('#report-view .eyebrow').textContent = '报告已生成 · 未云端保存';
 });
 $('#sample-one').addEventListener('click', () => { $('#teacher-notes').value = sampleOne; });
 $('#sample-two').addEventListener('click', () => { $('#teacher-notes').value = sampleTwo; });
