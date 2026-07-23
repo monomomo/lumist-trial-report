@@ -160,11 +160,11 @@ nav .nav-item.active,nav .nav-item:hover { background:#5a4712; }
 .hour-plan .plan-note { margin-top:14px; padding:10px 12px; font-size:11px; }
 @media screen and (max-width:900px) { .hour-plan { padding:35px 25px; overflow:hidden; }.plan-stage { gap:10px; }.plan-overview { grid-template-columns:1fr; }.plan-overview div { border-right:0; border-bottom:1px solid #eadb9e; }.plan-overview div:last-child { border-bottom:0; }.hour-plan table { min-width:0; }.hour-plan th,.hour-plan td { font-size:10px; padding:7px 5px; } }
 .reference-plan-page { padding:45px 55px 38px; background:#fff; }
-.reference-plan-page h2 { margin:0 0 7px; font-size:27px; }
+.reference-plan-page h2 { margin:0 0 5px; font-size:25px; }
 .reference-plan-intro { margin:0 0 15px; color:#766a4f; font-size:12px; line-height:1.55; }
 .reference-plan-page table { width:100%; margin:0; border-collapse:collapse; table-layout:fixed; border:1px solid #d8b950; }
 .reference-plan-page th { padding:10px 11px; background:#c99714; color:#fff; font-size:12px; font-weight:800; text-align:left; border-right:1px solid rgba(255,255,255,.48); }
-.reference-plan-page th:first-child { width:13%; }.reference-plan-page th:nth-child(2) { width:13%; }.reference-plan-page th:nth-child(3) { width:74%; }
+.reference-plan-page th:first-child { width:11%; }.reference-plan-page th:nth-child(2) { width:12%; }.reference-plan-page th:nth-child(3) { width:77%; }
 .reference-plan-page td { padding:0; border-right:1px solid #dfc96f; border-bottom:1px solid #dfc96f; color:#4c493f; vertical-align:top; }
 .reference-plan-page tbody tr:last-child td { border-bottom:0; }
 .reference-plan-page .plan-total-cell { text-align:center; vertical-align:middle; background:#fffdf6; }
@@ -172,11 +172,27 @@ nav .nav-item.active,nav .nav-item:hover { background:#5a4712; }
 .reference-plan-page .plan-total-cell b { color:#aa7800; font-size:22px; line-height:1; }
 .reference-plan-page .plan-total-cell span { margin-top:6px; color:#796a47; font-size:10px; line-height:1.45; font-weight:700; }
 .reference-plan-page .plan-duration-cell,.reference-plan-page tbody tr:nth-child(even) .plan-duration-cell { text-align:center; vertical-align:middle; color:#6e5c22; font-size:15px; font-weight:800; background:#fff6d6; }
-.reference-plan-page .plan-detail-cell { padding:10px 12px 9px; }
-.reference-plan-page .plan-detail-cell>b { display:block; color:#302918; font-size:12px; line-height:1.45; margin-bottom:4px; }
-.reference-plan-page .plan-detail-cell p { margin:2.5px 0; color:#585348; font-size:10.5px; line-height:1.5; }
+.reference-plan-page .plan-detail-cell { padding:8px 11px 7px; }
+.reference-plan-page .plan-detail-cell>b { display:block; color:#302918; font-size:11.5px; line-height:1.4; margin-bottom:3px; }
+.reference-plan-page .plan-detail-cell p { margin:2px 0; color:#585348; font-size:10px; line-height:1.42; }
 .reference-plan-page .plan-detail-cell p span { color:#9a7100; font-weight:900; }
 .reference-plan-page .plan-note { margin-top:9px; padding:8px 10px; color:#685925; font-size:10px; line-height:1.45; }
+.plan-measurement-host { position:absolute; left:-10000px; top:0; width:210mm; visibility:hidden; pointer-events:none; }
+.plan-measurement-host .reference-plan-page { width:210mm !important; height:297mm !important; min-height:297mm !important; max-height:297mm !important; margin:0 !important; aspect-ratio:auto !important; box-shadow:none !important; }
+.plan-page-heading { display:flex; align-items:flex-start; justify-content:space-between; gap:24px; margin-bottom:14px; }
+.plan-page-heading p { margin:0; color:#766a4f; font-size:11px; line-height:1.5; }
+.plan-total-hours { flex:0 0 108px; border-left:4px solid #f4c528; padding:4px 0 4px 12px; }
+.plan-total-hours span,.plan-total-hours b { display:block; }
+.plan-total-hours span { color:#7c704e; font-size:10px; font-weight:800; }
+.plan-total-hours b { margin-top:3px; color:#a97800; font-size:25px; line-height:1; }
+.reference-plan-page .plan-stage-row td { padding:0; background:#fff8dd; border-top:2px solid #d4a617; }
+.reference-plan-page .plan-stage-row div { display:flex; align-items:baseline; gap:12px; padding:6px 10px; }
+.reference-plan-page .plan-stage-row b { color:#342a12; font-size:12px; white-space:nowrap; }
+.reference-plan-page .plan-stage-row span { color:#786b4b; font-size:9.5px; line-height:1.45; }
+.reference-plan-page .plan-sequence-cell { text-align:center; vertical-align:middle; background:#fffdf6; }
+.reference-plan-page .plan-sequence-cell b,.reference-plan-page .plan-sequence-cell span { display:block; }
+.reference-plan-page .plan-sequence-cell b { color:#a97800; font-size:16px; line-height:1; }
+.reference-plan-page .plan-sequence-cell span { margin-top:3px; color:#7c704e; font-size:9px; font-weight:800; }
 @media screen and (max-width:900px) { .reference-plan-page { padding:35px 25px; }.reference-plan-page th { font-size:10px; padding:8px 5px; }.reference-plan-page .plan-detail-cell { padding:8px; }.reference-plan-page .plan-detail-cell>b { font-size:10px; }.reference-plan-page .plan-detail-cell p { font-size:9px; }.reference-plan-page .plan-duration-cell { font-size:11px; } }
 .access-code-label { color:#3e4760;font-size:12px;font-weight:700;display:grid;gap:7px;margin:16px 0 12px; }
 .access-code-label input { border:1px solid #dfe3ed;border-radius:8px;padding:10px 11px;color:var(--ink);outline:none;background:#fff; }

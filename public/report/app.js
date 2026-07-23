@@ -64,26 +64,114 @@ function getDefaultCoursePlan() {
 function renderCoursePlan(coursePlan) {
   document.querySelectorAll('.reference-plan-page').forEach((page) => page.remove());
   const teacherPage = document.querySelector('.teacher-page');
-  const pages = coursePlan.stages.flatMap((stage) => {
-    const chunks = [];
-    for (let index = 0; index < stage.lessons.length; index += 10) {
-      chunks.push({ ...stage, title: index === 0 ? stage.title : `${stage.title} · 续`, lessons: stage.lessons.slice(index, index + 10) });
-    }
-    return chunks;
-  });
+  const measurementHost = document.createElement('div');
+  measurementHost.className = 'plan-measurement-host';
+  document.body.appendChild(measurementHost);
+  const pages = [];
   let lessonIndex = 0;
-  pages.forEach((stage, pageIndex) => {
+  let currentPage;
+  let currentTableBody;
+  let currentStageIndex = -1;
+
+  const createPage = () => {
     const page = document.createElement('article');
-    const totalCell = pageIndex === 0 ? `<b>${escapeHtml(coursePlan.totalHours)}h</b><span>建议总课时</span>` : '<span>课程规划<br />续</span>';
-    const rows = stage.lessons.map((lesson, index) => {
-      lessonIndex += 1;
-      const total = index === 0 ? `<td class="plan-total-cell" rowspan="${stage.lessons.length}">${totalCell}</td>` : '';
-      return `<tr>${total}<td class="plan-duration-cell">${escapeHtml(lesson.duration)}h</td><td class="plan-detail-cell"><b>课时 ${String(lessonIndex).padStart(2, '0')} · ${escapeHtml(lesson.theme)}</b><p><span>目标：</span>${escapeHtml(lesson.goal)}</p><p><span>内容：</span>${escapeHtml(lesson.content)}</p><p><span>重难点：</span>${escapeHtml(lesson.difficulty)}</p></td></tr>`;
-    }).join('');
     page.className = 'report-page hour-plan reference-plan-page';
-    page.innerHTML = `<div class="page-kicker">02 / 详细课程规划 · ${String(pageIndex + 1).padStart(2, '0')}</div><h2>${escapeHtml(stage.title)}</h2><p class="reference-plan-intro">${escapeHtml(stage.description)}</p><table><thead><tr><th>总建议课时</th><th>课时分配</th><th>课堂安排</th></tr></thead><tbody>${rows}</tbody></table>${pageIndex === pages.length - 1 ? `<div class="plan-note"><strong>动态调整原则：</strong>${escapeHtml(coursePlan.rationale)} 课时可按 0.5h、1h、1.5h 或 2h 灵活调整。</div>` : ''}</article>`;
+    page.innerHTML = `<div class="plan-page-body"><div class="page-kicker"></div><div class="plan-page-heading"><div><h2>SAT 数学个性化课程规划</h2><p>依据学生试听表现与目标动态编排，相邻阶段将按页面容量连续呈现。</p></div><div class="plan-total-hours"><span>建议总课时</span><b>${escapeHtml(coursePlan.totalHours)}h</b></div></div><table><thead><tr><th>课时</th><th>时长</th><th>授课内容、目标与重难点</th></tr></thead><tbody></tbody></table></div>`;
+    measurementHost.appendChild(page);
+    pages.push(page);
+    currentPage = page;
+    currentTableBody = page.querySelector('tbody');
+    currentStageIndex = -1;
+  };
+
+  const createStageRow = (stage, stageIndex, continued) => {
+    const row = document.createElement('tr');
+    row.className = 'plan-stage-row';
+    row.dataset.stageIndex = String(stageIndex);
+    row.innerHTML = `<td colspan="3"><div><b>${escapeHtml(stage.title)}${continued ? ' · 续' : ''}</b><span>${escapeHtml(stage.description)}</span></div></td>`;
+    return row;
+  };
+
+  const addStageRow = (stage, stageIndex, continued) => {
+    const row = createStageRow(stage, stageIndex, continued);
+    currentTableBody.appendChild(row);
+    currentStageIndex = stageIndex;
+    return row;
+  };
+
+  const addLessonRow = (lesson, stageIndex, stageLessonIndex) => {
+    lessonIndex += 1;
+    const row = document.createElement('tr');
+    row.className = 'plan-lesson-row';
+    row.dataset.stageIndex = String(stageIndex);
+    row.dataset.stageLessonIndex = String(stageLessonIndex);
+    row.innerHTML = `<td class="plan-sequence-cell"><b>${String(lessonIndex).padStart(2, '0')}</b><span>课时</span></td><td class="plan-duration-cell">${escapeHtml(lesson.duration)}h</td><td class="plan-detail-cell"><b>${escapeHtml(lesson.theme)}</b><p><span>目标：</span>${escapeHtml(lesson.goal)}</p><p><span>内容：</span>${escapeHtml(lesson.content)}</p><p><span>重难点：</span>${escapeHtml(lesson.difficulty)}</p></td>`;
+    currentTableBody.appendChild(row);
+    return row;
+  };
+
+  const pageOverflows = (page) => {
+    const styles = window.getComputedStyle(page);
+    const availableHeight = page.clientHeight - parseFloat(styles.paddingTop) - parseFloat(styles.paddingBottom) - 44;
+    return page.querySelector('.plan-page-body').scrollHeight > availableHeight;
+  };
+
+  createPage();
+  coursePlan.stages.forEach((stage, stageIndex) => {
+    stage.lessons.forEach((lesson, stageLessonIndex) => {
+      const stageRow = currentStageIndex === stageIndex ? null : addStageRow(stage, stageIndex, stageLessonIndex > 0);
+      const lessonRow = addLessonRow(lesson, stageIndex, stageLessonIndex);
+      if (pageOverflows(currentPage) && currentPage.querySelectorAll('.plan-lesson-row').length > 1) {
+        lessonRow.remove();
+        lessonIndex -= 1;
+        if (stageRow) stageRow.remove();
+        createPage();
+        addStageRow(stage, stageIndex, stageLessonIndex > 0);
+        addLessonRow(lesson, stageIndex, stageLessonIndex);
+      }
+    });
+  });
+
+  const rebuildPageRows = (page, lessonRows) => {
+    const tableBody = page.querySelector('tbody');
+    tableBody.innerHTML = '';
+    let stageIndex = -1;
+    lessonRows.forEach((row) => {
+      const rowStageIndex = Number(row.dataset.stageIndex);
+      if (rowStageIndex !== stageIndex) {
+        tableBody.appendChild(createStageRow(coursePlan.stages[rowStageIndex], rowStageIndex, Number(row.dataset.stageLessonIndex) > 0));
+        stageIndex = rowStageIndex;
+      }
+      tableBody.appendChild(row);
+    });
+  };
+
+  if (pages.length > 1) {
+    const originalGroups = pages.map((page) => Array.from(page.querySelectorAll('.plan-lesson-row')));
+    const allRows = originalGroups.flat();
+    const baseCount = Math.floor(allRows.length / pages.length);
+    const remainder = allRows.length % pages.length;
+    let rowOffset = 0;
+    pages.forEach((page, pageIndex) => {
+      const pageCount = baseCount + (pageIndex < remainder ? 1 : 0);
+      rebuildPageRows(page, allRows.slice(rowOffset, rowOffset + pageCount));
+      rowOffset += pageCount;
+    });
+    if (pages.some((page) => pageOverflows(page))) {
+      pages.forEach((page, pageIndex) => rebuildPageRows(page, originalGroups[pageIndex]));
+    }
+  }
+
+  pages.forEach((page, pageIndex) => {
+    page.querySelector('.page-kicker').textContent = `02 / 详细课程规划 · ${String(pageIndex + 1).padStart(2, '0')}`;
+    page.removeAttribute('style');
     teacherPage.before(page);
   });
+  const note = document.createElement('div');
+  note.className = 'plan-note';
+  note.innerHTML = `<strong>动态调整原则：</strong>${escapeHtml(coursePlan.rationale)} 课时可按 0.5h、1h、1.5h 或 2h 灵活调整。`;
+  pages.at(-1).querySelector('.plan-page-body').appendChild(note);
+  measurementHost.remove();
 }
 
 function deriveReport(notes, name, target) {
@@ -154,14 +242,7 @@ function changeView(id) {
 }
 
 function collectCoursePlan() {
-  return Array.from(document.querySelectorAll('.reference-plan-page')).map((page) => ({
-    stage: page.querySelector('h2').textContent,
-    description: page.querySelector('.reference-plan-intro').textContent,
-    lessons: Array.from(page.querySelectorAll('tbody tr')).map((row) => ({
-      duration: row.querySelector('.plan-duration-cell').textContent,
-      detail: row.querySelector('.plan-detail-cell').textContent.trim()
-    }))
-  }));
+  return currentReportData.coursePlan.stages;
 }
 
 async function saveReport() {

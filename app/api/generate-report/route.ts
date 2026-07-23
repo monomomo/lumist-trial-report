@@ -63,7 +63,9 @@ const systemPrompt = `你是路觅教育的资深 SAT 数学教研老师。你�
 9. 必须严格依据当前 Digital SAT 数学考试：共 44 题、70 分钟，分为两个各 35 分钟的自适应 Module；整个数学部分均可使用计算器，并内置 Desmos。禁止使用旧版 SAT 的“无计算器部分”“有计算器部分”等表述。
 10. 课程内容仅限当前官方四大 Domain：Algebra、Advanced Math、Problem-Solving and Data Analysis、Geometry and Trigonometry。具体考点必须符合 College Board 当前范围，不得加入排列组合、函数复合与反函数等非官方核心考点。
 11. 概率内容应聚焦概率与条件概率、表格或情境建模；几何与三角应聚焦面积体积、直线角与三角形、直角三角形与三角函数、圆。限时训练应以 35 分钟 Module 或其合理拆分为依据。
-12. Bluebook 诊断应表述为官方自适应数字化练习测试；如果只安排数学部分，应明确为两个数学 Module，不得编造纸笔版分区。`;
+12. Bluebook 诊断应表述为官方自适应数字化练习测试；如果只安排数学部分，应明确为两个数学 Module，不得编造纸笔版分区。
+13. coursePlan.rationale 只说明动态调整依据，不得出现任何固定总课时数字或另一套课时方案。系统会根据所有 lesson.duration 自动计算并展示唯一总课时。
+14. 每个阶段标题与课时主题必须是语义完整的短句，不得以顿号、逗号、斜杠或未闭合括号结尾。`;
 
 function buildInput(data: z.infer<typeof requestSchema>) {
   return `请根据以下信息生成 SAT 数学试听课报告：
@@ -75,6 +77,19 @@ function buildInput(data: z.infer<typeof requestSchema>) {
 
 老师原始记录：
 ${data.teacherNotes}`;
+}
+
+function normalizePlanTitle(value: string) {
+  let normalized = value.trim().replace(/[、，,/]+$/g, '').trim();
+  const openingCount = (normalized.match(/[（(]/g) || []).length;
+  const closingCount = (normalized.match(/[）)]/g) || []).length;
+  if (openingCount > closingCount) normalized = normalized.replace(/[（(][^）)]*$/g, '').trim();
+  return normalized || '专项训练';
+}
+
+function normalizeRationale(value: string) {
+  const normalized = value.replace(/[^。；]*\d+(?:\.\d+)?\s*(?:小时|h)[^。；]*[。；]?/gi, '').trim();
+  return normalized || '后续课时将依据 Bluebook 诊断、课堂掌握情况、错题类型与每题用时动态调整。';
 }
 
 export async function POST(request: Request) {
@@ -119,7 +134,11 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'EMPTY_MODEL_OUTPUT' }, { status: 502 });
     }
 
-    const stages = response.output_parsed.coursePlan.stages;
+    const stages = response.output_parsed.coursePlan.stages.map((stage) => ({
+      ...stage,
+      title: normalizePlanTitle(stage.title),
+      lessons: stage.lessons.map((lesson) => ({ ...lesson, theme: normalizePlanTitle(lesson.theme) }))
+    }));
     const totalHours = stages.reduce((sum, stage) => sum + stage.lessons.reduce((stageSum, lesson) => stageSum + lesson.duration, 0), 0);
 
     return NextResponse.json({
@@ -129,6 +148,8 @@ export async function POST(request: Request) {
         ...response.output_parsed,
         coursePlan: {
           ...response.output_parsed.coursePlan,
+          rationale: normalizeRationale(response.output_parsed.coursePlan.rationale),
+          stages,
           totalHours
         }
       }
