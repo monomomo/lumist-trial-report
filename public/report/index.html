@@ -48,7 +48,7 @@
         </section>
 
         <section id="report-view" class="view">
-          <header class="topbar report-topbar"><div><p class="eyebrow">报告已生成</p><h1 id="report-title">阮同学个性化学习报告</h1></div><div class="report-actions"><button class="secondary-btn" id="back-edit">返回编辑</button><button class="secondary-btn" id="print-report">导出 PDF</button></div></header>
+          <header class="topbar report-topbar"><div><p class="eyebrow">报告已生成</p><h1 id="report-title">阮同学个性化学习报告</h1></div><div class="report-actions"><button class="secondary-btn" id="edit-course-plan">编辑课程规划</button><button class="secondary-btn" id="back-edit">返回编辑</button><button class="secondary-btn" id="print-report">导出 PDF</button></div></header>
           <div class="tabs"><button class="tab active" data-report-tab="parent">家长版报告</button><button class="tab" data-report-tab="sales">销售跟进卡 <span>内部</span></button></div>
 
           <div id="parent-report" class="report-document">
@@ -75,6 +75,17 @@
         </section>
       </main>
     </div>
-    <script src="app.js?v=three-page-reference-plan"></script>
+    <div id="course-plan-modal" class="plan-editor-modal hidden" role="dialog" aria-modal="true" aria-labelledby="course-plan-editor-title">
+      <div class="plan-editor-shell">
+        <header class="plan-editor-header"><div><p class="eyebrow">课程规划编辑器</p><h2 id="course-plan-editor-title">调整阶段与课时</h2><p>修改仅在点击“应用到报告”后生效，动态调整原则保持 AI 原文。</p></div><div class="plan-editor-summary"><span id="editor-student-name">学生</span><span><b id="editor-total-hours">0h</b> 总课时</span><span><b id="editor-stage-count">0</b> 个阶段</span><span><b id="editor-lesson-count">0</b> 个课时</span></div></header>
+        <div class="plan-editor-layout">
+          <aside class="plan-stage-nav"><div id="plan-stage-nav-list"></div><button type="button" class="secondary-btn" data-editor-action="add-stage">新增阶段</button></aside>
+          <main id="plan-editor-content" class="plan-editor-content"></main>
+        </div>
+        <div id="plan-editor-message" class="plan-editor-message" aria-live="polite"></div>
+        <footer class="plan-editor-footer"><button type="button" class="secondary-btn danger-btn" data-editor-action="restore">恢复 AI 原始规划</button><div><button type="button" class="secondary-btn" data-editor-action="cancel">取消</button><button type="button" class="primary-btn" data-editor-action="apply">应用到报告</button></div></footer>
+      </div>
+    </div>
+    <script type="module" src="app.js?v=course-plan-editor"></script>
   </body>
 </html>

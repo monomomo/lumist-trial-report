@@ -1,3 +1,5 @@
+import { ALLOWED_DURATIONS, cloneCoursePlan, calculateTotalHours, validateCoursePlan, moveItem, rebalanceFinalPage, createStage, createLesson } from './course-plan-utils.js';
+
 const sampleOne = '我刚上了一节SAT数学试听课。根据课前沟通，学生已经不记得SAT数学的知识点了。所以我们计划从头开始梳理知识点，同学上课互动很积极，做题的正确率也挺好的，中等难度的题也可以做对，没有她自己说的那么基础差。但是确实是有些知识点有遗忘。所以我计划接下来先从头补知识点，让同学建立SAT数学知识图谱。';
 const sampleTwo = '学生课上挺活泼的，爱互动，愿意思考，做题的准确率其实很不错。因为学生不了解SAT考点，第一节课带学生看了SAT的4章内容。学生现在在学微积分，所以Algebra的内容比较熟练，但因为比较久没有接触概率、几何的东西，这两章相对薄弱。';
 
@@ -61,110 +63,107 @@ function getDefaultCoursePlan() {
   };
 }
 
+function updateFollowingPageNumbers(planPageCount) {
+  const teacherNumber = 2 + planPageCount;
+  document.querySelector('.teacher-page .page-kicker').textContent = `${String(teacherNumber).padStart(2, '0')} / 任课教师`;
+}
+
 function renderCoursePlan(coursePlan) {
-  document.querySelectorAll('.reference-plan-page').forEach((page) => page.remove());
   const teacherPage = document.querySelector('.teacher-page');
   const measurementHost = document.createElement('div');
   measurementHost.className = 'plan-measurement-host';
   document.body.appendChild(measurementHost);
   const pages = [];
   let lessonIndex = 0;
-  let currentPage;
-  let currentTableBody;
-  let currentStageIndex = -1;
+  let oversizedLesson = null;
 
   const createPage = () => {
     const page = document.createElement('article');
     page.className = 'report-page hour-plan reference-plan-page';
-    page.innerHTML = `<div class="plan-page-body"><div class="page-kicker"></div><div class="plan-page-heading"><div><h2>SAT 数学个性化课程规划</h2><p>依据学生试听表现与目标动态编排，相邻阶段将按页面容量连续呈现。</p></div><div class="plan-total-hours"><span>建议总课时</span><b>${escapeHtml(coursePlan.totalHours)}h</b></div></div><table><thead><tr><th>课时</th><th>时长</th><th>授课内容、目标与重难点</th></tr></thead><tbody></tbody></table></div>`;
+    page.innerHTML = `<div class="plan-page-body"><div class="page-kicker"></div><div class="plan-page-heading"><div><h2>SAT 数学个性化课程规划</h2><p>依据学生试听表现与目标动态编排，相邻阶段将按页面容量连续呈现。</p></div><div class="plan-total-hours"><span>建议总课时</span><b>${escapeHtml(coursePlan.totalHours)}h</b></div></div><table><thead><tr><th>课时</th><th>时长</th><th>授课内容、目标与重难点</th></tr></thead><tbody></tbody></table><div class="plan-note plan-note-reserve"><strong>动态调整原则：</strong>${escapeHtml(coursePlan.rationale)} 课时可按 0.5h、1h、1.5h 或 2h 灵活调整。</div></div>`;
     measurementHost.appendChild(page);
     pages.push(page);
-    currentPage = page;
-    currentTableBody = page.querySelector('tbody');
-    currentStageIndex = -1;
+    return page;
   };
 
   const createStageLabel = (stage, continued) => {
     const label = document.createElement('div');
     label.className = 'plan-stage-inline';
-    label.innerHTML = `<strong>${escapeHtml(stage.title)}${continued ? ' · 续' : ''}</strong>`;
+    label.innerHTML = `<strong>${escapeHtml(stage.title)}${continued ? ' · 续' : ''}</strong>${stage.description ? `<span>${escapeHtml(stage.description)}</span>` : ''}`;
     return label;
   };
 
-  const addLessonRow = (lesson, stageIndex, stageLessonIndex, showStageLabel, continued) => {
+  const createLessonRow = (lesson, stageIndex, stageLessonIndex) => {
     lessonIndex += 1;
     const row = document.createElement('tr');
     row.className = 'plan-lesson-row';
     row.dataset.stageIndex = String(stageIndex);
     row.dataset.stageLessonIndex = String(stageLessonIndex);
     row.innerHTML = `<td class="plan-sequence-cell"><b>${String(lessonIndex).padStart(2, '0')}</b><span>课时</span></td><td class="plan-duration-cell">${escapeHtml(lesson.duration)}h</td><td class="plan-detail-cell"><b>${escapeHtml(lesson.theme)}</b><p><span>目标：</span>${escapeHtml(lesson.goal)}</p><p><span>内容：</span>${escapeHtml(lesson.content)}</p><p><span>重难点：</span>${escapeHtml(lesson.difficulty)}</p></td>`;
-    if (showStageLabel) row.querySelector('.plan-detail-cell').prepend(createStageLabel(coursePlan.stages[stageIndex], continued));
-    currentTableBody.appendChild(row);
-    currentStageIndex = stageIndex;
     return row;
   };
 
-  const pageOverflows = (page) => {
-    const styles = window.getComputedStyle(page);
-    const availableHeight = page.clientHeight - parseFloat(styles.paddingTop) - parseFloat(styles.paddingBottom) - 44;
-    return page.querySelector('.plan-page-body').scrollHeight > availableHeight;
-  };
-
-  createPage();
-  coursePlan.stages.forEach((stage, stageIndex) => {
-    stage.lessons.forEach((lesson, stageLessonIndex) => {
-      const showStageLabel = currentStageIndex !== stageIndex;
-      const lessonRow = addLessonRow(lesson, stageIndex, stageLessonIndex, showStageLabel, stageLessonIndex > 0);
-      if (pageOverflows(currentPage) && currentPage.querySelectorAll('.plan-lesson-row').length > 1) {
-        lessonRow.remove();
-        lessonIndex -= 1;
-        createPage();
-        addLessonRow(lesson, stageIndex, stageLessonIndex, true, stageLessonIndex > 0);
-      }
-    });
-  });
+  const pageOverflows = (page) => page.querySelector('.plan-page-body').scrollHeight > page.querySelector('.plan-page-body').clientHeight;
 
   const rebuildPageRows = (page, lessonRows) => {
     const tableBody = page.querySelector('tbody');
     tableBody.innerHTML = '';
-    let stageIndex = -1;
+    let previousStageIndex = -1;
     lessonRows.forEach((row) => {
-      const rowStageIndex = Number(row.dataset.stageIndex);
+      const stageIndex = Number(row.dataset.stageIndex);
       row.querySelector('.plan-stage-inline')?.remove();
-      if (rowStageIndex !== stageIndex) {
-        row.querySelector('.plan-detail-cell').prepend(createStageLabel(coursePlan.stages[rowStageIndex], Number(row.dataset.stageLessonIndex) > 0));
-        stageIndex = rowStageIndex;
-      }
+      if (stageIndex !== previousStageIndex) row.querySelector('.plan-detail-cell').prepend(createStageLabel(coursePlan.stages[stageIndex], Number(row.dataset.stageLessonIndex) > 0));
       tableBody.appendChild(row);
+      previousStageIndex = stageIndex;
     });
   };
 
-  if (pages.length > 1) {
-    const originalGroups = pages.map((page) => Array.from(page.querySelectorAll('.plan-lesson-row')));
-    const allRows = originalGroups.flat();
-    const baseCount = Math.floor(allRows.length / pages.length);
-    const remainder = allRows.length % pages.length;
-    let rowOffset = 0;
-    pages.forEach((page, pageIndex) => {
-      const pageCount = baseCount + (pageIndex < remainder ? 1 : 0);
-      rebuildPageRows(page, allRows.slice(rowOffset, rowOffset + pageCount));
-      rowOffset += pageCount;
+  let currentPage = createPage();
+  coursePlan.stages.forEach((stage, stageIndex) => {
+    stage.lessons.forEach((lesson, stageLessonIndex) => {
+      if (oversizedLesson) return;
+      const row = createLessonRow(lesson, stageIndex, stageLessonIndex);
+      const rows = Array.from(currentPage.querySelectorAll('.plan-lesson-row'));
+      rebuildPageRows(currentPage, [...rows, row]);
+      if (!pageOverflows(currentPage)) return;
+      if (!rows.length) {
+        oversizedLesson = { stageIndex, stageLessonIndex };
+        return;
+      }
+      rebuildPageRows(currentPage, rows);
+      currentPage = createPage();
+      rebuildPageRows(currentPage, [row]);
+      if (pageOverflows(currentPage)) oversizedLesson = { stageIndex, stageLessonIndex };
     });
-    if (pages.some((page) => pageOverflows(page))) {
-      pages.forEach((page, pageIndex) => rebuildPageRows(page, originalGroups[pageIndex]));
-    }
+  });
+
+  if (!oversizedLesson && pages.length > 1) {
+    const groups = pages.map((page) => Array.from(page.querySelectorAll('.plan-lesson-row')));
+    const balanced = rebalanceFinalPage(groups, (pageIndex, rows) => {
+      rebuildPageRows(pages[pageIndex], rows);
+      return !pageOverflows(pages[pageIndex]);
+    });
+    balanced.forEach((rows, pageIndex) => rebuildPageRows(pages[pageIndex], rows));
   }
 
+  if (!oversizedLesson) {
+    pages.slice(0, -1).forEach((page) => page.querySelector('.plan-note-reserve')?.remove());
+    pages.at(-1).querySelector('.plan-note-reserve')?.classList.remove('plan-note-reserve');
+  }
+
+  if (oversizedLesson) {
+    measurementHost.remove();
+    return { oversizedLesson };
+  }
   pages.forEach((page, pageIndex) => {
-    page.querySelector('.page-kicker').textContent = `02 / 详细课程规划 · ${String(pageIndex + 1).padStart(2, '0')}`;
-    page.removeAttribute('style');
-    teacherPage.before(page);
+    const pageNumber = String(pageIndex + 2).padStart(2, '0');
+    page.querySelector('.page-kicker').textContent = `${pageNumber} / 详细课程规划 · ${String(pageIndex + 1).padStart(2, '0')}`;
   });
-  const note = document.createElement('div');
-  note.className = 'plan-note';
-  note.innerHTML = `<strong>动态调整原则：</strong>${escapeHtml(coursePlan.rationale)} 课时可按 0.5h、1h、1.5h 或 2h 灵活调整。`;
-  pages.at(-1).querySelector('.plan-page-body').appendChild(note);
+  document.querySelectorAll('.reference-plan-page').forEach((page) => page.remove());
+  pages.forEach((page) => teacherPage.before(page));
+  updateFollowingPageNumbers(pages.length);
   measurementHost.remove();
+  return { oversizedLesson: null };
 }
 
 function deriveReport(notes, name, target) {
@@ -225,7 +224,8 @@ function renderReport(data) {
   setText('#sales-urgent', data.salesFollowUp.urgent);
   setText('#sales-angle', data.salesFollowUp.angle);
   setText('#sales-script', data.salesFollowUp.script);
-  renderCoursePlan(data.coursePlan);
+  const result = renderCoursePlan(data.coursePlan);
+  if (result.oversizedLesson) throw new Error('COURSE_PLAN_LESSON_TOO_LONG');
 }
 
 function changeView(id) {
@@ -236,6 +236,213 @@ function changeView(id) {
 
 function collectCoursePlan() {
   return currentReportData.coursePlan.stages;
+}
+
+let draftCoursePlan = null;
+let originalAiCoursePlan = null;
+let editorBaseline = '';
+let collapsedStages = new WeakSet();
+
+function isCoursePlanDirty() {
+  return draftCoursePlan !== null && JSON.stringify(draftCoursePlan) !== editorBaseline;
+}
+
+function setPlanEditorMessage(message, type = '') {
+  const element = $('#plan-editor-message');
+  element.textContent = message;
+  element.className = `plan-editor-message ${type}`.trim();
+}
+
+function updateEditorSummary() {
+  draftCoursePlan.totalHours = calculateTotalHours(draftCoursePlan);
+  $('#editor-student-name').textContent = $('#student-name').value.trim() || '学生';
+  $('#editor-total-hours').textContent = `${draftCoursePlan.totalHours}h`;
+  $('#editor-stage-count').textContent = String(draftCoursePlan.stages.length);
+  $('#editor-lesson-count').textContent = String(draftCoursePlan.stages.reduce((total, stage) => total + stage.lessons.length, 0));
+}
+
+function markEditorDirty() {
+  updateEditorSummary();
+  setPlanEditorMessage('');
+}
+
+function clearValidationErrors() {
+  document.querySelectorAll('.editor-field-error').forEach((element) => element.remove());
+  document.querySelectorAll('.is-invalid').forEach((element) => element.classList.remove('is-invalid'));
+}
+
+function createEditorField(labelText, value, path, multiline = false) {
+  const label = document.createElement('label');
+  label.textContent = labelText;
+  const input = multiline ? document.createElement('textarea') : document.createElement('input');
+  input.value = value || '';
+  input.dataset.path = path;
+  if (multiline) input.rows = 2;
+  label.appendChild(input);
+  return label;
+}
+
+function renderPlanEditor() {
+  const nav = $('#plan-stage-nav-list');
+  const content = $('#plan-editor-content');
+  nav.innerHTML = '';
+  content.innerHTML = '';
+  draftCoursePlan.stages.forEach((stage, stageIndex) => {
+    const navButton = document.createElement('button');
+    navButton.type = 'button';
+    navButton.dataset.scrollStage = String(stageIndex);
+    navButton.textContent = `${stageIndex + 1}. ${stage.title || '未命名阶段'}`;
+    nav.appendChild(navButton);
+
+    const section = document.createElement('section');
+    section.className = 'plan-stage-editor';
+    section.tabIndex = -1;
+    section.dataset.stageEditor = String(stageIndex);
+    const header = document.createElement('div');
+    header.className = 'plan-stage-editor-header';
+    header.innerHTML = `<div><span>阶段 ${String(stageIndex + 1).padStart(2, '0')}</span><b>${escapeHtml(stage.title || '未命名阶段')}</b></div><div class="editor-icon-actions"><button type="button" data-stage-action="up" data-stage-index="${stageIndex}" ${stageIndex === 0 ? 'disabled' : ''}>上移</button><button type="button" data-stage-action="down" data-stage-index="${stageIndex}" ${stageIndex === draftCoursePlan.stages.length - 1 ? 'disabled' : ''}>下移</button><button type="button" data-stage-action="collapse" data-stage-index="${stageIndex}">${collapsedStages.has(stage) ? '展开' : '折叠'}</button><button type="button" data-stage-action="delete" data-stage-index="${stageIndex}" ${draftCoursePlan.stages.length === 1 ? 'disabled' : ''}>删除</button></div>`;
+    section.appendChild(header);
+    if (!collapsedStages.has(stage)) {
+      const fields = document.createElement('div');
+      fields.className = 'plan-stage-fields';
+      fields.append(createEditorField('阶段名称', stage.title, `stages.${stageIndex}.title`), createEditorField('阶段说明', stage.description, `stages.${stageIndex}.description`, true));
+      section.appendChild(fields);
+      const lessonList = document.createElement('div');
+      lessonList.className = 'plan-lesson-list';
+      stage.lessons.forEach((lesson, lessonIndex) => lessonList.appendChild(createLessonEditor(lesson, stageIndex, lessonIndex)));
+      section.appendChild(lessonList);
+      const addLesson = document.createElement('button');
+      addLesson.type = 'button';
+      addLesson.className = 'secondary-btn add-lesson-btn';
+      addLesson.dataset.addLesson = String(stageIndex);
+      addLesson.textContent = '新增课时';
+      section.appendChild(addLesson);
+    }
+    content.appendChild(section);
+  });
+  updateEditorSummary();
+}
+
+function createLessonEditor(lesson, stageIndex, lessonIndex) {
+  const card = document.createElement('article');
+  card.className = 'plan-lesson-editor';
+  const globalIndex = draftCoursePlan.stages.slice(0, stageIndex).reduce((total, stage) => total + stage.lessons.length, 0) + lessonIndex + 1;
+  card.innerHTML = `<header><b>课时 ${String(globalIndex).padStart(2, '0')}</b><div class="editor-icon-actions"><button type="button" data-lesson-action="up" data-stage-index="${stageIndex}" data-lesson-index="${lessonIndex}" ${lessonIndex === 0 ? 'disabled' : ''}>上移</button><button type="button" data-lesson-action="down" data-stage-index="${stageIndex}" data-lesson-index="${lessonIndex}" ${lessonIndex === draftCoursePlan.stages[stageIndex].lessons.length - 1 ? 'disabled' : ''}>下移</button><button type="button" data-lesson-action="copy" data-stage-index="${stageIndex}" data-lesson-index="${lessonIndex}">复制</button><button type="button" data-lesson-action="delete" data-stage-index="${stageIndex}" data-lesson-index="${lessonIndex}">删除</button></div></header>`;
+  const grid = document.createElement('div');
+  grid.className = 'plan-lesson-fields';
+  const durationLabel = document.createElement('label');
+  durationLabel.textContent = '时长';
+  const duration = document.createElement('select');
+  duration.dataset.path = `stages.${stageIndex}.lessons.${lessonIndex}.duration`;
+  ALLOWED_DURATIONS.forEach((value) => duration.add(new Option(`${value}h`, String(value), false, Number(lesson.duration) === value)));
+  durationLabel.appendChild(duration);
+  const targetLabel = document.createElement('label');
+  targetLabel.textContent = '目标阶段';
+  const target = document.createElement('select');
+  target.dataset.moveLesson = `${stageIndex}.${lessonIndex}`;
+  draftCoursePlan.stages.forEach((stage, index) => target.add(new Option(stage.title || `阶段 ${index + 1}`, String(index), false, index === stageIndex)));
+  targetLabel.appendChild(target);
+  grid.append(durationLabel, targetLabel, createEditorField('主题', lesson.theme, `stages.${stageIndex}.lessons.${lessonIndex}.theme`), createEditorField('课堂内容', lesson.content, `stages.${stageIndex}.lessons.${lessonIndex}.content`, true), createEditorField('当课目标', lesson.goal, `stages.${stageIndex}.lessons.${lessonIndex}.goal`, true), createEditorField('重难点', lesson.difficulty, `stages.${stageIndex}.lessons.${lessonIndex}.difficulty`, true));
+  card.appendChild(grid);
+  return card;
+}
+
+function setDraftValue(path, value) {
+  const parts = path.split('.');
+  let target = draftCoursePlan;
+  parts.slice(0, -1).forEach((part) => { target = target[Number.isNaN(Number(part)) ? part : Number(part)]; });
+  target[parts.at(-1)] = parts.at(-1) === 'duration' ? Number(value) : value;
+  markEditorDirty();
+  if (parts.at(-1) === 'title') {
+    const stageIndex = Number(parts[1]);
+    const title = value.trim() || '未命名阶段';
+    $(`[data-scroll-stage="${stageIndex}"]`).textContent = `${stageIndex + 1}. ${title}`;
+    $(`[data-stage-editor="${stageIndex}"] .plan-stage-editor-header b`).textContent = title;
+    document.querySelectorAll('[data-move-lesson]').forEach((select) => { select.options[stageIndex].textContent = title; });
+  }
+}
+
+function openPlanEditor() {
+  draftCoursePlan = cloneCoursePlan(currentReportData.coursePlan);
+  editorBaseline = JSON.stringify(draftCoursePlan);
+  collapsedStages = new WeakSet();
+  renderPlanEditor();
+  $('#course-plan-modal').classList.remove('hidden');
+  document.body.classList.add('modal-open');
+}
+
+function closePlanEditor() {
+  draftCoursePlan = null;
+  $('#course-plan-modal').classList.add('hidden');
+  document.body.classList.remove('modal-open');
+}
+
+function cancelPlanEditor() {
+  if (isCoursePlanDirty() && !window.confirm('当前修改尚未应用，确定取消吗？')) return;
+  closePlanEditor();
+}
+
+function showValidationErrors(errors) {
+  clearValidationErrors();
+  errors.forEach((error) => {
+    const stage = draftCoursePlan.stages[Number(error.path.split('.')[1])];
+    if (collapsedStages.has(stage)) collapsedStages.delete(stage);
+  });
+  renderPlanEditor();
+  errors.forEach((error) => {
+    const stageIndex = Number(error.path.split('.')[1]);
+    const field = $(`[data-path="${error.path}"]`);
+    const target = field || $(`[data-stage-editor="${stageIndex}"]`);
+    target?.classList.add('is-invalid');
+    const reason = document.createElement('span');
+    reason.className = 'editor-field-error';
+    reason.textContent = error.message;
+    if (field) field.insertAdjacentElement('afterend', reason);
+    else target?.querySelector('.plan-stage-editor-header')?.insertAdjacentElement('afterend', reason);
+  });
+}
+
+function focusValidationError(error) {
+  const stageIndex = Number(error.path.split('.')[1]);
+  const target = $(`[data-path="${error.path}"]`) || $(`[data-stage-editor="${stageIndex}"]`);
+  target?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  target?.focus();
+}
+
+function applyCoursePlan() {
+  draftCoursePlan.totalHours = calculateTotalHours(draftCoursePlan);
+  const validation = validateCoursePlan(draftCoursePlan);
+  if (!validation.valid) {
+    showValidationErrors(validation.errors);
+    setPlanEditorMessage(`共有 ${validation.errors.length} 项需要修改：${validation.errors[0].message}`, 'error');
+    focusValidationError(validation.errors[0]);
+    return;
+  }
+  clearValidationErrors();
+  if (validation.warnings.length && !window.confirm(`有 ${validation.warnings.length} 项内容较长，可能影响排版。仍要应用吗？`)) return;
+  const probe = renderCoursePlan(draftCoursePlan);
+  if (probe.oversizedLesson) {
+    const { stageIndex, stageLessonIndex } = probe.oversizedLesson;
+    const error = { path: `stages.${stageIndex}.lessons.${stageLessonIndex}.content`, message: '该课时内容超过单页 A4 可用高度，请精简内容' };
+    showValidationErrors([error]);
+    setPlanEditorMessage(error.message, 'error');
+    focusValidationError(error);
+    return;
+  }
+  currentReportData.coursePlan = cloneCoursePlan(draftCoursePlan);
+  document.querySelector('#report-view .eyebrow').textContent = '课程规划已编辑 · 未云端保存';
+  closePlanEditor();
+  document.querySelector('.reference-plan-page')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+
+function restoreOriginalCoursePlan() {
+  if (!originalAiCoursePlan) return;
+  if (!window.confirm('确定恢复为本次 AI 生成的原始课程规划吗？当前课程规划修改将被覆盖。')) return;
+  currentReportData.coursePlan = cloneCoursePlan(originalAiCoursePlan);
+  renderCoursePlan(currentReportData.coursePlan);
+  document.querySelector('#report-view .eyebrow').textContent = '已恢复 AI 原始课程规划 · 未云端保存';
+  closePlanEditor();
+  document.querySelector('.reference-plan-page')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
 }
 
 async function saveReport() {
@@ -302,6 +509,7 @@ $('#report-form').addEventListener('submit', async (event) => {
   localStorage.setItem('lumist-report-access-code', $('#access-code').value);
   try {
     currentReportData = await generateAiReport();
+    originalAiCoursePlan = cloneCoursePlan(currentReportData.coursePlan);
     renderReport(currentReportData);
     changeView('report');
     document.querySelector('#report-view .eyebrow').textContent = 'AI 报告已生成 · 未云端保存';
@@ -318,6 +526,7 @@ $('#report-form').addEventListener('submit', async (event) => {
       return;
     }
     currentReportData = deriveReport($('#teacher-notes').value.trim(), $('#student-name').value.trim() || '学生', $('#target-score').value.trim());
+    originalAiCoursePlan = cloneCoursePlan(currentReportData.coursePlan);
     renderReport(currentReportData);
     changeView('report');
     document.querySelector('#report-view .eyebrow').textContent = '本地兜底版 · AI 暂不可用';
@@ -331,7 +540,93 @@ $('#sample-two').addEventListener('click', () => { $('#teacher-notes').value = s
 document.querySelectorAll('.nav-item').forEach((item) => item.addEventListener('click', () => changeView(item.dataset.view)));
 $('#open-history').addEventListener('click', () => { renderReport(currentReportData); changeView('report'); });
 $('#back-edit').addEventListener('click', () => changeView('new'));
-$('#print-report').addEventListener('click', () => window.print());
+$('#print-report').addEventListener('click', () => {
+  const previousOverflow = document.body.style.overflow;
+  const restoreOverflow = () => { document.body.style.overflow = previousOverflow; window.removeEventListener('afterprint', restoreOverflow); };
+  window.addEventListener('afterprint', restoreOverflow);
+  window.print();
+  window.setTimeout(restoreOverflow, 1000);
+});
+$('#edit-course-plan').addEventListener('click', openPlanEditor);
+$('#plan-editor-content').addEventListener('input', (event) => {
+  if (event.target.dataset.path) setDraftValue(event.target.dataset.path, event.target.value);
+});
+$('#plan-editor-content').addEventListener('change', (event) => {
+  if (event.target.dataset.path) setDraftValue(event.target.dataset.path, event.target.value);
+  if (event.target.dataset.moveLesson) {
+    const [stageIndex, lessonIndex] = event.target.dataset.moveLesson.split('.').map(Number);
+    const targetStageIndex = Number(event.target.value);
+    if (targetStageIndex !== stageIndex && draftCoursePlan.stages[stageIndex].lessons.length === 1 && !window.confirm('移动后原阶段将没有课时，应用前必须补充课时。仍要移动吗？')) {
+      event.target.value = String(stageIndex);
+      return;
+    }
+    const [lesson] = draftCoursePlan.stages[stageIndex].lessons.splice(lessonIndex, 1);
+    draftCoursePlan.stages[targetStageIndex].lessons.push(lesson);
+    markEditorDirty();
+    renderPlanEditor();
+  }
+});
+$('#plan-editor-content').addEventListener('click', (event) => {
+  const stageAction = event.target.dataset.stageAction;
+  const lessonAction = event.target.dataset.lessonAction;
+  if (stageAction) {
+    const stageIndex = Number(event.target.dataset.stageIndex);
+    const stage = draftCoursePlan.stages[stageIndex];
+    if (stageAction === 'collapse') collapsedStages.has(stage) ? collapsedStages.delete(stage) : collapsedStages.add(stage);
+    if (stageAction === 'up' || stageAction === 'down') draftCoursePlan.stages = moveItem(draftCoursePlan.stages, stageIndex, stageIndex + (stageAction === 'up' ? -1 : 1));
+    if (stageAction === 'delete') {
+      if (!window.confirm(`确定删除该阶段及其中 ${stage.lessons.length} 个课时吗？`)) return;
+      draftCoursePlan.stages.splice(stageIndex, 1);
+    }
+    markEditorDirty();
+    renderPlanEditor();
+  }
+  if (lessonAction) {
+    const stageIndex = Number(event.target.dataset.stageIndex);
+    const lessonIndex = Number(event.target.dataset.lessonIndex);
+    const lessons = draftCoursePlan.stages[stageIndex].lessons;
+    if (lessonAction === 'up' || lessonAction === 'down') draftCoursePlan.stages[stageIndex].lessons = moveItem(lessons, lessonIndex, lessonIndex + (lessonAction === 'up' ? -1 : 1));
+    if (lessonAction === 'copy') lessons.splice(lessonIndex + 1, 0, cloneCoursePlan(lessons[lessonIndex]));
+    if (lessonAction === 'delete') {
+      if (!window.confirm('确定删除该课时吗？')) return;
+      lessons.splice(lessonIndex, 1);
+    }
+    markEditorDirty();
+    renderPlanEditor();
+  }
+  if (event.target.dataset.addLesson !== undefined) {
+    const stageIndex = Number(event.target.dataset.addLesson);
+    draftCoursePlan.stages[stageIndex].lessons.push(createLesson());
+    markEditorDirty();
+    renderPlanEditor();
+    const theme = $(`[data-path="stages.${stageIndex}.lessons.${draftCoursePlan.stages[stageIndex].lessons.length - 1}.theme"]`);
+    theme?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    theme?.focus();
+  }
+});
+$('#plan-stage-nav-list').addEventListener('click', (event) => {
+  if (event.target.dataset.scrollStage !== undefined) $(`[data-stage-editor="${event.target.dataset.scrollStage}"]`)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+});
+window.addEventListener('beforeunload', (event) => {
+  if (!isCoursePlanDirty()) return;
+  event.preventDefault();
+  event.returnValue = '';
+});
+$('#course-plan-modal').addEventListener('click', (event) => {
+  const action = event.target.dataset.editorAction;
+  if (action === 'add-stage') {
+    draftCoursePlan.stages.push(createStage());
+    markEditorDirty();
+    renderPlanEditor();
+    const stageIndex = draftCoursePlan.stages.length - 1;
+    const theme = $(`[data-path="stages.${stageIndex}.lessons.0.theme"]`);
+    theme?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    theme?.focus();
+  }
+  if (action === 'cancel') cancelPlanEditor();
+  if (action === 'apply') applyCoursePlan();
+  if (action === 'restore') restoreOriginalCoursePlan();
+});
 document.querySelectorAll('.tab').forEach((tab) => tab.addEventListener('click', () => {
   const isParent = tab.dataset.reportTab === 'parent';
   document.querySelectorAll('.tab').forEach((item) => item.classList.toggle('active', item === tab));
@@ -349,4 +644,5 @@ document.querySelector('.data-impact-page').innerHTML = '<img src="assets/lumist
 
 $('#access-code').value = localStorage.getItem('lumist-report-access-code') || '';
 let currentReportData = deriveReport($('#teacher-notes').value.trim(), $('#student-name').value.trim(), $('#target-score').value.trim());
+originalAiCoursePlan = cloneCoursePlan(currentReportData.coursePlan);
 renderReport(currentReportData);
