@@ -31,10 +31,11 @@
                 <label>目标考试日期（可选）<input id="exam-date" placeholder="例如：2026年10月" /></label>
               </div>
               <div class="section-heading spacing"><span>02</span><div><h2>学生背景与试听课反馈</h2><p>像写微信反馈一样描述即可。系统会整理成报告与销售跟进话术。</p></div></div>
-              <label class="textarea-label">老师自然语言记录<textarea id="teacher-notes" rows="14">学生课上挺活泼的，爱互动，愿意思考，做题的准确率其实很不错。因为学生不了解SAT考点，第一节课带学生看了SAT的4章内容。学生现在在学微积分，所以Algebra的内容比较熟练，但因为比较久没有接触概率、几何的东西，这两章相对薄弱。</textarea></label>
+              <label class="textarea-label">老师自然语言记录<textarea id="teacher-notes" rows="14" minlength="20" maxlength="6000" required>学生课上挺活泼的，爱互动，愿意思考，做题的准确率其实很不错。因为学生不了解SAT考点，第一节课带学生看了SAT的4章内容。学生现在在学微积分，所以Algebra的内容比较熟练，但因为比较久没有接触概率、几何的东西，这两章相对薄弱。</textarea></label>
               <div class="quick-actions"><button id="sample-one" type="button" class="text-btn">载入“从头梳理”样例</button><button id="sample-two" type="button" class="text-btn">载入“微积分基础”样例</button></div>
-              <div class="notice"><strong>生成原则：</strong>仅根据老师输入生成；未提供的成绩、日期与课时不会编造。</div>
-              <button class="primary-btn" type="submit">生成个性化报告 <span>→</span></button>
+              <label class="access-code-label">内部试用码<input id="access-code" type="password" autocomplete="current-password" placeholder="首次使用时填写，浏览器会记住" required /></label>
+              <div class="notice" id="generation-notice"><strong>生成原则：</strong>仅根据老师输入生成；未提供的成绩、日期与课时不会编造。</div>
+              <button class="primary-btn" id="generate-report" type="submit">AI 生成个性化报告 <span>→</span></button>
             </form>
 
             <aside class="workflow-card"><p class="eyebrow">老师只需 3 步</p><ol><li><b>自然语言记录</b><span>无需填写冗长表单</span></li><li><b>确认 AI 整理结果</b><span>可逐段编辑，避免虚构</span></li><li><b>导出并交付</b><span>家长报告与销售卡分开</span></li></ol><div class="callout"><strong>本版内置</strong><span>Amber 教师档案、SAT 750+ 动态课程规划、路觅高分案例。</span></div></aside>

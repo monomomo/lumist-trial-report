@@ -3,6 +3,7 @@ const sampleTwo = '学生课上挺活泼的，爱互动，愿意思考，做题�
 
 const $ = (selector) => document.querySelector(selector);
 const setText = (selector, value) => { $(selector).textContent = value; };
+const escapeHtml = (value) => String(value).replace(/[&<>'"]/g, (character) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;' })[character]);
 
 const hourPlanDifficulties = [
   '明确四大模块、Bluebook 操作与首套题诊断的流程。',
@@ -37,31 +38,50 @@ const hourPlanDifficulties = [
   '确认关键问题、考场流程与最后答疑事项。'
 ];
 
-function formatHourPlanTables() {
+function getDefaultCoursePlan() {
   const sourcePages = Array.from(document.querySelectorAll('.hour-plan'));
   const lessons = sourcePages.flatMap((page) => Array.from(page.querySelectorAll('tbody tr')).map((row) => {
     const cells = row.querySelectorAll('td');
-    return { theme: cells[1].textContent, content: cells[2].textContent, goal: cells[3].textContent };
+    return { duration: 1, theme: cells[1].textContent, content: cells[2].textContent, goal: cells[3].textContent };
   }));
-  const pagePlans = [
+  const stageDefinitions = [
     [0, 10, '阶段一 · 知识框架与基础恢复', '建立 SAT 数学知识地图，恢复代数、函数、数据与基础几何'],
     [10, 10, '阶段二 · 专项突破与工具提速', '补齐几何与三角模块，建立 Desmos、错因定位和限时策略'],
     [20, 10, '阶段三 · 高分稳定与考前闭环', '通过高难题、套题复盘、完整模考和考前清单稳定考试表现']
   ];
   sourcePages.forEach((page) => page.remove());
+  return {
+    totalHours: 30,
+    rationale: '先建立完整知识框架，再根据套题错因、用时与实际掌握度动态调整专项训练。',
+    stages: stageDefinitions.map(([start, count, title, description]) => ({
+      title,
+      description,
+      lessons: lessons.slice(start, start + count).map((lesson, index) => ({ ...lesson, difficulty: hourPlanDifficulties[start + index] }))
+    }))
+  };
+}
+
+function renderCoursePlan(coursePlan) {
+  document.querySelectorAll('.reference-plan-page').forEach((page) => page.remove());
   const teacherPage = document.querySelector('.teacher-page');
-  pagePlans.forEach(([start, count, title, description], pageIndex) => {
-    const chunk = lessons.slice(start, start + count);
+  const pages = coursePlan.stages.flatMap((stage) => {
+    const chunks = [];
+    for (let index = 0; index < stage.lessons.length; index += 10) {
+      chunks.push({ ...stage, title: index === 0 ? stage.title : `${stage.title} · 续`, lessons: stage.lessons.slice(index, index + 10) });
+    }
+    return chunks;
+  });
+  let lessonIndex = 0;
+  pages.forEach((stage, pageIndex) => {
     const page = document.createElement('article');
-    const totalCell = pageIndex === 0 ? '<b>30h</b><span>建议总课时</span>' : '<span>课程规划<br />续</span>';
-    const rows = chunk.map((lesson, index) => {
-      const lessonNumber = String(start + index + 1).padStart(2, '0');
-      const duration = '1h';
-      const total = index === 0 ? `<td class="plan-total-cell" rowspan="${chunk.length}">${totalCell}</td>` : '';
-      return `<tr>${total}<td class="plan-duration-cell">${duration}</td><td class="plan-detail-cell"><b>考点 ${lessonNumber} · ${lesson.theme}</b><p><span>目标：</span>${lesson.goal}</p><p><span>内容：</span>${lesson.content}</p><p><span>重难点：</span>${hourPlanDifficulties[start + index]}</p></td></tr>`;
+    const totalCell = pageIndex === 0 ? `<b>${escapeHtml(coursePlan.totalHours)}h</b><span>建议总课时</span>` : '<span>课程规划<br />续</span>';
+    const rows = stage.lessons.map((lesson, index) => {
+      lessonIndex += 1;
+      const total = index === 0 ? `<td class="plan-total-cell" rowspan="${stage.lessons.length}">${totalCell}</td>` : '';
+      return `<tr>${total}<td class="plan-duration-cell">${escapeHtml(lesson.duration)}h</td><td class="plan-detail-cell"><b>课时 ${String(lessonIndex).padStart(2, '0')} · ${escapeHtml(lesson.theme)}</b><p><span>目标：</span>${escapeHtml(lesson.goal)}</p><p><span>内容：</span>${escapeHtml(lesson.content)}</p><p><span>重难点：</span>${escapeHtml(lesson.difficulty)}</p></td></tr>`;
     }).join('');
     page.className = 'report-page hour-plan reference-plan-page';
-    page.innerHTML = `<div class="page-kicker">02 / 详细课程规划 · ${String(pageIndex + 1).padStart(2, '0')}</div><h2>${title}</h2><p class="reference-plan-intro">${description}</p><table><thead><tr><th>总建议课时</th><th>课时分配</th><th>课堂安排</th></tr></thead><tbody>${rows}</tbody></table>${pageIndex === pagePlans.length - 1 ? '<div class="plan-note"><strong>动态调整原则：</strong>课时可按 0.5h、1h、1.5h 或 2h 灵活拆分；以套题错因、用时与实际掌握度为准动态调整。</div>' : ''}</article>`;
+    page.innerHTML = `<div class="page-kicker">02 / 详细课程规划 · ${String(pageIndex + 1).padStart(2, '0')}</div><h2>${escapeHtml(stage.title)}</h2><p class="reference-plan-intro">${escapeHtml(stage.description)}</p><table><thead><tr><th>总建议课时</th><th>课时分配</th><th>课堂安排</th></tr></thead><tbody>${rows}</tbody></table>${pageIndex === pages.length - 1 ? `<div class="plan-note"><strong>动态调整原则：</strong>${escapeHtml(coursePlan.rationale)} 课时可按 0.5h、1h、1.5h 或 2h 灵活调整。</div>` : ''}</article>`;
     teacherPage.before(page);
   });
 }
@@ -84,30 +104,47 @@ function deriveReport(notes, name, target) {
   const needs = [priorities[0], ...(hasProbability ? ['概率与数据分析'] : []), ...(hasGeometry ? ['几何与三角'] : []), 'SAT 题型与考试节奏'];
   const urgent = `最需要优先解决的是${mainPriority}以及对 SAT 题型体系的熟悉度。如果缺少系统框架，学生即使有基础，也容易在陌生模块和限时作答中产生不必要失分。`;
   const script = `今天老师反馈，${name}课堂上的状态很好，互动和思考都比较主动，做题准确率也不错，说明学生本身具备较好的数学基础。\n\n当前最需要尽快解决的是${mainPriority}以及 SAT 考点体系的熟悉度。老师建议先完成整体知识框架梳理，再针对薄弱模块做专项恢复和题型训练，这样才能把已有基础更稳定地转化为 SAT 数学成绩。\n\n后续课程会结合每次套题的错题和用时动态调整，不会重复占用已经掌握模块的课时。`;
-  return { overview, positive, accuracy, strength, priorities, lessonText, outcomes, needs, urgent, script, target: target || '待老师确认' };
+  return {
+    overview,
+    classroomStatus: positive,
+    strength,
+    currentFocus: priorities.join('、'),
+    lessonTitle: /四章|4章/.test(notes) ? 'SAT 数学四大章节框架与诊断' : 'SAT 数学知识图谱与诊断',
+    lessonSummary: lessonText,
+    performance: `${positive}；${accuracy}。`,
+    outcomes,
+    priorityAreas: needs,
+    coursePlan: defaultCoursePlan,
+    salesFollowUp: {
+      positive: `${positive}，${accuracy}。`,
+      urgent,
+      angle: '建议以“先建立完整框架，再针对真实薄弱点专项补强”为续课切入点，突出课程会依据套题错题与用时动态调整。',
+      script
+    },
+    target: target || '待老师确认'
+  };
 }
 
-function renderReport() {
+function renderReport(data) {
   const name = $('#student-name').value.trim() || '学生';
   const target = $('#target-score').value.trim();
-  const notes = $('#teacher-notes').value.trim();
-  const data = deriveReport(notes, name, target);
   setText('#report-title', `${name}个性化学习报告`);
   setText('#info-name', name);
-  setText('#info-target', data.target);
+  setText('#info-target', target || '待老师确认');
   setText('#overview-text', data.overview);
-  setText('#classroom-text', data.positive);
+  setText('#classroom-text', data.classroomStatus);
   setText('#strength-text', data.strength);
-  setText('#priority-text', data.priorities.join('、'));
-  setText('#lesson-title', /四章|4章/.test(notes) ? 'SAT 数学四大章节框架与诊断' : 'SAT 数学知识图谱与诊断');
-  setText('#lesson-text', data.lessonText);
-  setText('#performance-text', `${data.positive}；${data.accuracy}。`);
-  $('#outcomes-list').innerHTML = data.outcomes.map((item) => `<li>${item}</li>`).join('');
-  $('#needs-list').innerHTML = data.needs.map((item) => `<span>${item}</span>`).join('');
-  setText('#sales-positive', `${data.positive}，${data.accuracy}。`);
-  setText('#sales-urgent', data.urgent);
-  setText('#sales-angle', '建议以“先建立完整框架，再针对真实薄弱点专项补强”为续课切入点，突出课程会依据套题错题与用时动态调整。');
-  setText('#sales-script', data.script);
+  setText('#priority-text', data.currentFocus);
+  setText('#lesson-title', data.lessonTitle);
+  setText('#lesson-text', data.lessonSummary);
+  setText('#performance-text', data.performance);
+  $('#outcomes-list').innerHTML = data.outcomes.map((item) => `<li>${escapeHtml(item)}</li>`).join('');
+  $('#needs-list').innerHTML = data.priorityAreas.map((item) => `<span>${escapeHtml(item)}</span>`).join('');
+  setText('#sales-positive', data.salesFollowUp.positive);
+  setText('#sales-urgent', data.salesFollowUp.urgent);
+  setText('#sales-angle', data.salesFollowUp.angle);
+  setText('#sales-script', data.salesFollowUp.script);
+  renderCoursePlan(data.coursePlan);
 }
 
 function changeView(id) {
@@ -147,7 +184,7 @@ async function saveReport() {
         priority: $('#priority-text').textContent,
         outcomes: Array.from($('#outcomes-list').children).map((item) => item.textContent)
       },
-      coursePlan: { totalHours: 30, stages: collectCoursePlan() },
+      coursePlan: { totalHours: currentReportData.coursePlan.totalHours, stages: collectCoursePlan() },
       salesFollowUp: {
         positive: $('#sales-positive').textContent,
         urgent: $('#sales-urgent').textContent,
@@ -160,16 +197,65 @@ async function saveReport() {
   reportStatus.textContent = result.saved ? '报告已生成 · 已保存' : '报告已生成 · 本地演示';
 }
 
+async function generateAiReport() {
+  const response = await fetch('/api/generate-report', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      studentName: $('#student-name').value.trim(),
+      currentScore: $('#current-score').value.trim(),
+      targetScore: $('#target-score').value.trim(),
+      examDate: $('#exam-date').value.trim(),
+      teacherNotes: $('#teacher-notes').value.trim(),
+      accessCode: $('#access-code').value
+    })
+  });
+  const result = await response.json();
+  if (!response.ok) {
+    throw new Error(result.error || 'AI_GENERATION_FAILED');
+  }
+  return result.report;
+}
+
 $('#report-form').addEventListener('submit', async (event) => {
   event.preventDefault();
-  renderReport();
-  changeView('report');
-  document.querySelector('#report-view .eyebrow').textContent = '报告已生成 · 未云端保存';
+  const button = $('#generate-report');
+  const notice = $('#generation-notice');
+  button.disabled = true;
+  button.textContent = 'AI 正在分析并生成课程规划…';
+  notice.classList.remove('error');
+  notice.innerHTML = '<strong>正在生成：</strong>通常需要 10–30 秒，请不要重复提交。';
+  localStorage.setItem('lumist-report-access-code', $('#access-code').value);
+  try {
+    currentReportData = await generateAiReport();
+    renderReport(currentReportData);
+    changeView('report');
+    document.querySelector('#report-view .eyebrow').textContent = 'AI 报告已生成 · 未云端保存';
+    notice.innerHTML = '<strong>生成原则：</strong>仅根据老师输入生成；未提供的成绩、日期与课时不会编造。';
+  } catch (error) {
+    if (error.message === 'INVALID_ACCESS_CODE') {
+      notice.classList.add('error');
+      notice.innerHTML = '<strong>试用码不正确：</strong>请确认后重新生成。';
+      return;
+    }
+    if (error.message === 'INVALID_INPUT') {
+      notice.classList.add('error');
+      notice.innerHTML = '<strong>信息不足：</strong>请至少填写 20 个字的试听课反馈。';
+      return;
+    }
+    currentReportData = deriveReport($('#teacher-notes').value.trim(), $('#student-name').value.trim() || '学生', $('#target-score').value.trim());
+    renderReport(currentReportData);
+    changeView('report');
+    document.querySelector('#report-view .eyebrow').textContent = '本地兜底版 · AI 暂不可用';
+  } finally {
+    button.disabled = false;
+    button.innerHTML = 'AI 生成个性化报告 <span>→</span>';
+  }
 });
 $('#sample-one').addEventListener('click', () => { $('#teacher-notes').value = sampleOne; });
 $('#sample-two').addEventListener('click', () => { $('#teacher-notes').value = sampleTwo; });
 document.querySelectorAll('.nav-item').forEach((item) => item.addEventListener('click', () => changeView(item.dataset.view)));
-$('#open-history').addEventListener('click', () => { renderReport(); changeView('report'); });
+$('#open-history').addEventListener('click', () => { renderReport(currentReportData); changeView('report'); });
 $('#back-edit').addEventListener('click', () => changeView('new'));
 $('#print-report').addEventListener('click', () => window.print());
 document.querySelectorAll('.tab').forEach((tab) => tab.addEventListener('click', () => {
@@ -179,11 +265,7 @@ document.querySelectorAll('.tab').forEach((tab) => tab.addEventListener('click',
   $('#sales-card').classList.toggle('hidden', isParent);
 }));
 $('#copy-script').addEventListener('click', async () => { await navigator.clipboard.writeText($('#sales-script').textContent); $('#copy-script').textContent = '已复制'; setTimeout(() => { $('#copy-script').textContent = '复制话术'; }, 1200); });
-formatHourPlanTables();
-
-document.querySelectorAll('.hour-plan .page-kicker').forEach((label, index) => {
-  label.textContent = `02 / 详细课程规划 · ${String(index + 1).padStart(2, '0')}`;
-});
+const defaultCoursePlan = getDefaultCoursePlan();
 
 document.querySelector('.teacher-page .page-kicker').textContent = '03 / 任课教师';
 
@@ -191,4 +273,6 @@ document.querySelector('.teacher-intro').innerHTML = `<p class="teacher-label">S
 
 document.querySelector('.data-impact-page').innerHTML = '<img src="assets/lumist-data-page-6.png" alt="路觅教育数据" />';
 
-renderReport();
+$('#access-code').value = localStorage.getItem('lumist-report-access-code') || '';
+let currentReportData = deriveReport($('#teacher-notes').value.trim(), $('#student-name').value.trim(), $('#target-score').value.trim());
+renderReport(currentReportData);
