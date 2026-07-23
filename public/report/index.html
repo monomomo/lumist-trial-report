@@ -1,0 +1,79 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>路觅教育｜试听课报告生成器</title>
+    <link rel="stylesheet" href="styles.css?v=uniform-duration-cells" />
+  </head>
+  <body>
+    <div class="app-shell">
+      <aside class="sidebar">
+        <div class="brand"><span>LUMIST</span><strong>路觅教育</strong></div>
+        <p class="brand-note">老师端 · 试听课报告生成器</p>
+        <nav>
+          <button class="nav-item active" data-view="new">新建试听报告</button>
+          <button class="nav-item" data-view="history">历史报告</button>
+        </nav>
+        <div class="sidebar-footer"><div class="avatar">A</div><div><strong>Amber</strong><small>SAT 数学 / AP 数学</small></div></div>
+      </aside>
+
+      <main class="main">
+        <section id="new-view" class="view active">
+          <header class="topbar"><div><p class="eyebrow">SAT 数学试听</p><h1>新建个性化学习报告</h1></div><span class="status-dot">草稿自动保存</span></header>
+          <div class="workspace">
+            <form id="report-form" class="input-card">
+              <div class="section-heading"><span>01</span><div><h2>学生基本信息</h2><p>只填写 AI 无法从课堂描述中可靠获取的信息。</p></div></div>
+              <div class="field-grid">
+                <label>学生姓名<input id="student-name" value="阮同学" required /></label>
+                <label>当前 SAT 数学成绩（可选）<input id="current-score" placeholder="例如：680" /></label>
+                <label>目标成绩（可选）<input id="target-score" value="750+" /></label>
+                <label>目标考试日期（可选）<input id="exam-date" placeholder="例如：2026年10月" /></label>
+              </div>
+              <div class="section-heading spacing"><span>02</span><div><h2>学生背景与试听课反馈</h2><p>像写微信反馈一样描述即可。系统会整理成报告与销售跟进话术。</p></div></div>
+              <label class="textarea-label">老师自然语言记录<textarea id="teacher-notes" rows="14">学生课上挺活泼的，爱互动，愿意思考，做题的准确率其实很不错。因为学生不了解SAT考点，第一节课带学生看了SAT的4章内容。学生现在在学微积分，所以Algebra的内容比较熟练，但因为比较久没有接触概率、几何的东西，这两章相对薄弱。</textarea></label>
+              <div class="quick-actions"><button id="sample-one" type="button" class="text-btn">载入“从头梳理”样例</button><button id="sample-two" type="button" class="text-btn">载入“微积分基础”样例</button></div>
+              <div class="notice"><strong>生成原则：</strong>仅根据老师输入生成；未提供的成绩、日期与课时不会编造。</div>
+              <button class="primary-btn" type="submit">生成个性化报告 <span>→</span></button>
+            </form>
+
+            <aside class="workflow-card"><p class="eyebrow">老师只需 3 步</p><ol><li><b>自然语言记录</b><span>无需填写冗长表单</span></li><li><b>确认 AI 整理结果</b><span>可逐段编辑，避免虚构</span></li><li><b>导出并交付</b><span>家长报告与销售卡分开</span></li></ol><div class="callout"><strong>本版内置</strong><span>Amber 教师档案、SAT 750+ 动态课程规划、路觅高分案例。</span></div></aside>
+          </div>
+        </section>
+
+        <section id="history-view" class="view">
+          <header class="topbar"><div><p class="eyebrow">报告管理</p><h1>历史报告</h1></div></header>
+          <div class="history-card"><div><span class="history-chip">已完成</span><h2>阮同学 · SAT 数学个性化学习报告</h2><p>Amber · 今天 · 基于自然语言试听反馈生成</p></div><button class="secondary-btn" id="open-history">打开报告</button></div>
+        </section>
+
+        <section id="report-view" class="view">
+          <header class="topbar report-topbar"><div><p class="eyebrow">报告已生成</p><h1 id="report-title">阮同学个性化学习报告</h1></div><div class="report-actions"><button class="secondary-btn" id="back-edit">返回编辑</button><button class="secondary-btn" id="print-report">导出 PDF</button></div></header>
+          <div class="tabs"><button class="tab active" data-report-tab="parent">家长版报告</button><button class="tab" data-report-tab="sales">销售跟进卡 <span>内部</span></button></div>
+
+          <div id="parent-report" class="report-document">
+            <article class="report-page cover-page"><img src="assets/lumist-cover-page.png" alt="路觅学员个性化学习报告封面" /></article>
+
+            <article class="report-page summary-page"><div class="page-kicker">01 / 学生信息与试听课总结</div><h2>学习背景与课堂诊断</h2><div class="student-grid"><div><small>学生姓名</small><b id="info-name">阮同学</b></div><div><small>课程类型</small><b>SAT 数学试听</b></div><div><small>目标分数</small><b id="info-target">750+</b></div><div><small>任课教师</small><b>Amber</b></div></div><div class="analysis-box"><h3>本次试听结论</h3><p id="overview-text"></p></div><div class="three-columns"><section><span>课堂状态</span><b id="classroom-text"></b></section><section><span>已体现优势</span><b id="strength-text"></b></section><section><span>当前重点</span><b id="priority-text"></b></section></div><div class="summary-divider"><span>试听课反馈与本节课学习成果</span></div><div class="lesson-card"><p class="small-title">试听内容</p><h3 id="lesson-title">SAT 数学四大章节框架与诊断</h3><p id="lesson-text"></p></div><div class="outcome-grid"><section><h3>学生表现</h3><p id="performance-text"></p></section><section><h3>本节课收获</h3><ul id="outcomes-list"></ul></section></div><h3 class="subheading">后续需要优先提升的内容</h3><div id="needs-list" class="needs-list"></div></article>
+
+            <article class="report-page hour-plan"><div class="page-kicker">03 / 详细课程规划 · 01</div><h2>SAT 数学 750+ 学习计划</h2><p class="page-intro">建议总计 30 小时。以下按每 1 小时拆分；如学生在套题中已稳定掌握某一模块，对应课时将替换为真实失分点复盘。</p><table><thead><tr><th>课时</th><th>本小时主题</th><th>课堂训练</th><th>当小时目标</th></tr></thead><tbody><tr><td>01h</td><td>SAT 框架与首套题诊断</td><td>四大模块、Bluebook 操作、诊断题</td><td>建立知识图谱与考试流程</td></tr><tr><td>02h</td><td>核心代数查漏</td><td>方程、方程组、不等式</td><td>定位代数概念缺口</td></tr><tr><td>03h</td><td>函数与图像</td><td>函数表示、交点、表格</td><td>熟悉函数题的建模路径</td></tr><tr><td>04h</td><td>高阶数学 I</td><td>二次函数、多项式、零点</td><td>提升复杂代数题处理能力</td></tr><tr><td>05h</td><td>高阶数学 II</td><td>指数函数、非线性函数、含参题</td><td>掌握图像验证策略</td></tr><tr><td>06h</td><td>数据分析与概率 I</td><td>百分比、比率、单位换算</td><td>恢复常用应用题模型</td></tr><tr><td>07h</td><td>数据分析与概率 II</td><td>条件概率、抽样推断、统计量</td><td>建立概率与数据题框架</td></tr><tr><td>08h</td><td>几何 I：角度与平行线</td><td>角度关系、平行线、三角形</td><td>恢复基础图形关系</td></tr><tr><td>09h</td><td>几何 II：全等与相似</td><td>比例、面积比、体积比</td><td>掌握相似模型的识别</td></tr><tr><td>10h</td><td>几何 III：特殊三角形</td><td>30-60-90、45-45-90、勾股</td><td>提高典型模型反应速度</td></tr></tbody></table></article>
+
+            <article class="report-page hour-plan"><div class="page-kicker">03 / 详细课程规划 · 02</div><h2>专项恢复与工具提速</h2><table><thead><tr><th>课时</th><th>本小时主题</th><th>课堂训练</th><th>当小时目标</th></tr></thead><tbody><tr><td>11h</td><td>几何 IV：圆与弧</td><td>圆心角、圆周角、切线、弧长</td><td>恢复圆相关定理与应用</td></tr><tr><td>12h</td><td>几何 V：坐标几何</td><td>距离、中点、斜率、圆方程</td><td>建立坐标图形解题路径</td></tr><tr><td>13h</td><td>几何 VI：三角比</td><td>正弦、余弦、正切、弧度</td><td>解决三角函数基础遗忘</td></tr><tr><td>14h</td><td>几何 VII：综合题</td><td>几何与代数、函数、比例结合</td><td>训练跨模块信息提取</td></tr><tr><td>15h</td><td>Desmos I：基础工具</td><td>方程、交点、表格、滑块</td><td>建立工具使用边界</td></tr><tr><td>16h</td><td>Desmos II：提速策略</td><td>回归、限制定义域、参数探索</td><td>形成手算/代入/工具选择清单</td></tr><tr><td>17h</td><td>套题复盘 I：错因定位</td><td>首套完整 Report、错题重做</td><td>形成第一版个人错题清单</td></tr><tr><td>18h</td><td>套题复盘 I：超时题</td><td>逐题用时、跳题、回查</td><td>定位真实时间损耗点</td></tr><tr><td>19h</td><td>薄弱点动态补强</td><td>根据首轮错因安排小专题</td><td>消除重复性失分</td></tr><tr><td>20h</td><td>限时重测</td><td>同类题限时训练与复盘</td><td>验证专项补强效果</td></tr></tbody></table></article>
+
+            <article class="report-page hour-plan"><div class="page-kicker">03 / 详细课程规划 · 03</div><h2>高分稳定性与考前闭环</h2><table><thead><tr><th>课时</th><th>本小时主题</th><th>课堂训练</th><th>当小时目标</th></tr></thead><tbody><tr><td>21h</td><td>套题复盘 II：Module 1</td><td>准确率、用时、题型分布</td><td>稳定基础模块完成质量</td></tr><tr><td>22h</td><td>套题复盘 II：Module 2</td><td>难题、跳题、时间止损</td><td>提升高难模块策略</td></tr><tr><td>23h</td><td>Module 2 Hard I</td><td>复杂建模、含参代数</td><td>训练 750+ 难题能力</td></tr><tr><td>24h</td><td>Module 2 Hard II</td><td>综合几何与 Desmos 实战</td><td>缩短复杂题计算路径</td></tr><tr><td>25h</td><td>套题复盘 III：重复错因</td><td>追踪高频错误与超时题</td><td>建立个人避坑清单</td></tr><tr><td>26h</td><td>高频薄弱点重测</td><td>小专题限时重测</td><td>确认薄弱点已闭环</td></tr><tr><td>27h</td><td>最终完整模考</td><td>全流程限时完成</td><td>确认稳定分数区间</td></tr><tr><td>28h</td><td>最终模考复盘</td><td>最后错题、用时与策略</td><td>完成个人考场策略</td></tr><tr><td>29h</td><td>考前清单整理</td><td>错题、Desmos、公式与节奏</td><td>形成可执行 Checklist</td></tr><tr><td>30h</td><td>考前闭环与答疑</td><td>重点问题回顾、心态与流程</td><td>以稳定状态进入考试</td></tr></tbody></table><div class="plan-note"><strong>动态调整原则：</strong>若某模块已经稳定，不重复占用课时；所有替换均以完整套题 Report、错题与每题用时为依据。</div></article>
+
+            <article class="report-page teacher-page"><div class="page-kicker">04 / 任课教师</div><div class="teacher-profile"><div class="teacher-photo-wrap"><img src="assets/amber-photo.png" alt="Amber 老师" /></div><div class="teacher-intro"><p class="teacher-label">SAT 数学 / AP 数学与计算机课程导师</p><h2>Amber 老师</h2><p>华盛顿大学数学专业本科，佐治亚理工大学计算机硕士，专业课程平均绩点 3.8/4.0。AP Calculus BC 5 分、SAT 数学满分，拥有 4 年以上 Lumist 导师经验。</p><p>擅长以真题和典型题搭建清晰的解题路径，根据学生薄弱点制定个性化计划，并兼顾考试表现与长期学科发展。</p><div class="teacher-tags"><span>SAT 数学</span><span>AP Calculus</span><span>APCSA</span></div></div><aside class="teacher-qr"><img src="assets/amber-qr.png" alt="Amber 老师课程二维码" /><span>扫码查看<br />Amber 老师课程 Demo</span></aside></div></article>
+
+            <article class="report-page sat-results-page"><div class="sat-results-brand">LUMIST <b>路觅教育</b><span>经纬中国领投成员企业<br />海外留学教辅专业品牌</span></div><div class="sat-year">2026 · 最新 SAT 战绩</div><div class="sat-results-hero"><p>2026 SAT 考试</p><h2>路觅学员高分案例</h2><div class="sat-results-metric"><b>50+</b><span>学员斩获</span><strong>1500+</strong><span>佳绩</span></div><p class="sat-results-subtitle">以系统课程规划、专项能力突破和多轮套题复盘，帮助学员实现 SAT 高分表现。</p></div><div class="sat-results-cards"><img src="assets/sat-high-score-cards-hd.png" alt="路觅 2026 SAT 高分案例成绩卡" /></div><div class="sat-results-note"><b>高分案例数据说明：</b><span>仅展示部分 2026 年路觅 SAT 学员反馈分数及整体数据；成绩来源均为学员或家长反馈，并已取得授权。</span></div></article>
+
+            <article class="report-page company-page data-impact-page"><div class="data-brand">LUMIST <b>路觅教育</b><span>经纬中国领投成员企业<br />海外留学教辅专业品牌</span></div><div class="data-source">数据统计截止至 2025 年 7 月 31 日<br />数据来源：路觅教育留学研究所</div><h2>路觅数据</h2><p class="data-lead">路觅最强留学导师阵容</p><div class="mentor-count"><b>8,726</b><span>截止 2025 年 7 月 31 日<br />路觅全球导师人数</span></div><div class="data-yellow-band"><section><b>10.7%</b><span>导师录取通过率</span></section><section><b>97.2%</b><span>全球 TOP100 高校导师占比</span></section><section><b>92.8%</b><span>硕博导师人数占比</span></section></div><div class="sat-achievement"><div class="sat-achievement-copy"><span>2026 SAT 高分成果</span><h3><b>50+</b> 学员斩获 <strong>1500+</strong> 佳绩</h3><p>路觅 SAT 学员成绩反馈 · 系统规划、专项突破与多轮套题复盘</p></div><img src="assets/sat-high-score-cards.png" alt="路觅 SAT 高分案例成绩卡" /></div><div class="data-grid"><section><p>全网累计粉丝关注量</p><b>180,000+</b><small>路觅教育小红书、公众号、微博、知乎、哔哩哔哩等平台</small></section><section><p>累计用户服务时长</p><b>15,701,000 <i>小时</i></b><small>2020 年至 2025 年 7 月 31 日，导师累计在线授课小时数量</small></section><section><p>累计服务人次</p><b>700,000</b><small>人数计算起始于 2020 年 2 月 1 日</small></section><section><p>服务覆盖全球校区数</p><b>1,278 <i>所</i></b><small>有 64.5% 的用户在路觅教育存在一次以上的支付行为</small></section></div><p class="case-disclaimer">高分案例成绩来源均为学员或家长反馈，并已取得学员/家长授权；个体学习结果会受到基础、投入与考试状态等因素影响。</p></article>
+
+            <article class="report-page closing-page"><img src="assets/lumist-closing-page.png" alt="路觅教育联系方式" /></article>
+          </div>
+
+          <div id="sales-card" class="sales-card hidden"><div class="internal-label">仅内部使用 · 不出现在家长 PDF 中</div><h2>销售跟进卡</h2><section><span>学生积极信号</span><p id="sales-positive"></p></section><section><span>最急迫提升点</span><p id="sales-urgent"></p></section><section><span>建议续课切入点</span><p id="sales-angle"></p></section><section class="script"><span>可复制沟通话术</span><p id="sales-script"></p><button class="secondary-btn" id="copy-script">复制话术</button></section><section class="avoid"><span>沟通边界</span><p>不承诺具体提分结果；不将一次试听的表现等同于正式考试能力；不使用“基础很差”等绝对化表述。</p></section></div>
+        </section>
+      </main>
+    </div>
+    <script src="app.js?v=three-page-reference-plan"></script>
+  </body>
+</html>
