@@ -100,7 +100,7 @@ function normalizeRationale(value: string) {
   return normalized || '后续课时将依据 Bluebook 诊断、课堂掌握情况、错题类型与每题用时动态调整。';
 }
 
-const parentFacingForbiddenPattern = /老师原始记录|老师只写|老师仅|老师未提供|老师未列出|输入中没有|信息不足|信息有限|无法判断|未能获得|没有完整|缺少数据|记录较少|未记录|暂无数据|尚无数据/;
+const parentFacingForbiddenPattern = /老师原始记录|老师只写|老师仅|老师未提供|老师未列出|输入中没有|信息不足|信息有限|无法判断|未能获得|没有完整|缺少数据|记录较少|未记录|未提供|暂无数据|尚无数据|课堂记录|观察记录|不构成正式|可量化/;
 
 function getTopicContext(notes: string) {
   const topics = [];
@@ -118,8 +118,16 @@ function getTopicContext(notes: string) {
   };
 }
 
+function getInputCompleteness(notes: string) {
+  return {
+    hasSpecificContent: /方程|不等式|函数|多项式|二次|指数|比率|百分比|概率|条件概率|统计|数据表|几何|三角|圆|Desmos|Module|Bluebook/i.test(notes),
+    hasClassroomObservation: /互动|思考|正确率|准确率|做对|做错|理解|反应|速度|用时|卡住|薄弱|熟练|遗忘|积极|专注/i.test(notes)
+  };
+}
+
 function sanitizeParentReport(report: z.infer<typeof reportSchema>, notes: string) {
   const topic = getTopicContext(notes);
+  const completeness = getInputCompleteness(notes);
   const safeOverview = `本次试听课围绕${topic.module}展开，帮助学生初步熟悉相关知识在考试中的呈现方式。后续将结合模块练习与 Bluebook 数学诊断，进一步明确具体学习重点并细化训练安排。`;
   const safeLessonSummary = `本节试听课围绕${topic.module}展开，通过知识讲解与课堂练习，帮助学生初步熟悉相关知识在 SAT 考试中的呈现方式。后续将结合 Bluebook 数学模块诊断，进一步确认学生在不同题型中的掌握情况，并据此细化学习重点与训练安排。`;
   const safePerformance = `当前阶段以熟悉${topic.training}和建立解题框架为主，后续将结合模块练习持续观察学生的理解与应用情况。`;
@@ -129,30 +137,31 @@ function sanitizeParentReport(report: z.infer<typeof reportSchema>, notes: strin
     `了解${topic.training}在考试中的基本呈现方式`,
     '明确后续将通过模块练习与 Bluebook 诊断细化学习安排'
   ];
-  const outcomes = report.outcomes.filter((item) => !parentFacingForbiddenPattern.test(item));
-  safeOutcomes.forEach((item) => {
-    if (outcomes.length < 3 && !outcomes.includes(item)) outcomes.push(item);
-  });
-  const priorityAreas = report.priorityAreas.filter((item) => !parentFacingForbiddenPattern.test(item));
+  const outcomes = completeness.hasSpecificContent && completeness.hasClassroomObservation
+    ? report.outcomes.filter((item) => !parentFacingForbiddenPattern.test(item))
+    : [...safeOutcomes];
+  safeOutcomes.forEach((item) => { if (outcomes.length < 3 && !outcomes.includes(item)) outcomes.push(item); });
+  const priorityAreas = completeness.hasSpecificContent
+    ? report.priorityAreas.filter((item) => !parentFacingForbiddenPattern.test(item))
+    : [`${topic.label}模块考点梳理`, 'Bluebook 数学模块诊断', 'SAT 题型与考试节奏'];
   if (priorityAreas.length < 2) priorityAreas.push(`${topic.label}考点梳理`, 'Bluebook 模块诊断');
 
   return {
     ...report,
-    overview: sanitizeText(report.overview, safeOverview),
-    classroomStatus: sanitizeText(report.classroomStatus, '当前阶段以熟悉 SAT 数学考点框架与题型为主'),
-    strength: sanitizeText(report.strength, '将在后续模块练习中进一步确认并持续巩固'),
-    currentFocus: sanitizeText(report.currentFocus, `${topic.label}考点梳理与题型熟悉`),
-    lessonTitle: sanitizeText(report.lessonTitle, `${topic.label}内容梳理`),
-    lessonSummary: sanitizeText(report.lessonSummary, safeLessonSummary),
-    performance: sanitizeText(report.performance, safePerformance),
+    overview: completeness.hasSpecificContent && completeness.hasClassroomObservation ? sanitizeText(report.overview, safeOverview) : safeOverview,
+    classroomStatus: completeness.hasClassroomObservation ? sanitizeText(report.classroomStatus, '当前阶段以熟悉 SAT 数学考点框架与题型为主') : `本节课以${topic.module}的知识讲解与课堂练习为主`,
+    strength: completeness.hasClassroomObservation ? sanitizeText(report.strength, '将在后续模块练习中进一步确认并持续巩固') : '后续将结合模块练习进一步确认学生的优势题型',
+    currentFocus: completeness.hasSpecificContent ? sanitizeText(report.currentFocus, `${topic.label}考点梳理与题型熟悉`) : `${topic.label}模块框架与题型熟悉`,
+    lessonTitle: completeness.hasSpecificContent ? sanitizeText(report.lessonTitle, `${topic.label}内容梳理`) : `${topic.label}模块导入与题型认识`,
+    lessonSummary: completeness.hasSpecificContent ? sanitizeText(report.lessonSummary, safeLessonSummary) : safeLessonSummary,
+    performance: completeness.hasClassroomObservation ? sanitizeText(report.performance, safePerformance) : safePerformance,
     outcomes: outcomes.slice(0, 5),
     priorityAreas: [...new Set(priorityAreas)].slice(0, 6)
   };
 }
 
 function buildTeacherNotice(notes: string) {
-  const hasSpecificContent = /方程|不等式|函数|多项式|二次|指数|比率|百分比|概率|统计|数据表|几何|三角|圆|Desmos|Module|Bluebook/i.test(notes);
-  const hasClassroomObservation = /互动|思考|正确率|准确率|做对|做错|理解|反应|速度|用时|卡住|薄弱|熟练|遗忘|积极|专注/i.test(notes);
+  const { hasSpecificContent, hasClassroomObservation } = getInputCompleteness(notes);
   const missing = [];
   if (!hasSpecificContent) missing.push('具体考点或课堂练习');
   if (!hasClassroomObservation) missing.push('学生课堂表现或作答情况');
