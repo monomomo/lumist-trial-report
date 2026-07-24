@@ -5,13 +5,14 @@ import { Workspace } from '@/components/Workspace';
 export default async function Home() {
   const auth = await getAuthResult();
 
+  // Supabase 未配置时进入 demo 模式，无需登录即可使用
+  if (auth.status === AUTH_STATUS.SUPABASE_NOT_CONFIGURED) {
+    return <Workspace />;
+  }
+
   if (auth.status === AUTH_STATUS.AUTHENTICATED) {
     return <Workspace email={auth.user!.email} />;
   }
-
-  const errorMessage = auth.status === AUTH_STATUS.SUPABASE_NOT_CONFIGURED
-    ? '系统未配置认证服务，请联系管理员配置 Supabase 环境变量。'
-    : undefined;
 
   return (
     <main className="auth-shell">
@@ -31,7 +32,7 @@ export default async function Home() {
           <span>老师登录</span>
           <h2>欢迎回来</h2>
           <p>请使用公司分配的工作邮箱和密码登录。</p>
-          <LoginForm error={errorMessage} />
+          <LoginForm />
         </div>
       </div>
     </main>
