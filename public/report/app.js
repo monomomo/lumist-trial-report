@@ -230,23 +230,47 @@ function renderCoursePlan(coursePlan) {
   return { oversizedLesson: null };
 }
 
-function renderTeacherProfile() {
-  const container = $('#teacher-profile-container');
-  if (!container) return;
-
-  if (teacherProfile && (teacherProfile.photoUrl || teacherProfile.bio.length > 0)) {
-    const photoHtml = teacherProfile.photoUrl
-      ? `<div class="teacher-photo-wrap"><img src="${escapeHtml(teacherProfile.photoUrl)}" alt="${escapeHtml(teacherProfile.displayName)}" /></div>`
-      : `<div class="teacher-photo-wrap"><div class="avatar-placeholder">${escapeHtml(teacherProfile.displayPlaceholder)}</div></div>`;
-    const bioHtml = teacherProfile.bio.map((p) => `<p>${escapeHtml(p)}</p>`).join('');
-    const qrHtml = teacherProfile.qrUrl
-      ? `<aside class="teacher-qr"><img src="${escapeHtml(teacherProfile.qrUrl)}" alt="${escapeHtml(teacherProfile.displayName)} 老师课程二维码" /><span>扫码查看<br />课程详情</span></aside>`
-      : '';
-    container.innerHTML = `<div class="teacher-profile">${photoHtml}<div class="teacher-intro"><p class="teacher-label">${escapeHtml(teacherProfile.title || '')}</p><h2>${escapeHtml(teacherProfile.displayName)}</h2>${bioHtml}</div>${qrHtml}</div>`;
-  } else {
-    // 无教师资料时的缺省展示
-    container.innerHTML = '<div class="teacher-profile"><div class="teacher-intro"><p class="teacher-label">老师</p><h2>老师</h2><p>暂无教师简介。</p></div></div>';
-  }
+function deriveReport(notes, name, target) {
+  const hasCalculus = /微积分|Algebra|代数/.test(notes);
+  const hasForget = /不记得|遗忘|从头|基础差/.test(notes);
+  const hasGeometry = /几何/.test(notes);
+  const hasProbability = /概率|数据/.test(notes);
+  const positive = /活泼|互动积极|爱互动/.test(notes) ? '课堂互动积极，愿意主动表达与思考' : '本节课以知识讲解与题型熟悉为主';
+  const accuracy = /正确率|准确率|做对|中等难度/.test(notes) ? '中等难度题目完成情况较好，具备进一步提升的基础' : '具备继续诊断与专项训练的基础';
+  const strength = hasCalculus ? '代数与函数基础相对扎实' : '理解与作答表现优于学生自我预期';
+  const priorities = [hasForget ? '建立 SAT 数学知识图谱' : '建立 SAT 考点框架'];
+  if (hasProbability) priorities.push('恢复概率与数据分析');
+  if (hasGeometry) priorities.push('恢复几何与三角模块');
+  const mainPriority = priorities.slice(1).join('、') || priorities[0];
+  const overview = `从本次试听表现看，${name}的实际基础优于其课前预期。学生${positive}，且${accuracy}。当前更需要解决的不是重复学习已掌握内容，而是尽快建立完整的 SAT 数学考点框架，并针对未长期使用的知识点进行系统恢复。`;
+  const lessonText = hasCalculus ? '本节课以 SAT 数学四大章节框架为切入点，结合课堂题目初步观察学生的知识结构与题型适应情况。' : '本节课以 SAT 数学知识框架和诊断题为切入点，初步定位学生的基础、遗忘点与后续学习重点。';
+  const outcomes = [positive, accuracy, hasCalculus ? '确认 Algebra 模块可作为已有优势保持' : '确认学生具备通过系统梳理恢复知识的学习基础', `明确后续优先方向：${mainPriority}`];
+  const needs = [priorities[0], ...(hasProbability ? ['概率与数据分析'] : []), ...(hasGeometry ? ['几何与三角'] : []), 'SAT 题型与考试节奏'];
+  const urgent = `最需要优先解决的是${mainPriority}以及对 SAT 题型体系的熟悉度。如果缺少系统框架，学生即使有基础，也容易在陌生模块和限时作答中产生不必要失分。`;
+  const script = `今天老师反馈，${name}课堂上的状态很好，互动和思考都比较主动，做题准确率也不错，说明学生本身具备较好的数学基础。\n\n当前最需要尽快解决的是${mainPriority}以及 SAT 考点体系的熟悉度。老师建议先完成整体知识框架梳理，再针对薄弱模块做专项恢复和题型训练，这样才能把已有基础更稳定地转化为 SAT 数学成绩。\n\n后续课程会结合每次套题的错题和用时动态调整，不会重复占用已经掌握模块的课时。`;
+  const hasSpecificContent = /方程|不等式|函数|多项式|二次|指数|比率|百分比|概率|统计|数据表|几何|三角|圆|Desmos|Module|Bluebook/i.test(notes);
+  const hasClassroomObservation = /互动|思考|正确率|准确率|做对|做错|理解|反应|速度|用时|卡住|薄弱|熟练|遗忘|积极|专注/i.test(notes);
+  const missingDetails = [...(!hasSpecificContent ? ['具体考点或课堂练习'] : []), ...(!hasClassroomObservation ? ['学生课堂表现或作答情况'] : [])];
+  return {
+    overview,
+    classroomStatus: positive,
+    strength,
+    currentFocus: priorities.join('、'),
+    lessonTitle: /四章|4章/.test(notes) ? 'SAT 数学四大章节框架与诊断' : 'SAT 数学知识图谱与诊断',
+    lessonSummary: lessonText,
+    performance: `${positive}；${accuracy}。`,
+    outcomes,
+    priorityAreas: needs,
+    coursePlan: defaultCoursePlan,
+    salesFollowUp: {
+      positive: `${positive}，${accuracy}。`,
+      urgent,
+      angle: '建议以“先建立完整框架，再针对真实薄弱点专项补强”为续课切入点，突出课程会依据套题错题与用时动态调整。',
+      script
+    },
+    teacherNotice: missingDetails.length ? `当前课堂记录较为简略，家长版已采用保守表达。建议补充${missingDetails.join('、')}，以生成更有针对性的报告。` : '',
+    target: target || '待老师确认'
+  };
 }
 
 function renderReport(data) {
@@ -276,6 +300,10 @@ function renderReport(data) {
   renderTeacherProfile();
   const result = renderCoursePlan(data.coursePlan);
   if (result.oversizedLesson) throw new Error('COURSE_PLAN_LESSON_TOO_LONG');
+  const qualityNotice = $('#report-quality-notice');
+  qualityNotice.textContent = data.teacherNotice || '';
+  qualityNotice.classList.toggle('hidden', !data.teacherNotice);
+  renderCoursePlan(data.coursePlan);
 }
 
 function changeView(id) {
