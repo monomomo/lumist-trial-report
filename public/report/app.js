@@ -172,7 +172,7 @@ function deriveReport(notes, name, target) {
   const hasForget = /不记得|遗忘|从头|基础差/.test(notes);
   const hasGeometry = /几何/.test(notes);
   const hasProbability = /概率|数据/.test(notes);
-  const positive = /活泼|互动积极|爱互动/.test(notes) ? '课堂互动积极，愿意主动表达与思考' : '课堂投入度良好，能够跟随讲解完成思考';
+  const positive = /活泼|互动积极|爱互动/.test(notes) ? '课堂互动积极，愿意主动表达与思考' : '本节课以知识讲解与题型熟悉为主';
   const accuracy = /正确率|准确率|做对|中等难度/.test(notes) ? '中等难度题目完成情况较好，具备进一步提升的基础' : '具备继续诊断与专项训练的基础';
   const strength = hasCalculus ? '代数与函数基础相对扎实' : '理解与作答表现优于学生自我预期';
   const priorities = [hasForget ? '建立 SAT 数学知识图谱' : '建立 SAT 考点框架'];
@@ -185,6 +185,9 @@ function deriveReport(notes, name, target) {
   const needs = [priorities[0], ...(hasProbability ? ['概率与数据分析'] : []), ...(hasGeometry ? ['几何与三角'] : []), 'SAT 题型与考试节奏'];
   const urgent = `最需要优先解决的是${mainPriority}以及对 SAT 题型体系的熟悉度。如果缺少系统框架，学生即使有基础，也容易在陌生模块和限时作答中产生不必要失分。`;
   const script = `今天老师反馈，${name}课堂上的状态很好，互动和思考都比较主动，做题准确率也不错，说明学生本身具备较好的数学基础。\n\n当前最需要尽快解决的是${mainPriority}以及 SAT 考点体系的熟悉度。老师建议先完成整体知识框架梳理，再针对薄弱模块做专项恢复和题型训练，这样才能把已有基础更稳定地转化为 SAT 数学成绩。\n\n后续课程会结合每次套题的错题和用时动态调整，不会重复占用已经掌握模块的课时。`;
+  const hasSpecificContent = /方程|不等式|函数|多项式|二次|指数|比率|百分比|概率|统计|数据表|几何|三角|圆|Desmos|Module|Bluebook/i.test(notes);
+  const hasClassroomObservation = /互动|思考|正确率|准确率|做对|做错|理解|反应|速度|用时|卡住|薄弱|熟练|遗忘|积极|专注/i.test(notes);
+  const missingDetails = [...(!hasSpecificContent ? ['具体考点或课堂练习'] : []), ...(!hasClassroomObservation ? ['学生课堂表现或作答情况'] : [])];
   return {
     overview,
     classroomStatus: positive,
@@ -202,6 +205,7 @@ function deriveReport(notes, name, target) {
       angle: '建议以“先建立完整框架，再针对真实薄弱点专项补强”为续课切入点，突出课程会依据套题错题与用时动态调整。',
       script
     },
+    teacherNotice: missingDetails.length ? `当前课堂记录较为简略，家长版已采用保守表达。建议补充${missingDetails.join('、')}，以生成更有针对性的报告。` : '',
     target: target || '待老师确认'
   };
 }
@@ -225,6 +229,9 @@ function renderReport(data) {
   setText('#sales-urgent', data.salesFollowUp.urgent);
   setText('#sales-angle', data.salesFollowUp.angle);
   setText('#sales-script', data.salesFollowUp.script);
+  const qualityNotice = $('#report-quality-notice');
+  qualityNotice.textContent = data.teacherNotice || '';
+  qualityNotice.classList.toggle('hidden', !data.teacherNotice);
   renderCoursePlan(data.coursePlan);
 }
 
