@@ -1,4 +1,6 @@
-import { ALLOWED_DURATIONS, cloneCoursePlan, calculateTotalHours, validateCoursePlan, moveItem, rebalanceFinalPage, createStage, createLesson } from './course-plan-utils.js';
+import { ALLOWED_DURATIONS, cloneCoursePlan, calculateTotalHours, validateCoursePlan, moveItem, moveLesson, rebalanceFinalPage, createStage, createLesson } from './course-plan-utils.js';
+import { SUBJECT_CODES, SUBJECT_CATALOG, resolveSubject } from './catalog.js';
+import { createSubjectViewModel, normalizeTeacherProfile, canUseFallback, buildFallbackReport } from './report-domain.js';
 
 const sampleOne = '我刚上了一节SAT数学试听课。根据课前沟通，学生已经不记得SAT数学的知识点了。所以我们计划从头开始梳理知识点，同学上课互动很积极，做题的正确率也挺好的，中等难度的题也可以做对，没有她自己说的那么基础差。但是确实是有些知识点有遗忘。所以我计划接下来先从头补知识点，让同学建立SAT数学知识图谱。';
 const sampleTwo = '学生课上挺活泼的，爱互动，愿意思考，做题的准确率其实很不错。因为学生不了解SAT考点，第一节课带学生看了SAT的4章内容。学生现在在学微积分，所以Algebra的内容比较熟练，但因为比较久没有接触概率、几何的东西，这两章相对薄弱。';
@@ -6,6 +8,67 @@ const sampleTwo = '学生课上挺活泼的，爱互动，愿意思考，做题�
 const $ = (selector) => document.querySelector(selector);
 const setText = (selector, value) => { $(selector).textContent = value; };
 const escapeHtml = (value) => String(value).replace(/[&<>'"]/g, (character) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;' })[character]);
+
+/* ── 科目选择 ── */
+
+let currentSubjectCode = 'sat_math';
+
+function populateSubjectSelect() {
+  const select = $('#subject-select');
+  if (!select) return;
+  select.innerHTML = '';
+  SUBJECT_CODES.forEach((code) => {
+    const option = document.createElement('option');
+    option.value = code;
+    option.textContent = SUBJECT_CATALOG[code].displayName;
+    select.appendChild(option);
+  });
+  select.value = currentSubjectCode;
+}
+
+function onSubjectChange() {
+  const code = $('#subject-select').value;
+  currentSubjectCode = code;
+  const vm = createSubjectViewModel(code);
+  $('#form-eyebrow').textContent = `${vm.displayName}试听`;
+  $('#score-label-current').textContent = `当前${vm.scoreLabel}（可选）`;
+  $('#score-label-target').textContent = `目标${vm.scoreLabel}（可选）`;
+  $('#current-score').placeholder = vm.scoreMax > 100 ? `例如：${Math.round((vm.scoreMin + vm.scoreMax) / 2)}` : `例如：${Math.round((vm.scoreMin + vm.scoreMax) / 2)}`;
+  $('#target-score').placeholder = vm.scoreMax > 100 ? `例如：${vm.scoreMax}` : `例如：${vm.scoreMax}`;
+  // 刷新默认兜底预览
+  refreshPreview();
+}
+
+function refreshPreview() {
+  if ($('#report-view').classList.contains('active')) return; // 报告已生成，不覆盖
+  currentReportData = buildFallbackReport(currentSubjectCode, collectFormData());
+  originalAiCoursePlan = cloneCoursePlan(currentReportData.coursePlan);
+  renderReport(currentReportData);
+}
+
+/* ── 教师资料 ── */
+
+let teacherProfile = null;
+
+async function loadTeacherProfile() {
+  try {
+    const response = await fetch('/api/me');
+    if (!response.ok) return;
+    const data = await response.json();
+    teacherProfile = normalizeTeacherProfile(data);
+    if (teacherProfile) renderSidebarTeacher();
+  } catch {
+    // 静默忽略，保持默认占位
+  }
+}
+
+function renderSidebarTeacher() {
+  if (!teacherProfile) return;
+  const footer = $('#sidebar-teacher');
+  footer.innerHTML = `<div class="avatar">${escapeHtml(teacherProfile.displayPlaceholder)}</div><div><strong>${escapeHtml(teacherProfile.displayName)}</strong><small>${escapeHtml(teacherProfile.title)}</small></div>`;
+}
+
+/* ── 兜底默认规划（从 HTML 初始静态课时页提取） ── */
 
 const hourPlanDifficulties = [
   '明确四大模块、Bluebook 操作与首套题诊断的流程。',
@@ -80,7 +143,8 @@ function renderCoursePlan(coursePlan) {
   const createPage = () => {
     const page = document.createElement('article');
     page.className = 'report-page hour-plan reference-plan-page';
-    page.innerHTML = `<div class="plan-page-body"><div class="page-kicker"></div><div class="plan-page-heading"><div><h2>SAT 数学个性化课程规划</h2><p>依据学生试听表现与目标动态编排，相邻阶段将按页面容量连续呈现。</p></div><div class="plan-total-hours"><span>建议总课时</span><b>${escapeHtml(coursePlan.totalHours)}h</b></div></div><table><thead><tr><th>课时</th><th>时长</th><th>授课内容、目标与重难点</th></tr></thead><tbody></tbody></table><div class="plan-note plan-note-reserve"><strong>动态调整原则：</strong>${escapeHtml(coursePlan.rationale)} 课时可按 0.5h、1h、1.5h 或 2h 灵活调整。</div></div>`;
+    const planTitleHtml = `<div class="plan-page-body"><div class="page-kicker"></div><div class="plan-page-heading"><div><h2>${escapeHtml(createSubjectViewModel(currentSubjectCode).displayName)}个性化课程规划</h2><p>依据学生试听表现与目标动态编排，相邻阶段将按页面容量连续呈现。</p></div><div class="plan-total-hours"><span>建议总课时</span><b>${escapeHtml(coursePlan.totalHours)}h</b></div></div><table><thead><tr><th>课时</th><th>时长</th><th>授课内容、目标与重难点</th></tr></thead><tbody></tbody></table><div class="plan-note plan-note-reserve"><strong>动态调整原则：</strong>${escapeHtml(coursePlan.rationale)} 课时可按 0.5h、1h、1.5h 或 2h 灵活调整。</div></div>`;
+    page.innerHTML = planTitleHtml;
     measurementHost.appendChild(page);
     pages.push(page);
     return page;
@@ -166,51 +230,36 @@ function renderCoursePlan(coursePlan) {
   return { oversizedLesson: null };
 }
 
-function deriveReport(notes, name, target) {
-  const hasCalculus = /微积分|Algebra|代数/.test(notes);
-  const hasForget = /不记得|遗忘|从头|基础差/.test(notes);
-  const hasGeometry = /几何/.test(notes);
-  const hasProbability = /概率|数据/.test(notes);
-  const positive = /活泼|互动积极|爱互动/.test(notes) ? '课堂互动积极，愿意主动表达与思考' : '课堂投入度良好，能够跟随讲解完成思考';
-  const accuracy = /正确率|准确率|做对|中等难度/.test(notes) ? '中等难度题目完成情况较好，具备进一步提升的基础' : '具备继续诊断与专项训练的基础';
-  const strength = hasCalculus ? '代数与函数基础相对扎实' : '理解与作答表现优于学生自我预期';
-  const priorities = [hasForget ? '建立 SAT 数学知识图谱' : '建立 SAT 考点框架'];
-  if (hasProbability) priorities.push('恢复概率与数据分析');
-  if (hasGeometry) priorities.push('恢复几何与三角模块');
-  const mainPriority = priorities.slice(1).join('、') || priorities[0];
-  const overview = `从本次试听表现看，${name}的实际基础优于其课前预期。学生${positive}，且${accuracy}。当前更需要解决的不是重复学习已掌握内容，而是尽快建立完整的 SAT 数学考点框架，并针对未长期使用的知识点进行系统恢复。`;
-  const lessonText = hasCalculus ? '本节课以 SAT 数学四大章节框架为切入点，结合课堂题目初步观察学生的知识结构与题型适应情况。' : '本节课以 SAT 数学知识框架和诊断题为切入点，初步定位学生的基础、遗忘点与后续学习重点。';
-  const outcomes = [positive, accuracy, hasCalculus ? '确认 Algebra 模块可作为已有优势保持' : '确认学生具备通过系统梳理恢复知识的学习基础', `明确后续优先方向：${mainPriority}`];
-  const needs = [priorities[0], ...(hasProbability ? ['概率与数据分析'] : []), ...(hasGeometry ? ['几何与三角'] : []), 'SAT 题型与考试节奏'];
-  const urgent = `最需要优先解决的是${mainPriority}以及对 SAT 题型体系的熟悉度。如果缺少系统框架，学生即使有基础，也容易在陌生模块和限时作答中产生不必要失分。`;
-  const script = `今天老师反馈，${name}课堂上的状态很好，互动和思考都比较主动，做题准确率也不错，说明学生本身具备较好的数学基础。\n\n当前最需要尽快解决的是${mainPriority}以及 SAT 考点体系的熟悉度。老师建议先完成整体知识框架梳理，再针对薄弱模块做专项恢复和题型训练，这样才能把已有基础更稳定地转化为 SAT 数学成绩。\n\n后续课程会结合每次套题的错题和用时动态调整，不会重复占用已经掌握模块的课时。`;
-  return {
-    overview,
-    classroomStatus: positive,
-    strength,
-    currentFocus: priorities.join('、'),
-    lessonTitle: /四章|4章/.test(notes) ? 'SAT 数学四大章节框架与诊断' : 'SAT 数学知识图谱与诊断',
-    lessonSummary: lessonText,
-    performance: `${positive}；${accuracy}。`,
-    outcomes,
-    priorityAreas: needs,
-    coursePlan: defaultCoursePlan,
-    salesFollowUp: {
-      positive: `${positive}，${accuracy}。`,
-      urgent,
-      angle: '建议以“先建立完整框架，再针对真实薄弱点专项补强”为续课切入点，突出课程会依据套题错题与用时动态调整。',
-      script
-    },
-    target: target || '待老师确认'
-  };
+function renderTeacherProfile() {
+  const container = $('#teacher-profile-container');
+  if (!container) return;
+
+  if (teacherProfile && (teacherProfile.photoUrl || teacherProfile.bio.length > 0)) {
+    const photoHtml = teacherProfile.photoUrl
+      ? `<div class="teacher-photo-wrap"><img src="${escapeHtml(teacherProfile.photoUrl)}" alt="${escapeHtml(teacherProfile.displayName)}" /></div>`
+      : `<div class="teacher-photo-wrap"><div class="avatar-placeholder">${escapeHtml(teacherProfile.displayPlaceholder)}</div></div>`;
+    const bioHtml = teacherProfile.bio.map((p) => `<p>${escapeHtml(p)}</p>`).join('');
+    const qrHtml = teacherProfile.qrUrl
+      ? `<aside class="teacher-qr"><img src="${escapeHtml(teacherProfile.qrUrl)}" alt="${escapeHtml(teacherProfile.displayName)} 老师课程二维码" /><span>扫码查看<br />课程详情</span></aside>`
+      : '';
+    container.innerHTML = `<div class="teacher-profile">${photoHtml}<div class="teacher-intro"><p class="teacher-label">${escapeHtml(teacherProfile.title || '')}</p><h2>${escapeHtml(teacherProfile.displayName)}</h2>${bioHtml}</div>${qrHtml}</div>`;
+  } else {
+    // 无教师资料时的缺省展示
+    container.innerHTML = '<div class="teacher-profile"><div class="teacher-intro"><p class="teacher-label">老师</p><h2>老师</h2><p>暂无教师简介。</p></div></div>';
+  }
 }
 
 function renderReport(data) {
   const name = $('#student-name').value.trim() || '学生';
   const target = $('#target-score').value.trim();
+  const subjectName = createSubjectViewModel(currentSubjectCode).displayName;
+  const teacherName = teacherProfile ? teacherProfile.displayName : '老师';
+
   setText('#report-title', `${name}个性化学习报告`);
   setText('#info-name', name);
+  setText('#info-subject', `${subjectName}试听`);
   setText('#info-target', target || '待老师确认');
+  setText('#info-teacher', teacherName);
   setText('#overview-text', data.overview);
   setText('#classroom-text', data.classroomStatus);
   setText('#strength-text', data.strength);
@@ -224,6 +273,7 @@ function renderReport(data) {
   setText('#sales-urgent', data.salesFollowUp.urgent);
   setText('#sales-angle', data.salesFollowUp.angle);
   setText('#sales-script', data.salesFollowUp.script);
+  renderTeacherProfile();
   const result = renderCoursePlan(data.coursePlan);
   if (result.oversizedLesson) throw new Error('COURSE_PLAN_LESSON_TOO_LONG');
 }
@@ -457,7 +507,7 @@ async function saveReport() {
       targetScore: $('#target-score').value.trim(),
       examDate: $('#exam-date').value.trim(),
       teacherNotes: $('#teacher-notes').value.trim(),
-      subject: 'SAT 数学',
+      subject: createSubjectViewModel(currentSubjectCode).displayName,
       reportData: {
         overview: $('#overview-text').textContent,
         classroom: $('#classroom-text').textContent,
@@ -478,17 +528,24 @@ async function saveReport() {
   reportStatus.textContent = result.saved ? '报告已生成 · 已保存' : '报告已生成 · 本地演示';
 }
 
+function collectFormData() {
+  return {
+    studentName: $('#student-name').value.trim(),
+    currentScore: $('#current-score').value.trim(),
+    targetScore: $('#target-score').value.trim(),
+    examDate: $('#exam-date').value.trim(),
+    teacherNotes: $('#teacher-notes').value.trim(),
+  };
+}
+
 async function generateAiReport() {
+  const formData = collectFormData();
   const response = await fetch('/api/generate-report', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
-      studentName: $('#student-name').value.trim(),
-      currentScore: $('#current-score').value.trim(),
-      targetScore: $('#target-score').value.trim(),
-      examDate: $('#exam-date').value.trim(),
-      teacherNotes: $('#teacher-notes').value.trim(),
-      accessCode: $('#access-code').value
+      ...formData,
+      subjectCode: currentSubjectCode,
     })
   });
   const result = await response.json();
@@ -506,7 +563,6 @@ $('#report-form').addEventListener('submit', async (event) => {
   button.textContent = 'AI 正在分析并生成课程规划…';
   notice.classList.remove('error');
   notice.innerHTML = '<strong>正在生成：</strong>通常需要 30–90 秒，详细课时规划可能更久，请不要重复提交或关闭页面。';
-  localStorage.setItem('lumist-report-access-code', $('#access-code').value);
   try {
     currentReportData = await generateAiReport();
     originalAiCoursePlan = cloneCoursePlan(currentReportData.coursePlan);
@@ -515,21 +571,26 @@ $('#report-form').addEventListener('submit', async (event) => {
     document.querySelector('#report-view .eyebrow').textContent = 'AI 报告已生成 · 未云端保存';
     notice.innerHTML = '<strong>生成原则：</strong>仅根据老师输入生成；未提供的成绩、日期与课时不会编造。';
   } catch (error) {
-    if (error.message === 'INVALID_ACCESS_CODE') {
-      notice.classList.add('error');
-      notice.innerHTML = '<strong>试用码不正确：</strong>请确认后重新生成。';
-      return;
-    }
     if (error.message === 'INVALID_INPUT') {
       notice.classList.add('error');
       notice.innerHTML = '<strong>信息不足：</strong>请至少填写 20 个字的试听课反馈。';
       return;
     }
-    currentReportData = deriveReport($('#teacher-notes').value.trim(), $('#student-name').value.trim() || '学生', $('#target-score').value.trim());
-    originalAiCoursePlan = cloneCoursePlan(currentReportData.coursePlan);
-    renderReport(currentReportData);
-    changeView('report');
-    document.querySelector('#report-view .eyebrow').textContent = '本地兜底版 · AI 暂不可用';
+    if (error.message === 'UNAUTHORIZED') {
+      notice.classList.add('error');
+      notice.innerHTML = '<strong>登录已过期：</strong>请刷新页面后重新登录。';
+      return;
+    }
+    if (canUseFallback(error.message)) {
+      currentReportData = buildFallbackReport(currentSubjectCode, collectFormData());
+      originalAiCoursePlan = cloneCoursePlan(currentReportData.coursePlan);
+      renderReport(currentReportData);
+      changeView('report');
+      document.querySelector('#report-view .eyebrow').textContent = '本地兜底版 · AI 暂不可用';
+    } else {
+      notice.classList.add('error');
+      notice.innerHTML = `<strong>生成失败：</strong>${error.message === 'AI_GENERATION_FAILED' ? 'AI 服务暂时无响应，请稍后重试。' : '发生未知错误，请重试。'}`;
+    }
   } finally {
     button.disabled = false;
     button.innerHTML = 'AI 生成个性化报告 <span>→</span>';
@@ -537,6 +598,7 @@ $('#report-form').addEventListener('submit', async (event) => {
 });
 $('#sample-one').addEventListener('click', () => { $('#teacher-notes').value = sampleOne; });
 $('#sample-two').addEventListener('click', () => { $('#teacher-notes').value = sampleTwo; });
+$('#subject-select').addEventListener('change', onSubjectChange);
 document.querySelectorAll('.nav-item').forEach((item) => item.addEventListener('click', () => changeView(item.dataset.view)));
 $('#open-history').addEventListener('click', () => { renderReport(currentReportData); changeView('report'); });
 $('#back-edit').addEventListener('click', () => changeView('new'));
@@ -636,13 +698,10 @@ document.querySelectorAll('.tab').forEach((tab) => tab.addEventListener('click',
 $('#copy-script').addEventListener('click', async () => { await navigator.clipboard.writeText($('#sales-script').textContent); $('#copy-script').textContent = '已复制'; setTimeout(() => { $('#copy-script').textContent = '复制话术'; }, 1200); });
 const defaultCoursePlan = getDefaultCoursePlan();
 
-document.querySelector('.teacher-page .page-kicker').textContent = '03 / 任课教师';
-
-document.querySelector('.teacher-intro').innerHTML = `<p class="teacher-label">SAT 数学 / AP 数学与计算机课程导师</p><h2>Amber 老师</h2><p class="teacher-summary">用清晰的知识框架与真实题目训练，帮助学生把已有数学基础稳定转化为考试表现。</p><div class="teacher-sections"><section><h3>教育背景</h3><p>华盛顿大学数学专业本科，佐治亚理工大学计算机硕士；专业课程平均绩点 3.8/4.0。AP Calculus BC 5 分，SAT 数学满分。</p></section><section><h3>擅长领域</h3><p>AP Precalculus、AP Calculus AB/BC、SAT 数学，以及 Java/Python、数据结构与算法等计算机课程。</p></section><section><h3>教学风格</h3><p>以真题与典型题搭建解题路径；围绕学生薄弱点制定个性化计划，并兼顾考试表现与长期学科发展。</p></section></div><div class="teacher-tags"><span>SAT 数学</span><span>AP Calculus</span><span>APCSA</span></div>`;
-
-document.querySelector('.data-impact-page').innerHTML = '<img src="assets/lumist-data-page-6.png" alt="路觅教育数据" />';
-
-$('#access-code').value = localStorage.getItem('lumist-report-access-code') || '';
-let currentReportData = deriveReport($('#teacher-notes').value.trim(), $('#student-name').value.trim(), $('#target-score').value.trim());
+// 初始化
+populateSubjectSelect();
+loadTeacherProfile();
+const initialData = collectFormData();
+currentReportData = buildFallbackReport(currentSubjectCode, initialData);
 originalAiCoursePlan = cloneCoursePlan(currentReportData.coursePlan);
 renderReport(currentReportData);
