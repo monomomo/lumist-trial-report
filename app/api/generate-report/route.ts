@@ -113,7 +113,7 @@ function getTopicContext(notes: string) {
   const label = uniqueTopics.length ? uniqueTopics.slice(0, 3).join('、') : 'SAT 数学核心内容';
   return {
     label,
-    module: uniqueTopics.length ? `SAT 数学中的${label}模块` : 'SAT 数学核心内容',
+    module: uniqueTopics.length ? `SAT 数学${label}模块` : 'SAT 数学核心内容',
     training: uniqueTopics.length ? `${label}相关题型` : '相关题型'
   };
 }
@@ -128,12 +128,12 @@ function getInputCompleteness(notes: string) {
 function sanitizeParentReport(report: z.infer<typeof reportSchema>, notes: string) {
   const topic = getTopicContext(notes);
   const completeness = getInputCompleteness(notes);
-  const safeOverview = `本次试听课围绕${topic.module}展开，帮助学生初步熟悉相关知识在考试中的呈现方式。后续将结合模块练习与 Bluebook 数学诊断，进一步明确具体学习重点并细化训练安排。`;
-  const safeLessonSummary = `本节试听课围绕${topic.module}展开，通过知识讲解与课堂练习，帮助学生初步熟悉相关知识在 SAT 考试中的呈现方式。后续将结合 Bluebook 数学模块诊断，进一步确认学生在不同题型中的掌握情况，并据此细化学习重点与训练安排。`;
+  const safeOverview = `本次试听课围绕 ${topic.module} 展开，帮助学生初步熟悉相关知识在考试中的呈现方式。后续将结合模块练习与 Bluebook 数学诊断，进一步明确具体学习重点并细化训练安排。`;
+  const safeLessonSummary = `本节试听课围绕 ${topic.module} 展开，通过知识讲解与课堂练习，帮助学生初步熟悉相关知识在 SAT 考试中的呈现方式。后续将结合 Bluebook 数学模块诊断，进一步确认学生在不同题型中的掌握情况，并据此细化学习重点与训练安排。`;
   const safePerformance = `当前阶段以熟悉${topic.training}和建立解题框架为主，后续将结合模块练习持续观察学生的理解与应用情况。`;
   const sanitizeText = (value: string, fallback: string) => parentFacingForbiddenPattern.test(value) ? fallback : value;
   const safeOutcomes = [
-    `初步熟悉${topic.module}的学习方向`,
+    `初步了解 ${topic.module} 的学习方向`,
     `了解${topic.training}在考试中的基本呈现方式`,
     '明确后续将通过模块练习与 Bluebook 诊断细化学习安排'
   ];
@@ -149,7 +149,7 @@ function sanitizeParentReport(report: z.infer<typeof reportSchema>, notes: strin
   return {
     ...report,
     overview: completeness.hasSpecificContent && completeness.hasClassroomObservation ? sanitizeText(report.overview, safeOverview) : safeOverview,
-    classroomStatus: completeness.hasClassroomObservation ? sanitizeText(report.classroomStatus, '当前阶段以熟悉 SAT 数学考点框架与题型为主') : `本节课以${topic.module}的知识讲解与课堂练习为主`,
+    classroomStatus: completeness.hasClassroomObservation ? sanitizeText(report.classroomStatus, '当前阶段以熟悉 SAT 数学考点框架与题型为主') : `本节课主要围绕 ${topic.module} 进行知识讲解与课堂练习`,
     strength: completeness.hasClassroomObservation ? sanitizeText(report.strength, '将在后续模块练习中进一步确认并持续巩固') : '后续将结合模块练习进一步确认学生的优势题型',
     currentFocus: completeness.hasSpecificContent ? sanitizeText(report.currentFocus, `${topic.label}考点梳理与题型熟悉`) : `${topic.label}模块框架与题型熟悉`,
     lessonTitle: completeness.hasSpecificContent ? sanitizeText(report.lessonTitle, `${topic.label}内容梳理`) : `${topic.label}模块导入与题型认识`,
