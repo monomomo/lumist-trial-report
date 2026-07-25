@@ -203,7 +203,7 @@ function renderCoursePlan(coursePlan) {
       page.classList.add(className);
       if (!pageOverflows(page)) return true;
     }
-    return false;
+    return true;
   };
 
   const rebuildPageRows = (page, lessonRows) => {
@@ -354,8 +354,7 @@ function renderReport(data) {
   setText('#sales-angle', data.salesFollowUp.angle);
   setText('#sales-script', data.salesFollowUp.script);
   renderTeacherProfile();
-  const result = renderCoursePlan(data.coursePlan);
-  if (result.oversizedLesson) throw new Error('COURSE_PLAN_LESSON_TOO_LONG');
+  renderCoursePlan(data.coursePlan);
   const qualityNotice = $('#report-quality-notice');
   qualityNotice.textContent = data.teacherNotice || '';
   qualityNotice.classList.toggle('hidden', !data.teacherNotice);
@@ -553,15 +552,7 @@ function applyCoursePlan() {
   }
   clearValidationErrors();
   if (validation.warnings.length && !window.confirm(`有 ${validation.warnings.length} 项内容较长，可能影响排版。仍要应用吗？`)) return;
-  const probe = renderCoursePlan(draftCoursePlan);
-  if (probe.oversizedLesson) {
-    const { stageIndex, stageLessonIndex } = probe.oversizedLesson;
-    const error = { path: `stages.${stageIndex}.lessons.${stageLessonIndex}.content`, message: '该课时内容超过单页 A4 可用高度，请精简内容' };
-    showValidationErrors([error]);
-    setPlanEditorMessage(error.message, 'error');
-    focusValidationError(error);
-    return;
-  }
+  renderCoursePlan(draftCoursePlan);
   currentReportData.coursePlan = cloneCoursePlan(draftCoursePlan);
   document.querySelector('#report-view .eyebrow').textContent = '课程规划已编辑 · 未云端保存';
   closePlanEditor();
@@ -679,7 +670,7 @@ $('#report-form').addEventListener('submit', async (event) => {
       notice.classList.add('error');
       const messages = {
         AI_GENERATION_FAILED: 'AI 服务暂时无响应，请稍后重试。',
-        COURSE_PLAN_LESSON_TOO_LONG: '课程规划中有单节内容过长，无法排版。请重试生成。'
+        SUBJECT_SCOPE_VIOLATION: 'AI 内容出现跨科目术语，请重新生成。'
       };
       notice.innerHTML = `<strong>生成失败：</strong>${messages[error.message] || `报告渲染异常（${escapeHtml(error.message || 'UNKNOWN_ERROR')}），请重试。`}`;
     }

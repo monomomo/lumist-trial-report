@@ -4,6 +4,7 @@ import { NextResponse } from 'next/server';
 import { z } from 'zod';
 import { resolveSubject } from '@/lib/subjects/catalog';
 import { buildSystemPrompt, buildUserInput } from '@/lib/subjects/prompt';
+import { hasSubjectScopeViolation } from '@/lib/subjects/scope';
 import { getAuthResult, AUTH_STATUS } from '@/lib/auth/current-user';
 
 export const runtime = 'nodejs';
@@ -187,22 +188,32 @@ export async function POST(request: Request) {
       timeout: 240000,
       maxRetries: 0
     });
-    const response = await client.responses.parse({
-      model: process.env.OPENAI_MODEL || 'gpt-5-mini',
-      input: [
-        { role: 'system', content: buildSystemPrompt(subject) },
-        { role: 'user', content: buildUserInput(subject, parsed.data) }
-      ],
-      text: { format: zodTextFormat(reportSchema, 'trial_report') },
-      reasoning: { effort: 'low' },
-      max_output_tokens: 8000
-    });
+    const generateModelReport = async (scopeReminder = '') => {
+      const response = await client.responses.parse({
+        model: process.env.OPENAI_MODEL || 'gpt-5-mini',
+        input: [
+          { role: 'system', content: `${buildSystemPrompt(subject)}${scopeReminder}` },
+          { role: 'user', content: buildUserInput(subject, parsed.data) }
+        ],
+        text: { format: zodTextFormat(reportSchema, 'trial_report') },
+        reasoning: { effort: 'low' },
+        max_output_tokens: 8000
+      });
+      return response.output_parsed;
+    };
 
-    if (!response.output_parsed) {
+    let modelReport = await generateModelReport();
+    if (!modelReport) {
       return NextResponse.json({ error: 'EMPTY_MODEL_OUTPUT' }, { status: 502 });
     }
+    if (hasSubjectScopeViolation(subject.code, modelReport)) {
+      modelReport = await generateModelReport(`\n13. 上一版内容出现跨科目术语。本次必须只使用 ${subject.displayName} 的模块与术语，任何其他 SAT 或 AP 科目的专属内容都不得出现。`);
+    }
+    if (!modelReport || hasSubjectScopeViolation(subject.code, modelReport)) {
+      return NextResponse.json({ error: 'SUBJECT_SCOPE_VIOLATION' }, { status: 502 });
+    }
 
-    const parentReport = sanitizeParentReport(response.output_parsed, parsed.data.teacherNotes, subject.code);
+    const parentReport = sanitizeParentReport(modelReport, parsed.data.teacherNotes, subject.code);
     const normalizedStages = parentReport.coursePlan.stages.map((stage) => ({
       ...stage,
       title: normalizePlanTitle(stage.title),
