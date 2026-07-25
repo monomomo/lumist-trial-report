@@ -15,6 +15,7 @@ test('course plan pagination reserves print safety space', async () => {
   const source = await readFile(new URL('../public/report/app.js', import.meta.url), 'utf8');
   assert.match(source, /PLAN_PAGE_SAFETY_MARGIN = 32/);
   assert.match(source, /body\.clientHeight - PLAN_PAGE_SAFETY_MARGIN/);
+  assert.match(source, /\['plan-page-compact', 'plan-page-condensed'\]/);
 });
 
 test('new report form starts with empty teacher inputs', async () => {

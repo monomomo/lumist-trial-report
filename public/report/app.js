@@ -174,6 +174,14 @@ function renderCoursePlan(coursePlan) {
     return body.scrollHeight > body.clientHeight - PLAN_PAGE_SAFETY_MARGIN;
   };
 
+  const fitSingleLessonPage = (page) => {
+    for (const className of ['plan-page-compact', 'plan-page-condensed']) {
+      page.classList.add(className);
+      if (!pageOverflows(page)) return true;
+    }
+    return false;
+  };
+
   const rebuildPageRows = (page, lessonRows) => {
     const tableBody = page.querySelector('tbody');
     tableBody.innerHTML = '';
@@ -196,13 +204,13 @@ function renderCoursePlan(coursePlan) {
       rebuildPageRows(currentPage, [...rows, row]);
       if (!pageOverflows(currentPage)) return;
       if (!rows.length) {
-        oversizedLesson = { stageIndex, stageLessonIndex };
+        if (!fitSingleLessonPage(currentPage)) oversizedLesson = { stageIndex, stageLessonIndex };
         return;
       }
       rebuildPageRows(currentPage, rows);
       currentPage = createPage();
       rebuildPageRows(currentPage, [row]);
-      if (pageOverflows(currentPage)) oversizedLesson = { stageIndex, stageLessonIndex };
+      if (pageOverflows(currentPage) && !fitSingleLessonPage(currentPage)) oversizedLesson = { stageIndex, stageLessonIndex };
     });
   });
 
