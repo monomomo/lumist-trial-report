@@ -8,6 +8,7 @@ const sampleTwo = '学生课上挺活泼的，爱互动，愿意思考，做题�
 const $ = (selector) => document.querySelector(selector);
 const setText = (selector, value) => { $(selector).textContent = value; };
 const escapeHtml = (value) => String(value).replace(/[&<>'"]/g, (character) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;' })[character]);
+const PLAN_PAGE_SAFETY_MARGIN = 32;
 
 /* ── 科目选择 ── */
 
@@ -168,7 +169,10 @@ function renderCoursePlan(coursePlan) {
     return row;
   };
 
-  const pageOverflows = (page) => page.querySelector('.plan-page-body').scrollHeight > page.querySelector('.plan-page-body').clientHeight;
+  const pageOverflows = (page) => {
+    const body = page.querySelector('.plan-page-body');
+    return body.scrollHeight > body.clientHeight - PLAN_PAGE_SAFETY_MARGIN;
+  };
 
   const rebuildPageRows = (page, lessonRows) => {
     const tableBody = page.querySelector('tbody');

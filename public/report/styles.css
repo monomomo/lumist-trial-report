@@ -283,7 +283,7 @@ body.modal-open { overflow:hidden; }
   .plan-editor-footer>div { grid-column:1 / -1; }
   .plan-editor-footer>.danger-btn { grid-column:1 / -1; }
 }
-@media print { body.modal-open { overflow:visible !important; }.reference-plan-page { padding:42px 53px !important; }.plan-editor-modal,#edit-course-plan { display:none !important; } }
+@media print { body.modal-open { overflow:visible !important; }.reference-plan-page { padding:42px 53px !important; }.reference-plan-page tr { break-inside:avoid !important; page-break-inside:avoid !important; }.plan-editor-modal,#edit-course-plan { display:none !important; } }
 
 /* 科目选择器在 field-grid 中保持与其他输入一致 */
 .field-grid select { height:40px;border:1px solid #dfe3ed;border-radius:8px;padding:0 11px;color:var(--ink);outline:none;background:#fff;font-size:14px;cursor:pointer; }
