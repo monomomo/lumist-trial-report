@@ -13,7 +13,7 @@ export async function GET() {
   }
 
   const { getTeacherPublicProfile } = await import('@/lib/teachers/public-profile');
-  const profile = await getTeacherPublicProfile(auth.user!.id, auth.user!.email);
+  const profile = await getTeacherPublicProfile(auth.user!.id, auth.user!.username);
   if (!profile) {
     return NextResponse.json({ error: 'PROFILE_NOT_FOUND' }, { status: 404 });
   }

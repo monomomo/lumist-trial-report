@@ -1,5 +1,6 @@
 import { isSupabaseConfigured } from '@/lib/supabase/config';
 import { createClient } from '@/lib/supabase/server';
+import { authEmailToUsername } from '@/lib/auth/username';
 
 /** 认证状态枚举。 */
 export const AUTH_STATUS = {
@@ -15,12 +16,12 @@ export type AuthStatusValue = (typeof AUTH_STATUS)[keyof typeof AUTH_STATUS];
 
 export interface AuthResultBase {
   status: AuthStatusValue;
-  user: { id: string; email: string } | null;
+  user: { id: string; username: string } | null;
 }
 
 export interface AuthenticatedResult extends AuthResultBase {
   status: typeof AUTH_STATUS.AUTHENTICATED;
-  user: { id: string; email: string };
+  user: { id: string; username: string };
 }
 
 export type AuthResult = AuthResultBase | AuthenticatedResult;
@@ -39,6 +40,6 @@ export async function getAuthResult(): Promise<AuthResult> {
 
   return {
     status: AUTH_STATUS.AUTHENTICATED,
-    user: { id: user.id, email: user.email ?? '' },
+    user: { id: user.id, username: authEmailToUsername(user.email ?? '') },
   };
 }

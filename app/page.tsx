@@ -11,7 +11,7 @@ export default async function Home() {
   }
 
   if (auth.status === AUTH_STATUS.AUTHENTICATED) {
-    return <Workspace email={auth.user!.email} />;
+    return <Workspace username={auth.user!.username} />;
   }
 
   return (
@@ -31,7 +31,7 @@ export default async function Home() {
         <div className="auth-card">
           <span>老师登录</span>
           <h2>欢迎回来</h2>
-          <p>请使用公司分配的工作邮箱和密码登录。</p>
+          <p>请使用公司分配的老师账号和密码登录。</p>
           <LoginForm />
         </div>
       </div>

@@ -3,9 +3,9 @@
 import { useRouter } from 'next/navigation';
 import { createClient } from '@/lib/supabase/client';
 
-export function Workspace({ email }: { email?: string }) {
+export function Workspace({ username }: { username?: string }) {
   const router = useRouter();
-  const isDemo = !email;
+  const isDemo = !username;
 
   async function signOut() {
     if (isDemo) return;
@@ -21,7 +21,7 @@ export function Workspace({ email }: { email?: string }) {
   return (
     <main className="workspace-shell">
       <header className="workspace-topbar">
-        <div><strong>路觅教育老师工作台</strong>{email ? <span>{email}</span> : <span className="demo-badge">Demo 模式</span>}</div>
+        <div><strong>路觅教育老师工作台</strong>{username ? <span>账号：{username}</span> : <span className="demo-badge">Demo 模式</span>}</div>
         {isDemo
           ? <button type="button" onClick={enterDemo}>重新进入</button>
           : <button type="button" onClick={signOut}>退出登录</button>

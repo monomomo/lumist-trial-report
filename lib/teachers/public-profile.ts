@@ -11,22 +11,32 @@ export interface TeacherPublicProfile {
   subjects: string[];
 }
 
+export const PRESET_TEACHER_PROFILES: Record<string, TeacherPublicProfile> = {
+  amberlyu: {
+    displayName: 'Amber',
+    displayPlaceholder: 'A',
+    title: 'AP 数学与计算机课程导师',
+    bio: [
+      '华盛顿大学数学专业本科，佐治亚理工大学计算机硕士，专业课程平均绩点 3.8/4.0；AP Calculus BC 5 分、SAT 数学满分。',
+      '拥有 4 年以上 Lumist 导师经验，累计辅导学生上百位，熟悉北美高中与 AP 课程体系，主授 AP Precalculus、AP Calculus AB/BC 与 AP Computer Science A。',
+      '曾供职于华为成都研究所与联想集团，具备扎实的数学、计算机和工程实践背景，擅长 Java、Python、数据结构与算法教学。',
+      '注重知识体系与真题训练结合，通过个性化学习规划帮助学生理解抽象概念、建立清晰解题路径，并兼顾考试表现与长期学科发展。',
+    ],
+    photoUrl: '/report/assets/amberlyu-photo.png',
+    qrUrl: '/report/assets/amber-qr.png',
+    subjects: ['AP Precalculus', 'AP Calculus AB', 'AP Calculus BC', 'AP Computer Science A', 'SAT 数学'],
+  },
+};
+
 /** 教师资料未配置时的默认 bio。 */
 export const DEFAULT_BIO: string[] = [
   '拥有丰富的教学经验，擅长以清晰的知识框架与真实题目训练帮助学生提升考试表现。',
   '坚持围绕学生薄弱点制定个性化计划，并兼顾考试表现与长期学科发展。',
 ];
 
-/**
- * 获取当前教师的公开资料。
- *
- * displayName 降级链：teacher_configs.public_name → profiles.display_name → email 本地部分。
- * photoPath / qrPath 通过 Supabase Storage 签名 URL 返回，有效期 1 小时。
- * bio 支持数组或 { paragraphs: string[] } 两种 jsonb 结构。
- */
 export async function getTeacherPublicProfile(
   userId: string,
-  email: string,
+  username: string,
 ): Promise<TeacherPublicProfile | null> {
   if (!isSupabaseConfigured) return null;
 
@@ -39,12 +49,12 @@ export async function getTeacherPublicProfile(
 
   const profile = profileResult.data;
   const config = configResult.data;
+  const preset = PRESET_TEACHER_PROFILES[username];
 
-  const emailLocalPart = email.includes('@') ? email.split('@')[0] : '老师';
-  const displayName = config?.public_name || profile?.display_name || emailLocalPart;
+  const displayName = config?.public_name || preset?.displayName || profile?.display_name || username || '老师';
 
-  let photoUrl: string | null = null;
-  let qrUrl: string | null = null;
+  let photoUrl: string | null = preset?.photoUrl ?? null;
+  let qrUrl: string | null = preset?.qrUrl ?? null;
 
   if (config?.photo_path) {
     const { data: photoData } = await supabase.storage
@@ -59,7 +69,7 @@ export async function getTeacherPublicProfile(
     qrUrl = qrData?.signedUrl ?? null;
   }
 
-  let bio: string[] = DEFAULT_BIO;
+  let bio: string[] = preset?.bio ?? DEFAULT_BIO;
   if (config?.bio) {
     const raw = config.bio;
     if (Array.isArray(raw) && raw.length > 0) {
@@ -72,10 +82,10 @@ export async function getTeacherPublicProfile(
   return {
     displayName,
     displayPlaceholder: displayName.charAt(0),
-    title: config?.title ?? null,
+    title: config?.title ?? preset?.title ?? null,
     bio,
     photoUrl,
     qrUrl,
-    subjects: [],
+    subjects: preset?.subjects ?? [],
   };
 }

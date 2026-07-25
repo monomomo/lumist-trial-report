@@ -10,7 +10,7 @@ cp .env.example .env.local
 npm run dev
 ```
 
-老师使用 Supabase Authentication 登录，无需注册。管理员通过 Supabase Dashboard 创建老师账号，首次登录密码由管理员设定。
+老师使用账号名和密码登录，无需注册。系统会在后台将账号名映射为 Supabase Authentication 使用的内部认证地址，老师端不展示邮箱。
 
 ## 前置依赖
 
@@ -20,7 +20,7 @@ Supabase 是本系统的身份和数据库来源，不再是可选的。
 
 1. 创建 Supabase 项目。
 2. 在 SQL Editor 执行 `supabase/migrations/202607230001_initial_schema.sql`。
-3. 在 Authentication 中创建老师账号（邮箱 + 密码）。
+3. 在 Authentication 中创建老师账号，内部认证地址格式为 `账号名@teachers.lumist.internal`，并开启 Auto Confirm User。
 4. 将项目 URL 和 Publishable Key 写入 `.env.local`。
 5. （可选）在 `teacher_configs` 表中配置老师的公开名称、头衔、简介、头像和二维码。
 6. 重启本地开发服务。
@@ -45,7 +45,7 @@ OPENAI_MODEL=gpt-5-mini
 
 ### 第二版（当前）
 
-- 老师登录（Supabase Auth，预创建账号、无需注册）
+- 老师账号名密码登录（Supabase Auth，预创建账号、无需注册）
 - 支持 7 个考试科目：SAT 数学、SAT 英语、AP Calculus AB/BC、AP Computer Science A、AP Microeconomics、AP Macroeconomics
 - 科目感知的 AI 提示词构建与报告生成
 - AI 异常时本地科目兜底
