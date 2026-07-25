@@ -181,7 +181,7 @@ nav .nav-item.active,nav .nav-item:hover { background:#5a4712; }
 .reference-plan-page .plan-note-reserve { visibility:hidden; }
 .plan-measurement-host { position:absolute; left:-10000px; top:0; width:210mm; visibility:hidden; pointer-events:none; }
 .plan-measurement-host .reference-plan-page { width:210mm !important; height:297mm !important; min-height:297mm !important; max-height:297mm !important; margin:0 !important; aspect-ratio:auto !important; box-shadow:none !important; }
-.plan-measurement-host .plan-page-body { height:100%; overflow:hidden; }
+.plan-measurement-host .plan-page-body { overflow:hidden; }
 .plan-measurement-host .reference-plan-page { padding:42px 53px !important; }
 .plan-page-heading { display:flex; align-items:flex-start; justify-content:space-between; gap:24px; margin-bottom:14px; }
 .plan-page-heading p { margin:0; color:#766a4f; font-size:11px; line-height:1.5; }
