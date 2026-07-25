@@ -273,6 +273,25 @@ function deriveReport(notes, name, target) {
   };
 }
 
+function renderTeacherProfile() {
+  const container = $('#teacher-profile-container');
+  if (!container) return;
+
+  if (teacherProfile && (teacherProfile.photoUrl || teacherProfile.bio.length > 0)) {
+    const photoHtml = teacherProfile.photoUrl
+      ? `<div class="teacher-photo-wrap"><img src="${escapeHtml(teacherProfile.photoUrl)}" alt="${escapeHtml(teacherProfile.displayName)}" /></div>`
+      : `<div class="teacher-photo-wrap"><div class="avatar-placeholder">${escapeHtml(teacherProfile.displayPlaceholder)}</div></div>`;
+    const bioHtml = teacherProfile.bio.map((paragraph) => `<p>${escapeHtml(paragraph)}</p>`).join('');
+    const qrHtml = teacherProfile.qrUrl
+      ? `<aside class="teacher-qr"><img src="${escapeHtml(teacherProfile.qrUrl)}" alt="${escapeHtml(teacherProfile.displayName)} 老师课程二维码" /><span>扫码查看<br />课程详情</span></aside>`
+      : '';
+    container.innerHTML = `<div class="teacher-profile">${photoHtml}<div class="teacher-intro"><p class="teacher-label">${escapeHtml(teacherProfile.title || '')}</p><h2>${escapeHtml(teacherProfile.displayName)}</h2>${bioHtml}</div>${qrHtml}</div>`;
+    return;
+  }
+
+  container.innerHTML = '<div class="teacher-profile"><div class="teacher-intro"><p class="teacher-label">老师</p><h2>老师</h2><p>暂无教师简介。</p></div></div>';
+}
+
 function renderReport(data) {
   const name = $('#student-name').value.trim() || '学生';
   const target = $('#target-score').value.trim();
@@ -303,7 +322,6 @@ function renderReport(data) {
   const qualityNotice = $('#report-quality-notice');
   qualityNotice.textContent = data.teacherNotice || '';
   qualityNotice.classList.toggle('hidden', !data.teacherNotice);
-  renderCoursePlan(data.coursePlan);
 }
 
 function changeView(id) {
