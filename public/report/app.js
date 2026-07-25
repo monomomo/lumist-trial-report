@@ -12,6 +12,7 @@ const escapeHtml = (value) => String(value).replace(/[&<>'"]/g, (character) => (
 /* ── 科目选择 ── */
 
 let currentSubjectCode = 'sat_math';
+let currentReportData = null;
 
 function populateSubjectSelect() {
   const select = $('#subject-select');
