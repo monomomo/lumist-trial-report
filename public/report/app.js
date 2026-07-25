@@ -21,6 +21,7 @@ const PLAN_PAGE_AVAILABLE_HEIGHT = A4_PAGE_HEIGHT_MM / MILLIMETERS_PER_INCH * CS
 
 let currentSubjectCode = 'sat_math';
 let currentReportData = null;
+let summaryPageCount = 1;
 
 function populateSubjectSelect() {
   const select = $('#subject-select');
@@ -154,8 +155,56 @@ function getDefaultCoursePlan() {
   };
 }
 
+function layoutSummaryPages() {
+  const page = document.querySelector('.summary-page:not(.summary-continuation-page)');
+  const pageContent = page.querySelector('.summary-page-content');
+  const existingContinuation = document.querySelector('.summary-continuation-page');
+  const learningSection = existingContinuation?.querySelector('.summary-learning-section') || page.querySelector('.summary-learning-section');
+  if (existingContinuation) {
+    pageContent.appendChild(learningSection);
+    existingContinuation.remove();
+  }
+  page.classList.remove('summary-page-compact', 'summary-page-condensed');
+  const measurementHost = document.createElement('div');
+  measurementHost.className = 'summary-measurement-host';
+  document.body.appendChild(measurementHost);
+  const pageFits = (candidate) => {
+    measurementHost.innerHTML = '';
+    const clone = candidate.cloneNode(true);
+    measurementHost.appendChild(clone);
+    return clone.querySelector('.summary-page-content').scrollHeight <= PLAN_PAGE_AVAILABLE_HEIGHT;
+  };
+
+  summaryPageCount = 1;
+  if (pageFits(page)) {
+    measurementHost.remove();
+    return;
+  }
+  page.classList.add('summary-page-compact');
+  if (pageFits(page)) {
+    measurementHost.remove();
+    return;
+  }
+  page.classList.add('summary-page-condensed');
+  if (pageFits(page)) {
+    measurementHost.remove();
+    return;
+  }
+
+  page.classList.remove('summary-page-condensed');
+  const continuation = document.createElement('article');
+  continuation.className = 'report-page summary-page summary-continuation-page summary-page-compact';
+  continuation.innerHTML = '<div class="summary-page-content"><div class="page-kicker">02 / 试听课总结 · 续</div><h2>试听反馈与学习成果</h2></div>';
+  continuation.querySelector('.summary-page-content').appendChild(learningSection);
+  page.after(continuation);
+  if (!pageFits(page)) page.classList.add('summary-page-condensed');
+  if (!pageFits(continuation)) continuation.classList.add('summary-page-condensed');
+  summaryPageCount = 2;
+  measurementHost.remove();
+}
+
 function updateFollowingPageNumbers(planPageCount) {
-  const teacherNumber = 2 + planPageCount;
+  const teacherNumber = summaryPageCount + planPageCount + 1;
   document.querySelector('.teacher-page .page-kicker').textContent = `${String(teacherNumber).padStart(2, '0')} / 任课教师`;
 }
 
@@ -259,7 +308,7 @@ function renderCoursePlan(coursePlan) {
     return { oversizedLesson };
   }
   pages.forEach((page, pageIndex) => {
-    const pageNumber = String(pageIndex + 2).padStart(2, '0');
+    const pageNumber = String(pageIndex + summaryPageCount + 1).padStart(2, '0');
     page.querySelector('.page-kicker').textContent = `${pageNumber} / 详细课程规划 · ${String(pageIndex + 1).padStart(2, '0')}`;
   });
   document.querySelectorAll('.reference-plan-page').forEach((page) => page.remove());
@@ -356,6 +405,7 @@ function renderReport(data) {
   setText('#sales-angle', data.salesFollowUp.angle);
   setText('#sales-script', data.salesFollowUp.script);
   renderTeacherProfile();
+  layoutSummaryPages();
   renderCoursePlan(data.coursePlan);
   const qualityNotice = $('#report-quality-notice');
   qualityNotice.textContent = data.teacherNotice || '';

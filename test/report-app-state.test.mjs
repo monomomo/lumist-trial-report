@@ -26,6 +26,22 @@ test('course plan pagination reserves print safety space', async () => {
   assert.equal(styles.includes('.plan-measurement-host .plan-page-body { height:100%'), false);
 });
 
+test('summary page compacts and splits by measured A4 content height', async () => {
+  const source = await readFile(new URL('../public/report/app.js', import.meta.url), 'utf8');
+  const styles = await readFile(new URL('../public/report/styles.css', import.meta.url), 'utf8');
+  const html = await readFile(new URL('../public/report/index.html', import.meta.url), 'utf8');
+  assert.match(html, /class="summary-page-content"/);
+  assert.match(html, /class="summary-profile-section"/);
+  assert.match(html, /class="summary-learning-section"/);
+  assert.match(source, /function layoutSummaryPages\(\)/);
+  assert.match(source, /summary-page-compact/);
+  assert.match(source, /summary-page-condensed/);
+  assert.match(source, /summary-continuation-page/);
+  assert.match(source, /scrollHeight <= PLAN_PAGE_AVAILABLE_HEIGHT/);
+  assert.match(source, /summaryPageCount \+ planPageCount \+ 1/);
+  assert.match(styles, /\.summary-measurement-host/);
+});
+
 test('new report form starts with empty teacher inputs', async () => {
   const source = await readFile(new URL('../public/report/index.html', import.meta.url), 'utf8');
   for (const id of ['student-name', 'target-score', 'total-hours']) {
