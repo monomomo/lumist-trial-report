@@ -13,10 +13,13 @@ test('report app declares current report state before initialization', async () 
 
 test('course plan pagination reserves print safety space', async () => {
   const source = await readFile(new URL('../public/report/app.js', import.meta.url), 'utf8');
+  assert.match(source, /CSS_PIXELS_PER_INCH = 96/);
+  assert.match(source, /MILLIMETERS_PER_INCH = 25\.4/);
+  assert.match(source, /A4_PAGE_HEIGHT_MM = 297/);
+  assert.match(source, /PLAN_PAGE_VERTICAL_PADDING = 84/);
   assert.match(source, /PLAN_PAGE_SAFETY_MARGIN = 32/);
-  assert.match(source, /page\.clientHeight/);
-  assert.match(source, /pageStyle\.paddingTop/);
-  assert.match(source, /pageStyle\.paddingBottom/);
+  assert.match(source, /body\.scrollHeight > PLAN_PAGE_AVAILABLE_HEIGHT/);
+  assert.equal(source.includes('page.clientHeight'), false);
   assert.match(source, /\['plan-page-compact', 'plan-page-condensed'\]/);
 });
 

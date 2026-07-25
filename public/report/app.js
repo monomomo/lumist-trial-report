@@ -8,7 +8,14 @@ const sampleTwo = '学生课上挺活泼的，爱互动，愿意思考，做题�
 const $ = (selector) => document.querySelector(selector);
 const setText = (selector, value) => { $(selector).textContent = value; };
 const escapeHtml = (value) => String(value).replace(/[&<>'"]/g, (character) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;' })[character]);
+const CSS_PIXELS_PER_INCH = 96;
+const MILLIMETERS_PER_INCH = 25.4;
+const A4_PAGE_HEIGHT_MM = 297;
+const PLAN_PAGE_VERTICAL_PADDING = 84;
 const PLAN_PAGE_SAFETY_MARGIN = 32;
+const PLAN_PAGE_AVAILABLE_HEIGHT = A4_PAGE_HEIGHT_MM / MILLIMETERS_PER_INCH * CSS_PIXELS_PER_INCH
+  - PLAN_PAGE_VERTICAL_PADDING
+  - PLAN_PAGE_SAFETY_MARGIN;
 
 /* ── 科目选择 ── */
 
@@ -190,12 +197,7 @@ function renderCoursePlan(coursePlan) {
 
   const pageOverflows = (page) => {
     const body = page.querySelector('.plan-page-body');
-    const pageStyle = window.getComputedStyle(page);
-    const availableHeight = page.clientHeight
-      - Number.parseFloat(pageStyle.paddingTop)
-      - Number.parseFloat(pageStyle.paddingBottom)
-      - PLAN_PAGE_SAFETY_MARGIN;
-    return body.scrollHeight > availableHeight;
+    return body.scrollHeight > PLAN_PAGE_AVAILABLE_HEIGHT;
   };
 
   const fitSingleLessonPage = (page) => {
