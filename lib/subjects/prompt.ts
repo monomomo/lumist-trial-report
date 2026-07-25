@@ -6,6 +6,7 @@ export interface ReportPromptData {
   currentScore?: string | number | null;
   targetScore?: string | number | null;
   examDate?: string | null;
+  totalHours: number;
   teacherNotes: string;
 }
 
@@ -21,7 +22,7 @@ export function buildSystemPrompt(subject: SubjectDefinition): string {
 2. 区分“本次课堂观察”和“后续建议”，不得把一次试听表现等同于正式考试能力；未知信息应明确建议后续诊断确认。
 3. 家长报告使用专业、清晰、鼓励但不过度承诺的语气；销售建议不得承诺具体提分结果或制造焦虑。
 4. 课程规划仅针对 ${subject.displayName}，只可使用本学科模块：${modules}。不得加入其他 SAT 或 AP 科目的知识模块。
-5. 总课时必须由当前水平、目标成绩、考试日期和薄弱点综合决定，不得预设固定总课时；每个课时块可为 0.5、1、1.5 或 2 小时。
+5. 总课时由老师决定。所有 lesson.duration 的合计必须严格等于老师填写的总课时，不得自行增加、减少或另行建议另一套总课时；每个课时块可为 0.5、1、1.5 或 2 小时。
 6. 每个课时块必须写明主题、授课内容、重难点和目标，避免把“查漏补缺”等空话单独成项。
 7. coursePlan.rationale 只说明动态调整依据，不得出现固定总课时数字或另一套课时方案；系统会根据 lesson.duration 汇总唯一总课时。
 8. 每个阶段标题和课时主题必须是语义完整的短句，不得以顿号、逗号、斜杠或未闭合括号结尾。
@@ -41,6 +42,7 @@ export function buildUserInput(subject: SubjectDefinition, data: ReportPromptDat
 当前${subject.scoreLabel}：${formatOptional(data.currentScore)}
 目标${subject.scoreLabel}：${formatOptional(data.targetScore)}
 目标考试日期：${formatOptional(data.examDate)}
+老师确定的总课时：${data.totalHours} 小时
 课程模块范围：${subject.modules.join('、')}
 
 老师原始记录：

@@ -75,7 +75,7 @@ const SHARED_RULE_PATTERNS = [
   /区分“本次课堂观察”和“后续建议”/,
   /家长报告使用专业、清晰、鼓励但不过度承诺的语气/,
   /课程规划仅针对.+只可使用本学科模块/,
-  /总课时必须由当前水平、目标成绩、考试日期和薄弱点综合决定/,
+  /总课时由老师决定/,
   /每个课时块必须写明主题、授课内容、重难点和目标/,
   /coursePlan\.rationale 只说明动态调整依据/,
   /每个阶段标题和课时主题必须是语义完整的短句/,
@@ -185,6 +185,7 @@ test('buildUserInput includes every supplied report field for every subject', ()
       currentScore: subject.scoreMin,
       targetScore: subject.scoreMax,
       examDate: '2027-05-08',
+      totalHours: 24,
       teacherNotes: `课堂记录-${code}`
     };
     const userInput = buildUserInput(subject, data);
@@ -193,6 +194,7 @@ test('buildUserInput includes every supplied report field for every subject', ()
     assert.equal(userInput.includes(`当前${subject.scoreLabel}：${data.currentScore}`), true, `${code} must include currentScore`);
     assert.equal(userInput.includes(`目标${subject.scoreLabel}：${data.targetScore}`), true, `${code} must include targetScore`);
     assert.equal(userInput.includes(`目标考试日期：${data.examDate}`), true, `${code} must include examDate`);
+    assert.equal(userInput.includes(`老师确定的总课时：${data.totalHours} 小时`), true, `${code} must include totalHours`);
     assert.equal(userInput.includes(data.teacherNotes), true, `${code} must include teacherNotes`);
   }
 });
@@ -204,6 +206,7 @@ test('buildUserInput formats blank optional fields as not provided', () => {
     currentScore: null,
     targetScore: ' ',
     examDate: '',
+    totalHours: 30,
     teacherNotes: '课堂记录仅用于测试。'
   });
 

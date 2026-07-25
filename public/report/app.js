@@ -581,6 +581,7 @@ function collectFormData() {
     currentScore: $('#current-score').value.trim(),
     targetScore: $('#target-score').value.trim(),
     examDate: $('#exam-date').value.trim(),
+    totalHours: $('#total-hours').value,
     teacherNotes: $('#teacher-notes').value.trim(),
   };
 }
@@ -616,7 +617,7 @@ $('#report-form').addEventListener('submit', async (event) => {
     renderReport(currentReportData);
     changeView('report');
     document.querySelector('#report-view .eyebrow').textContent = 'AI 报告已生成 · 未云端保存';
-    notice.innerHTML = '<strong>生成原则：</strong>仅根据老师输入生成；未提供的成绩、日期与课时不会编造。';
+    notice.innerHTML = '<strong>生成原则：</strong>总课时由老师决定，AI 仅负责规划内容与课时分配。';
   } catch (error) {
     if (error.message === 'INVALID_INPUT') {
       notice.classList.add('error');
