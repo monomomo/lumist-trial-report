@@ -374,7 +374,7 @@ function createEditorField(labelText, value, path, multiline = false) {
   const input = multiline ? document.createElement('textarea') : document.createElement('input');
   input.value = value || '';
   input.dataset.path = path;
-  if (multiline) input.rows = 2;
+  if (multiline) input.rows = Math.min(8, Math.max(4, Math.ceil(input.value.length / 55)));
   label.appendChild(input);
   return label;
 }

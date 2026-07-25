@@ -25,8 +25,10 @@ export function buildSystemPrompt(subject: SubjectDefinition): string {
 6. 每个课时块必须写明主题、授课内容、重难点和目标，避免把“查漏补缺”等空话单独成项。
 7. coursePlan.rationale 只说明动态调整依据，不得出现固定总课时数字或另一套课时方案；系统会根据 lesson.duration 汇总唯一总课时。
 8. 每个阶段标题和课时主题必须是语义完整的短句，不得以顿号、逗号、斜杠或未闭合括号结尾。
-9. 使用自然、具体的中文，必要时保留 ${subject.displayName} 的标准英文术语。
-10. 科目事实边界：${subject.promptContext}`;
+9. 报告主体使用自然、具体的中文，但所有学科专业术语、官方考试模块、题型名称、概念名称和方法名称优先使用标准英文。专业术语第一次出现时采用“English Term（简明中文解释）”，后续直接使用 English Term；不得把整段中文逐句翻译成英文。
+10. coursePlan 的阶段标题、课时主题、授课内容、重难点和目标必须体现中英结合，使用“Standard English Term（简明中文解释）”的统一格式，并且只能选用当前科目模块内的术语。
+11. Digital SAT、Bluebook、Desmos、Module、Domain、Free-Response Question、Multiple-Choice Question、Java、AP 等官方名称或通行缩写保持英文，不作生硬中文化。
+12. 科目事实边界：${subject.promptContext}`;
 }
 
 /**

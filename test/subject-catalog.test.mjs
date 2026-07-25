@@ -212,12 +212,21 @@ test('buildUserInput formats blank optional fields as not provided', () => {
   assert.equal(userInput.includes('目标考试日期：未提供'), true);
 });
 
-test('buildSystemPrompt covers all ten shared rules with stable semantics for every subject', () => {
+test('buildSystemPrompt covers all shared rules with stable semantics for every subject', () => {
   for (const code of SUBJECT_CODES) {
     const prompt = buildSystemPrompt(SUBJECT_CATALOG[code]);
     SHARED_RULE_PATTERNS.forEach((pattern, index) => {
       assert.match(prompt, pattern, `${code} must include shared rule ${index + 1}`);
     });
+  }
+});
+
+test('buildSystemPrompt requires professional bilingual terminology for every subject', () => {
+  for (const code of SUBJECT_CODES) {
+    const prompt = buildSystemPrompt(SUBJECT_CATALOG[code]);
+    assert.match(prompt, /English Term（简明中文解释）/);
+    assert.match(prompt, /coursePlan 的阶段标题、课时主题、授课内容、重难点和目标必须体现中英结合/);
+    assert.match(prompt, /Digital SAT、Bluebook、Desmos、Module、Domain/);
   }
 });
 
