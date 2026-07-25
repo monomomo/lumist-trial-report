@@ -635,7 +635,11 @@ $('#report-form').addEventListener('submit', async (event) => {
       document.querySelector('#report-view .eyebrow').textContent = '本地兜底版 · AI 暂不可用';
     } else {
       notice.classList.add('error');
-      notice.innerHTML = `<strong>生成失败：</strong>${error.message === 'AI_GENERATION_FAILED' ? 'AI 服务暂时无响应，请稍后重试。' : '发生未知错误，请重试。'}`;
+      const messages = {
+        AI_GENERATION_FAILED: 'AI 服务暂时无响应，请稍后重试。',
+        COURSE_PLAN_LESSON_TOO_LONG: '课程规划中有单节内容过长，无法排版。请重试生成。'
+      };
+      notice.innerHTML = `<strong>生成失败：</strong>${messages[error.message] || `报告渲染异常（${escapeHtml(error.message || 'UNKNOWN_ERROR')}），请重试。`}`;
     }
   } finally {
     button.disabled = false;

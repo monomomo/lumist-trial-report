@@ -68,6 +68,12 @@ function normalizeRationale(value: string) {
   return normalized || '后续课时将依据诊断测试、课堂掌握情况、错题类型与每题用时动态调整。';
 }
 
+function limitText(value: string, maximum: number) {
+  const normalized = value.trim();
+  if (normalized.length <= maximum) return normalized;
+  return `${normalized.slice(0, maximum - 1).replace(/[，。；、,:：\s]+$/g, '')}。`;
+}
+
 const parentFacingForbiddenPattern = /老师原始记录|老师只写|老师仅|老师未提供|老师未列出|输入中没有|信息不足|信息有限|无法判断|未能获得|没有完整|缺少数据|记录较少|未记录|未提供|暂无数据|尚无数据|课堂记录|观察记录|不构成正式|可量化/;
 
 function getTopicContext(notes: string) {
@@ -180,7 +186,14 @@ export async function POST(request: Request) {
     const stages = parentReport.coursePlan.stages.map((stage) => ({
       ...stage,
       title: normalizePlanTitle(stage.title),
-      lessons: stage.lessons.map((lesson) => ({ ...lesson, theme: normalizePlanTitle(lesson.theme) }))
+      description: limitText(stage.description, 100),
+      lessons: stage.lessons.map((lesson) => ({
+        ...lesson,
+        theme: limitText(normalizePlanTitle(lesson.theme), 36),
+        content: limitText(lesson.content, 105),
+        difficulty: limitText(lesson.difficulty, 105),
+        goal: limitText(lesson.goal, 80)
+      }))
     }));
     const totalHours = stages.reduce((sum, stage) => sum + stage.lessons.reduce((stageSum, lesson) => stageSum + lesson.duration, 0), 0);
 
@@ -192,7 +205,7 @@ export async function POST(request: Request) {
         teacherNotice: buildTeacherNotice(parsed.data.teacherNotes),
         coursePlan: {
           ...parentReport.coursePlan,
-          rationale: normalizeRationale(parentReport.coursePlan.rationale),
+          rationale: limitText(normalizeRationale(parentReport.coursePlan.rationale), 180),
           stages,
           totalHours
         }
