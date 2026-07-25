@@ -190,7 +190,12 @@ function renderCoursePlan(coursePlan) {
 
   const pageOverflows = (page) => {
     const body = page.querySelector('.plan-page-body');
-    return body.scrollHeight > body.clientHeight - PLAN_PAGE_SAFETY_MARGIN;
+    const pageStyle = window.getComputedStyle(page);
+    const availableHeight = page.clientHeight
+      - Number.parseFloat(pageStyle.paddingTop)
+      - Number.parseFloat(pageStyle.paddingBottom)
+      - PLAN_PAGE_SAFETY_MARGIN;
+    return body.scrollHeight > availableHeight;
   };
 
   const fitSingleLessonPage = (page) => {

@@ -118,7 +118,8 @@ function getInputCompleteness(notes: string) {
   };
 }
 
-function sanitizeParentReport(report: z.infer<typeof reportSchema>, notes: string) {
+function sanitizeParentReport(report: z.infer<typeof reportSchema>, notes: string, subjectCode: string) {
+  if (subjectCode !== 'sat_math') return report;
   const topic = getTopicContext(notes);
   const completeness = getInputCompleteness(notes);
   const safeOverview = `本次试听课围绕 ${topic.module} 展开，帮助学生初步熟悉相关知识在考试中的呈现方式。后续将结合模块练习与 Bluebook 数学诊断，进一步明确具体学习重点并细化训练安排。`;
@@ -201,7 +202,7 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'EMPTY_MODEL_OUTPUT' }, { status: 502 });
     }
 
-    const parentReport = sanitizeParentReport(response.output_parsed, parsed.data.teacherNotes);
+    const parentReport = sanitizeParentReport(response.output_parsed, parsed.data.teacherNotes, subject.code);
     const normalizedStages = parentReport.coursePlan.stages.map((stage) => ({
       ...stage,
       title: normalizePlanTitle(stage.title),

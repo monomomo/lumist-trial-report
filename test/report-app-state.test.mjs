@@ -14,7 +14,9 @@ test('report app declares current report state before initialization', async () 
 test('course plan pagination reserves print safety space', async () => {
   const source = await readFile(new URL('../public/report/app.js', import.meta.url), 'utf8');
   assert.match(source, /PLAN_PAGE_SAFETY_MARGIN = 32/);
-  assert.match(source, /body\.clientHeight - PLAN_PAGE_SAFETY_MARGIN/);
+  assert.match(source, /page\.clientHeight/);
+  assert.match(source, /pageStyle\.paddingTop/);
+  assert.match(source, /pageStyle\.paddingBottom/);
   assert.match(source, /\['plan-page-compact', 'plan-page-condensed'\]/);
 });
 
@@ -37,4 +39,10 @@ test('AP subjects use upcoming May exam options', async () => {
   assert.match(appSource, /new Date\(\)\.getFullYear\(\) \+ 1/);
   assert.match(appSource, /Array\.from\(\{ length: 5 \}/);
   assert.match(appSource, /`\$\{year\}年5月`/);
+});
+
+test('SAT-specific parent copy protection does not rewrite AP reports', async () => {
+  const source = await readFile(new URL('../app/api/generate-report/route.ts', import.meta.url), 'utf8');
+  assert.match(source, /if \(subjectCode !== 'sat_math'\) return report;/);
+  assert.match(source, /sanitizeParentReport\(response\.output_parsed, parsed\.data\.teacherNotes, subject\.code\)/);
 });
