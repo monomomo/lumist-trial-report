@@ -26,6 +26,24 @@ function populateSubjectSelect() {
     select.appendChild(option);
   });
   select.value = currentSubjectCode;
+  configureExamDateField(currentSubjectCode);
+}
+
+function configureExamDateField(subjectCode) {
+  const isApSubject = subjectCode.startsWith('ap_');
+  const input = $('#exam-date');
+  const select = $('#ap-exam-date');
+  $('#exam-date-label').textContent = isApSubject ? 'AP 考试时间（固定为 5 月）' : '目标考试日期（可选）';
+  input.classList.toggle('hidden', isApSubject);
+  input.disabled = isApSubject;
+  select.classList.toggle('hidden', !isApSubject);
+  select.disabled = !isApSubject;
+  if (!isApSubject) return;
+  const firstExamYear = new Date().getFullYear() + 1;
+  select.innerHTML = '';
+  Array.from({ length: 5 }, (_, index) => firstExamYear + index).forEach((year) => {
+    select.add(new Option(`${year} 年 5 月 AP 考试`, `${year}年5月`));
+  });
 }
 
 function onSubjectChange() {
@@ -37,6 +55,7 @@ function onSubjectChange() {
   $('#score-label-target').textContent = `目标${vm.scoreLabel}（可选）`;
   $('#current-score').placeholder = vm.scoreMax > 100 ? `例如：${Math.round((vm.scoreMin + vm.scoreMax) / 2)}` : `例如：${Math.round((vm.scoreMin + vm.scoreMax) / 2)}`;
   $('#target-score').placeholder = vm.scoreMax > 100 ? `例如：${vm.scoreMax}` : `例如：${vm.scoreMax}`;
+  configureExamDateField(code);
   // 刷新默认兜底预览
   refreshPreview();
 }
@@ -564,7 +583,7 @@ async function saveReport() {
       studentName: $('#student-name').value.trim(),
       currentScore: $('#current-score').value.trim(),
       targetScore: $('#target-score').value.trim(),
-      examDate: $('#exam-date').value.trim(),
+      examDate: getSelectedExamDate(),
       teacherNotes: $('#teacher-notes').value.trim(),
       subject: createSubjectViewModel(currentSubjectCode).displayName,
       reportData: {
@@ -592,10 +611,14 @@ function collectFormData() {
     studentName: $('#student-name').value.trim(),
     currentScore: $('#current-score').value.trim(),
     targetScore: $('#target-score').value.trim(),
-    examDate: $('#exam-date').value.trim(),
+    examDate: getSelectedExamDate(),
     totalHours: $('#total-hours').value,
     teacherNotes: $('#teacher-notes').value.trim(),
   };
+}
+
+function getSelectedExamDate() {
+  return currentSubjectCode.startsWith('ap_') ? $('#ap-exam-date').value : $('#exam-date').value.trim();
 }
 
 async function generateAiReport() {

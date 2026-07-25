@@ -28,3 +28,13 @@ test('new report form starts with empty teacher inputs', async () => {
   assert.match(source, /id="sample-one"/);
   assert.match(source, /id="sample-two"/);
 });
+
+test('AP subjects use upcoming May exam options', async () => {
+  const appSource = await readFile(new URL('../public/report/app.js', import.meta.url), 'utf8');
+  const htmlSource = await readFile(new URL('../public/report/index.html', import.meta.url), 'utf8');
+  assert.match(htmlSource, /id="ap-exam-date"/);
+  assert.match(appSource, /subjectCode\.startsWith\('ap_'\)/);
+  assert.match(appSource, /new Date\(\)\.getFullYear\(\) \+ 1/);
+  assert.match(appSource, /Array\.from\(\{ length: 5 \}/);
+  assert.match(appSource, /`\$\{year\}年5月`/);
+});
