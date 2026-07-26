@@ -85,7 +85,11 @@ async function loadTeacherProfile() {
     if (!response.ok) return;
     const data = await response.json();
     teacherProfile = normalizeTeacherProfile(data);
-    if (teacherProfile) renderSidebarTeacher();
+    if (teacherProfile) {
+      renderSidebarTeacher();
+      renderTeacherProfile();
+      setText('#info-teacher', teacherProfile.displayName);
+    }
   } catch {
     // 静默忽略，保持默认占位
   }
@@ -365,15 +369,24 @@ function renderTeacherProfile() {
   const container = $('#teacher-profile-container');
   if (!container) return;
 
-  if (teacherProfile && (teacherProfile.photoUrl || teacherProfile.bio.length > 0)) {
+  if (teacherProfile) {
+    const subjectName = createSubjectViewModel(currentSubjectCode).displayName;
     const photoHtml = teacherProfile.photoUrl
-      ? `<div class="teacher-photo-wrap"><img src="${escapeHtml(teacherProfile.photoUrl)}" alt="${escapeHtml(teacherProfile.displayName)}" /></div>`
-      : `<div class="teacher-photo-wrap"><div class="avatar-placeholder">${escapeHtml(teacherProfile.displayPlaceholder)}</div></div>`;
-    const bioHtml = teacherProfile.bio.map((paragraph) => `<p>${escapeHtml(paragraph)}</p>`).join('');
+      ? `<div class="teacher-photo-wrap"><img src="${escapeHtml(teacherProfile.photoUrl)}" alt="${escapeHtml(teacherProfile.displayName)}" /><span class="teacher-photo-name">${escapeHtml(teacherProfile.displayName)}</span></div>`
+      : `<div class="teacher-photo-wrap"><div class="avatar-placeholder">${escapeHtml(teacherProfile.displayPlaceholder)}</div><span class="teacher-photo-name">${escapeHtml(teacherProfile.displayName)}</span></div>`;
+    const summaryHtml = teacherProfile.summary
+      ? `<p class="teacher-summary">${escapeHtml(teacherProfile.summary)}</p>`
+      : '';
+    const sectionsHtml = teacherProfile.sections.length > 0
+      ? `<div class="teacher-sections">${teacherProfile.sections.map((section) => `<section><h3>${escapeHtml(section.title)}</h3>${section.content.map((paragraph) => `<p>${escapeHtml(paragraph)}</p>`).join('')}</section>`).join('')}</div>`
+      : teacherProfile.bio.map((paragraph) => `<p>${escapeHtml(paragraph)}</p>`).join('');
+    const subjectsHtml = teacherProfile.subjects.length > 0
+      ? `<div class="teacher-tags">${teacherProfile.subjects.map((subject) => `<span>${escapeHtml(subject)}</span>`).join('')}</div>`
+      : '';
     const qrHtml = teacherProfile.qrUrl
       ? `<aside class="teacher-qr"><img src="${escapeHtml(teacherProfile.qrUrl)}" alt="${escapeHtml(teacherProfile.displayName)} 老师课程二维码" /><span>扫码查看<br />课程详情</span></aside>`
       : '';
-    container.innerHTML = `<div class="teacher-profile">${photoHtml}<div class="teacher-intro"><p class="teacher-label">${escapeHtml(teacherProfile.title || '')}</p><h2>${escapeHtml(teacherProfile.displayName)}</h2>${bioHtml}</div>${qrHtml}</div>`;
+    container.innerHTML = `<div class="teacher-profile">${photoHtml}<div class="teacher-intro"><span class="teacher-context">LUMIST · ${escapeHtml(subjectName)}</span><p class="teacher-label">${escapeHtml(teacherProfile.title || '')}</p><h2>${escapeHtml(teacherProfile.displayName)}</h2>${summaryHtml}${sectionsHtml}${subjectsHtml}</div>${qrHtml}</div>`;
     return;
   }
 

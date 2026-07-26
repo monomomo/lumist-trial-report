@@ -22,8 +22,9 @@ Supabase 是本系统的身份和数据库来源，不再是可选的。
 2. 在 SQL Editor 执行 `supabase/migrations/202607230001_initial_schema.sql`。
 3. 在 Authentication 中创建老师账号，内部认证地址格式为 `账号名@teachers.lumist.internal`，并开启 Auto Confirm User。
 4. 将项目 URL 和 Publishable Key 写入 `.env.local`。
-5. （可选）在 `teacher_configs` 表中配置老师的公开名称、头衔、简介、头像和二维码。
-6. 重启本地开发服务。
+5. 执行 `supabase/migrations/202607270001_multi_teacher_profiles.sql`。
+6. 在 `teacher_configs` 表中配置老师的公开名称、头衔、简介、结构化介绍、授课科目、头像和二维码。
+7. 重启本地开发服务。
 
 ### AI 配置
 

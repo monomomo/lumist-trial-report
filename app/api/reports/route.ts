@@ -1,6 +1,8 @@
 import { NextResponse } from 'next/server';
 import { isSupabaseConfigured } from '@/lib/supabase/config';
 import { createClient } from '@/lib/supabase/server';
+import { authEmailToUsername } from '@/lib/auth/username';
+import { getTeacherProfileSnapshot } from '@/lib/teachers/public-profile';
 
 export async function GET() {
   if (!isSupabaseConfigured) {
@@ -38,6 +40,7 @@ export async function POST(request: Request) {
   }
 
   const body = await request.json();
+  const teacherSnapshot = await getTeacherProfileSnapshot(user.id, authEmailToUsername(user.email ?? ''));
   const payload = {
     teacher_id: user.id,
     student_name: body.studentName,
@@ -49,12 +52,19 @@ export async function POST(request: Request) {
     report_data: body.reportData || {},
     course_plan: body.coursePlan || {},
     sales_follow_up: body.salesFollowUp || {},
+    teacher_snapshot: teacherSnapshot || {},
     status: 'completed'
   };
 
-  const { data, error } = await supabase.from('reports').insert(payload).select('id').single();
-  if (error) {
-    return NextResponse.json({ error: error.message }, { status: 500 });
+  let { data, error } = await supabase.from('reports').insert(payload).select('id').single();
+  if (error?.message.includes('teacher_snapshot')) {
+    const { teacher_snapshot, ...legacyPayload } = payload;
+    const fallbackResult = await supabase.from('reports').insert(legacyPayload).select('id').single();
+    data = fallbackResult.data;
+    error = fallbackResult.error;
+  }
+  if (error || !data) {
+    return NextResponse.json({ error: error?.message || 'REPORT_SAVE_FAILED' }, { status: 500 });
   }
 
   return NextResponse.json({ saved: true, id: data.id });

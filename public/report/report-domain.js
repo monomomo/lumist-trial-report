@@ -29,7 +29,7 @@ export function createSubjectViewModel(subjectCode) {
 
 /**
  * 标准化教师 API 响应为展示数据；API 不可用或返回错误时返回 null。
- * @param {{ displayName?: string; title?: string; bio?: string[]; photoUrl?: string; qrUrl?: string } | null} apiData
+ * @param {{ displayName?: string; title?: string; summary?: string; bio?: string[]; sections?: Array<{ title?: string; content?: string[] }>; subjects?: string[]; photoUrl?: string; qrUrl?: string } | null} apiData
  * @returns {TeacherDisplayData | null}
  */
 export function normalizeTeacherProfile(apiData) {
@@ -39,14 +39,21 @@ export function normalizeTeacherProfile(apiData) {
     displayName: name,
     displayPlaceholder: name.charAt(0),
     title: apiData.title || '',
+    summary: apiData.summary || '',
     bio: Array.isArray(apiData.bio) ? apiData.bio : [],
+    sections: Array.isArray(apiData.sections)
+      ? apiData.sections
+        .filter((section) => section && section.title && Array.isArray(section.content))
+        .map((section) => ({ title: section.title, content: section.content.filter(Boolean) }))
+      : [],
+    subjects: Array.isArray(apiData.subjects) ? apiData.subjects.filter(Boolean) : [],
     photoUrl: apiData.photoUrl || null,
     qrUrl: apiData.qrUrl || null,
   };
 }
 
 /**
- * @typedef {{ displayName: string; displayPlaceholder: string; title: string; bio: string[]; photoUrl: string | null; qrUrl: string | null }} TeacherDisplayData
+ * @typedef {{ displayName: string; displayPlaceholder: string; title: string; summary: string; bio: string[]; sections: Array<{ title: string; content: string[] }>; subjects: string[]; photoUrl: string | null; qrUrl: string | null }} TeacherDisplayData
  */
 
 /**

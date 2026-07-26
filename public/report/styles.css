@@ -149,9 +149,9 @@ nav .nav-item.active,nav .nav-item:hover { background:#5a4712; }
 .teacher-page::after { content:""; position:absolute; width:210px; height:210px; right:-92px; top:-92px; border:35px solid #fff0ba; border-radius:50%; }
 .teacher-profile { grid-template-columns:245px minmax(0,1fr); grid-template-areas:"photo intro" "photo qr"; gap:0 42px; align-items:start; margin-top:4px; }
 .teacher-photo-wrap { grid-area:photo; height:510px; position:relative; border-radius:0; background:#efe1b7; box-shadow:16px 16px 0 #ffd34f; }
-.teacher-photo-wrap::after { content:"AMBER"; position:absolute; left:18px; bottom:18px; color:#fff; font-size:11px; font-weight:900; letter-spacing:2px; text-shadow:0 1px 10px rgba(0,0,0,.25); }
+.teacher-photo-name { position:absolute; left:18px; bottom:18px; color:#fff; font-size:11px; font-weight:900; letter-spacing:2px; text-transform:uppercase; text-shadow:0 1px 10px rgba(0,0,0,.25); }
 .teacher-intro { grid-area:intro; padding:19px 0 24px; position:relative; z-index:1; }
-.teacher-intro::before { content:"LUMIST · SAT MATH"; display:block; color:#a57800; font-size:10px; letter-spacing:1.6px; font-weight:900; margin-bottom:15px; }
+.teacher-context { display:block; color:#a57800; font-size:10px; letter-spacing:1.6px; font-weight:900; margin-bottom:15px; text-transform:uppercase; }
 .teacher-label { display:inline-block; background:#fff2bd; color:#705200; padding:6px 9px; font-size:11px; letter-spacing:.3px; }
 .teacher-intro h2 { font-size:37px; line-height:1; margin:17px 0 20px; letter-spacing:-1.8px; }
 .teacher-intro p:not(.teacher-label) { font-size:13px; line-height:1.86; margin:0 0 12px; }
