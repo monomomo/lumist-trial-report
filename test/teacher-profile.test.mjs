@@ -51,7 +51,11 @@ test('report persistence uses a server-resolved teacher snapshot', async () => {
   assert.match(routeSource, /teacher_snapshot: teacherSnapshot \|\| \{\}/);
   assert.match(routeSource, /error\?\.message\.includes\('teacher_snapshot'\)/);
   assert.match(routeSource, /insert\(legacyPayload\)/);
+  assert.match(migrationSource, /create table if not exists public\.teacher_configs/);
+  assert.match(migrationSource, /create table if not exists public\.reports/);
   assert.match(migrationSource, /add column if not exists teacher_snapshot jsonb/);
   assert.match(migrationSource, /add column if not exists sections jsonb/);
   assert.match(migrationSource, /add column if not exists subjects jsonb/);
+  assert.match(migrationSource, /lumist_teacher_configs_select_own/);
+  assert.match(migrationSource, /b7ec88c5-447e-4f9b-88ea-34f59fa3db03/);
 });
