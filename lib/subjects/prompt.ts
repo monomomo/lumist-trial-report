@@ -10,29 +10,97 @@ export interface ReportPromptData {
   teacherNotes: string;
 }
 
+const SHARED_PLANNING_GUIDANCE = `
+
+所有课程规划都必须像老师根据课堂证据写出的真实排课：
+- 规划依据只能来自老师记录、已有成绩和后续可执行的诊断。没有明确薄弱点时，先安排学科对应的诊断，再写“根据作答证据调整”，不得凭空断定学生薄弱项。
+- 不要为了覆盖全部模块而平均分配课时。已有优势只需短诊断或穿插复习，反复出现的错因、推理障碍和表达问题才占主要课时。
+- 阶段标题和课时主题使用老师日常会采用的排课名称，避免“系统学习、夯实基础、专项突破、强化提升、综合提升、高分冲刺、考前闭环”等宣传式模板词。
+- lesson.content 只写本节实际会做的 1 至 2 件事，包括处理哪类任务、依据什么作答证据、怎样讲评或订正；不得反复使用“讲解核心知识并配套练习”等空话。
+- lesson.difficulty 不表示难度等级，禁止只写“基础、中等、偏难”。必须指出学生可能卡在哪个判断、步骤、表征、代码状态、图像关系或论证环节。
+- lesson.goal 必须是课后可观察、可核对的结果，避免只写“掌握、提升、建立、巩固”。使用“能识别、能解释、能选择、能写出、能调试、能根据错因订正”等具体表达。
+- 相邻课时不得机械重复同一句式。阶段测评后必须安排基于结果的讲评、订正或重排，不以增加套题数量代替教学。
+
+写法示例：
+差：difficulty 写“中等偏难”；goal 写“提升综合能力”。
+好：difficulty 写“能得出答案，但无法说明关键判断依据”；goal 写“能标注判断依据，并独立订正同类任务”。`;
+
+function buildPlanningGuidance(subject: SubjectDefinition): string {
+  const shared = SHARED_PLANNING_GUIDANCE;
+
+  if (subject.code === 'sat_math') {
+    return `${shared}
+
+SAT 数学课程规划必须符合真实授课流程：
+- Bluebook full-length practice test 用于阶段诊断和限时表现检查，完成后结合 My Practice 的题目、答案与解析复盘。专项练习优先使用 Student Question Bank 或 Educator Question Bank，并注明按 Math、Domain、Skill、Difficulty 筛题。
+- Desmos 应嵌入适合使用的方程、函数、回归或图像验证任务，不单独堆成脱离题型的“工具课”，也不暗示所有题都应该使用 Desmos。
+- 错因要落到可教学的细节，例如等式变形漏负号、百分比变化与百分点混淆、表格漏看单位，不能只写某个 Domain 较弱。
+- 完整 Bluebook 模考之间必须留出错题复盘和针对性练习，短课时方案不强行安排多次完整模考。`;
+  }
+
+  if (subject.code === 'sat_english') {
+    return `${shared}
+
+SAT Reading and Writing 课程规划必须符合真实授课流程：
+- Bluebook full-length practice test 用于阶段诊断和限时表现检查，完成后结合 My Practice 复盘。专项练习优先使用 Student Question Bank 或 Educator Question Bank，并注明按 Reading and Writing、Domain、Skill、Difficulty 筛题。
+- 诊断必须落到题干判断、文本证据和干扰项原因，不得只写“词汇弱、语法弱、阅读慢”。老师没有提供速度数据时，不得擅自判断阅读速度。
+- content 应写清本节如何定位 evidence、比较选项、处理 transition、rhetorical synthesis 或 sentence boundary 等具体任务，并安排学生说明为什么排除干扰项。
+- 完整 Bluebook 模考之间必须留出错题归类、依据复述和同 Skill 订正，短课时方案不强行安排多次完整模考。`;
+  }
+
+  const apShared = `${shared}
+
+AP 课程规划必须符合真实授课流程：
+- Course and Exam Description 用于确认本学科范围和技能要求，但不是必须照搬的固定授课顺序；课时先后应由老师记录、前置知识和诊断结果决定。
+- 如老师或学生可使用 AP Classroom，可用 Topic Questions 做课题级检查，用 Progress Checks 的 MCQ/FRQ 查看单元证据，用 Question Bank 筛选针对性任务。Practice Exam 用于阶段性检查，之后必须结合作答证据讲评。
+- 不得虚构 AP Classroom 报告、正确率或已完成的考试。没有数据时，只能把这些资源写成后续诊断安排。
+- MCQ 和 FRQ 不应只作为课时名称；content 必须说明要观察的推理、表达、计算或作答步骤，goal 必须能用作答结果核对。`;
+
+  if (subject.code === 'ap_calculus_ab' || subject.code === 'ap_calculus_bc') {
+    return `${apShared}
+
+AP Calculus 规划要求：
+- 同一概念应在 graphical、numerical、analytical 和 verbal representations 之间建立联系，并要求学生说明选择定理、公式或方法的理由。
+- 讲评既检查计算，也检查 notation、units、条件和 justification。计算器与非计算器任务按概念需要安排，不把计算器操作单独包装成能力提升课。
+- difficulty 应具体到符号、定义、条件或推理，例如 derivative 符号与函数增减混淆、Fundamental Theorem of Calculus 使用条件不清、series test 选择缺少依据。
+- AB 规划不得引入 BC 专属内容；BC 规划可以诊断 AB 前置知识，但主要课时仍应服从老师提供的真实薄弱点。`;
+  }
+
+  if (subject.code === 'ap_csa') {
+    return `${apShared}
+
+AP Computer Science A 规划要求：
+- 每个阶段都要围绕真实 Java 任务安排 code tracing、writing、testing 或 debugging，避免把编程课写成只听概念讲解和刷选择题。
+- difficulty 应写具体程序状态或错误来源，例如 loop boundary、object aliasing、null reference、ArrayList index、inheritance method call 或 recursion base case。
+- goal 应能通过代码、trace table、test case、运行结果或 FRQ 作答核对；“理解面向对象思想”不能单独作为目标。
+- 讲评时区分编译错误、运行错误和逻辑错误，并要求学生解释修改前后的程序行为。`;
+  }
+
+  if (subject.code === 'ap_microeconomics') {
+    return `${apShared}
+
+AP Microeconomics 规划要求：
+- 围绕个体决策、企业行为和市场结果安排 graph construction、curve shift、equilibrium change、数值计算与因果解释，不把背术语当作主要教学活动。
+- difficulty 应具体到 movement along a curve 与 shift 的区分、哪条曲线移动、均衡价格与数量方向、成本曲线关系、市场结构条件或 welfare analysis。
+- goal 应通过完整标注的图、计算步骤、MCQ 选项依据或 FRQ 因果链核对，并使用 scoring guidelines 复盘遗漏环节。
+- 不得使用宏观总量、货币政策或开放经济逻辑解释微观市场问题。`;
+  }
+
+  return `${apShared}
+
+AP Macroeconomics 规划要求：
+- 围绕总量关系安排 graph construction、curve shift、equilibrium change、数值计算和政策传导链，不把背术语当作主要教学活动。
+- difficulty 应具体到 nominal 与 real 的区分、AD-AS 或 money market 中哪条曲线移动、multiplier 的方向与步骤、政策时滞或 exchange rate 变化方向。
+- goal 应通过完整标注的图、计算步骤、MCQ 选项依据或 FRQ 因果链核对，并使用 scoring guidelines 复盘遗漏环节。
+- 不得使用企业成本、市场结构或个体消费者逻辑替代宏观总量分析。`;
+}
+
 /**
  * 构建科目隔离的系统提示词，统一事实边界、专业语气、动态课时和标题规范。
  */
 export function buildSystemPrompt(subject: SubjectDefinition): string {
   const modules = subject.modules.join('、');
-  const planningGuidance = subject.code === 'sat_math'
-    ? `
-
-SAT 数学课程规划必须符合真实授课流程：
-- 规划依据只能来自老师记录、已有成绩和后续可执行的诊断。没有明确薄弱点时，先安排 Bluebook 或课堂诊断，再用“根据错题结果调整”表达，不得假设学生某个 Domain 一定薄弱。
-- Bluebook full-length practice test 用于阶段诊断和限时表现检查；完成后结合 My Practice 的题目、答案与解析复盘。专项练习优先写 Student Question Bank 或 Educator Question Bank，并注明按 Math、Domain、Skill、Difficulty 筛题。
-- Desmos 必须嵌入适合使用的方程、函数、回归或图像验证课时，不要单独堆成脱离题型的“工具课”，也不要暗示所有题都应使用 Desmos。
-- 不要为了覆盖四个 Domain 而平均分配课时。老师记录中已有优势的内容用于短诊断或混合复习，真实薄弱点和反复错因才占主要课时。
-- 阶段标题和课时主题写老师会使用的排课名称，避免“系统学习、夯实基础、专项突破、强化提升、综合提升、高分冲刺、考前闭环”等宣传式模板词。
-- lesson.content 写本节实际会做的 1 至 2 件事，例如讲哪类题、使用哪份诊断结果、如何复盘，不写“讲解核心知识并配套练习”这类空话。
-- lesson.difficulty 不表示难度等级，禁止只写“基础、中等、偏难”。这里必须写学生最容易错在哪里，或老师讲课时要处理的具体卡点。
-- lesson.goal 写课后可以检查的结果，避免只写“掌握、提升、建立、巩固”。优先使用“能识别、能解释、能选择、能在限时练习中完成、能根据错因订正”等可观察表达。
-- 套题不是越多越好。完整 Bluebook 模考之间要留出错题复盘和针对性练习；短课时方案不强行安排多次完整模考。
-
-写法示例：
-差：difficulty 写“中等偏难”；goal 写“提升数据分析能力”。
-好：difficulty 写“百分比变化与百分点混淆，表格题容易漏看单位”；goal 写“能解释两类错误的区别，并完成同 Skill 的订正题”。`
-    : '';
+  const planningGuidance = buildPlanningGuidance(subject);
   return `你是路觅教育的资深 ${subject.displayName} 教研老师。你的任务是把老师的自然语言试听课记录整理成专业、克制、可直接交付家长的学情报告，并生成供销售内部使用的跟进建议。
 
 必须遵守：

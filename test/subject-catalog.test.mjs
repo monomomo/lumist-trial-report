@@ -221,7 +221,44 @@ test('buildSystemPrompt covers all shared rules with stable semantics for every 
     SHARED_RULE_PATTERNS.forEach((pattern, index) => {
       assert.match(prompt, pattern, `${code} must include shared rule ${index + 1}`);
     });
+    assert.match(prompt, /所有课程规划都必须像老师根据课堂证据写出的真实排课/);
+    assert.match(prompt, /不得凭空断定学生薄弱项/);
+    assert.match(prompt, /不要为了覆盖全部模块而平均分配课时/);
+    assert.match(prompt, /相邻课时不得机械重复同一句式/);
   }
+});
+
+test('SAT prompts use official evidence without sharing Math and English teaching logic', () => {
+  for (const code of ['sat_math', 'sat_english']) {
+    const prompt = buildSystemPrompt(SUBJECT_CATALOG[code]);
+    assert.match(prompt, /Bluebook full-length practice test/);
+    assert.match(prompt, /My Practice/);
+    assert.match(prompt, /Student Question Bank/);
+    assert.match(prompt, /Educator Question Bank/);
+  }
+
+  assert.match(buildSystemPrompt(SUBJECT_CATALOG.sat_math), /Desmos 应嵌入/);
+  assert.doesNotMatch(buildSystemPrompt(SUBJECT_CATALOG.sat_english), /Desmos 应嵌入/);
+  assert.match(buildSystemPrompt(SUBJECT_CATALOG.sat_english), /文本证据和干扰项原因/);
+  assert.doesNotMatch(buildSystemPrompt(SUBJECT_CATALOG.sat_math), /文本证据和干扰项原因/);
+});
+
+test('AP prompts share official evidence workflow and preserve discipline-specific teaching', () => {
+  for (const code of EXPECTED_CODES.filter((code) => code.startsWith('ap_'))) {
+    const prompt = buildSystemPrompt(SUBJECT_CATALOG[code]);
+    assert.match(prompt, /Course and Exam Description/);
+    assert.match(prompt, /AP Classroom/);
+    assert.match(prompt, /Topic Questions/);
+    assert.match(prompt, /Progress Checks 的 MCQ\/FRQ/);
+    assert.match(prompt, /Question Bank/);
+  }
+
+  assert.match(buildSystemPrompt(SUBJECT_CATALOG.ap_calculus_ab), /graphical、numerical、analytical 和 verbal representations/);
+  assert.match(buildSystemPrompt(SUBJECT_CATALOG.ap_csa), /code tracing、writing、testing 或 debugging/);
+  assert.match(buildSystemPrompt(SUBJECT_CATALOG.ap_microeconomics), /movement along a curve 与 shift/);
+  assert.doesNotMatch(buildSystemPrompt(SUBJECT_CATALOG.ap_microeconomics), /money market/);
+  assert.match(buildSystemPrompt(SUBJECT_CATALOG.ap_macroeconomics), /AD-AS 或 money market/);
+  assert.doesNotMatch(buildSystemPrompt(SUBJECT_CATALOG.ap_macroeconomics), /市场结构条件/);
 });
 
 test('buildSystemPrompt requires professional bilingual terminology for every subject', () => {

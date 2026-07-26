@@ -6,7 +6,7 @@ function createReport(stages) {
   return { coursePlan: { stages } };
 }
 
-test('SAT quality review catches templated titles and generic difficulty labels', () => {
+test('quality review catches templated titles and abstract lesson fields for every subject', () => {
   const report = createReport([
     {
       title: '夯实基础',
@@ -18,11 +18,14 @@ test('SAT quality review catches templated titles and generic difficulty labels'
       })),
     },
   ]);
-  const issues = getCoursePlanQualityIssues(report, 'sat_math');
-  assert.equal(issues.length, 3);
-  assert.match(issues.join('；'), /模板词/);
-  assert.match(issues.join('；'), /具体易错点/);
-  assert.match(issues.join('；'), /官方诊断/);
+  for (const subjectCode of ['sat_math', 'sat_english', 'ap_calculus_ab', 'ap_calculus_bc', 'ap_csa', 'ap_microeconomics', 'ap_macroeconomics']) {
+    const issues = getCoursePlanQualityIssues(report, subjectCode);
+    assert.equal(issues.length, 4);
+    assert.match(issues.join('；'), /模板词/);
+    assert.match(issues.join('；'), /具体易错点/);
+    assert.match(issues.join('；'), /课后核对/);
+    assert.match(issues.join('；'), subjectCode.startsWith('sat_') ? /官方诊断/ : /AP 题型/);
+  }
 });
 
 test('SAT quality review accepts evidence-led teaching tasks', () => {
@@ -42,7 +45,19 @@ test('SAT quality review accepts evidence-led teaching tasks', () => {
   assert.deepEqual(getCoursePlanQualityIssues(report, 'sat_math'), []);
 });
 
-test('quality review does not impose SAT workflow on AP plans', () => {
-  const report = createReport([{ title: '系统学习', lessons: [] }]);
-  assert.deepEqual(getCoursePlanQualityIssues(report, 'ap_calculus_bc'), []);
+test('AP quality review accepts subject-specific evidence-led teaching tasks', () => {
+  const report = createReport([
+    {
+      title: 'Java 作答证据与程序状态',
+      lessons: Array.from({ length: 8 }, (_, index) => ({
+        theme: `Java tracing task ${index + 1}`,
+        content: index === 0
+          ? '使用 AP Classroom Progress Check 的 MCQ 定位程序状态判断错误'
+          : '根据 FRQ 作答和 test case 调试同类 Java 程序',
+        difficulty: '循环边界改变后，无法准确追踪 ArrayList 的 index 与 size',
+        goal: '能写出 trace table，并根据运行结果订正代码',
+      })),
+    },
+  ]);
+  assert.deepEqual(getCoursePlanQualityIssues(report, 'ap_csa'), []);
 });
