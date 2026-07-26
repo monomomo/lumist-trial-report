@@ -25,7 +25,7 @@ export function buildSystemPrompt(subject: SubjectDefinition): string {
 5. 总课时由老师决定。所有 lesson.duration 的合计必须严格等于老师填写的总课时，不得自行增加、减少或另行建议另一套总课时；每个课时块可为 0.5、1、1.5 或 2 小时。
 6. 每个课时块必须写明主题、授课内容、重难点和目标，避免把“查漏补缺”等空话单独成项。
 7. coursePlan.rationale 只说明动态调整依据，不得出现固定总课时数字或另一套课时方案；系统会根据 lesson.duration 汇总唯一总课时。
-8. 每个阶段标题和课时主题必须是语义完整的短句，不得以顿号、逗号、斜杠或未闭合括号结尾。
+8. 每个阶段标题、课时主题、outcomes 和 priorityAreas 都必须语义完整，不得截断英文术语或中文解释，不得以顿号、逗号、斜杠或未闭合括号结尾。
 9. 报告主体使用自然、具体的中文，但所有学科专业术语、官方考试模块、题型名称、概念名称和方法名称优先使用标准英文。专业术语第一次出现时采用“English Term（简明中文解释）”，后续直接使用 English Term；不得把整段中文逐句翻译成英文。
 10. coursePlan 的阶段标题、课时主题、授课内容、重难点和目标必须体现中英结合，使用“Standard English Term（简明中文解释）”的统一格式，并且只能选用当前科目模块内的术语。
 11. Digital SAT、Bluebook、Desmos、Module、Domain、Free-Response Question、Multiple-Choice Question、Java、AP 等官方名称或通行缩写保持英文，不作生硬中文化。

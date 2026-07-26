@@ -30,7 +30,7 @@ const reportSchema = z.object({
   lessonSummary: z.string().min(20).max(400),
   performance: z.string().min(20).max(300),
   outcomes: z.array(z.string().min(6).max(120)).min(3).max(5),
-  priorityAreas: z.array(z.string().min(2).max(40)).min(2).max(6),
+  priorityAreas: z.array(z.string().min(2).max(80)).min(2).max(6),
   coursePlan: z.object({
     rationale: z.string().min(20).max(300),
     stages: z.array(z.object({
@@ -214,6 +214,7 @@ export async function POST(request: Request) {
     }
 
     const parentReport = sanitizeParentReport(modelReport, parsed.data.teacherNotes, subject.code);
+    const normalizedPriorityAreas = [...new Set(parentReport.priorityAreas.map(normalizePlanTitle))].slice(0, 6);
     const normalizedStages = parentReport.coursePlan.stages.map((stage) => ({
       ...stage,
       title: normalizePlanTitle(stage.title),
@@ -234,6 +235,7 @@ export async function POST(request: Request) {
       model: process.env.OPENAI_MODEL || 'gpt-5-mini',
       report: {
         ...parentReport,
+        priorityAreas: normalizedPriorityAreas,
         teacherNotice: buildTeacherNotice(parsed.data.teacherNotes),
         coursePlan: {
           ...parentReport.coursePlan,

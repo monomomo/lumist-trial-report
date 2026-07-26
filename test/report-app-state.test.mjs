@@ -69,6 +69,14 @@ test('SAT-specific parent copy protection does not rewrite AP reports', async ()
   assert.match(source, /sanitizeParentReport\(modelReport, parsed\.data\.teacherNotes, subject\.code\)/);
 });
 
+test('priority areas preserve complete bilingual subject terms', async () => {
+  const routeSource = await readFile(new URL('../app/api/generate-report/route.ts', import.meta.url), 'utf8');
+  const styles = await readFile(new URL('../public/report/styles.css', import.meta.url), 'utf8');
+  assert.match(routeSource, /priorityAreas: z\.array\(z\.string\(\)\.min\(2\)\.max\(80\)\)/);
+  assert.match(routeSource, /parentReport\.priorityAreas\.map\(normalizePlanTitle\)/);
+  assert.match(styles, /\.needs-list span \{ max-width:100%; line-height:1\.45; overflow-wrap:anywhere; white-space:normal; \}/);
+});
+
 test('generated lessons cannot fail the whole report for page length', async () => {
   const source = await readFile(new URL('../public/report/app.js', import.meta.url), 'utf8');
   assert.equal(source.includes("throw new Error('COURSE_PLAN_LESSON_TOO_LONG')"), false);

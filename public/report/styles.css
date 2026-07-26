@@ -128,6 +128,7 @@ nav .nav-item.active,nav .nav-item:hover { background:#5a4712; }
 .summary-page-compact .outcome-grid ul { font-size:12px; line-height:1.6; }
 .summary-page-compact .subheading { margin:14px 0 8px; font-size:15px; }
 .summary-page-compact .needs-list span { padding:5px 8px; font-size:11px; }
+.needs-list span { max-width:100%; line-height:1.45; overflow-wrap:anywhere; white-space:normal; }
 .summary-page-condensed h2 { margin-bottom:14px; font-size:24px; }
 .summary-page-condensed .analysis-box { margin-top:11px; padding:10px 13px; }
 .summary-page-condensed .analysis-box h3 { margin-bottom:6px; font-size:13px; }

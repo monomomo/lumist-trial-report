@@ -78,7 +78,7 @@ const SHARED_RULE_PATTERNS = [
   /总课时由老师决定/,
   /每个课时块必须写明主题、授课内容、重难点和目标/,
   /coursePlan\.rationale 只说明动态调整依据/,
-  /每个阶段标题和课时主题必须是语义完整的短句/,
+  /每个阶段标题、课时主题、outcomes 和 priorityAreas 都必须语义完整/,
   /使用自然、具体的中文/,
   /科目事实边界/
 ];
@@ -229,6 +229,8 @@ test('buildSystemPrompt requires professional bilingual terminology for every su
     const prompt = buildSystemPrompt(SUBJECT_CATALOG[code]);
     assert.match(prompt, /English Term（简明中文解释）/);
     assert.match(prompt, /coursePlan 的阶段标题、课时主题、授课内容、重难点和目标必须体现中英结合/);
+    assert.match(prompt, /outcomes 和 priorityAreas 都必须语义完整/);
+    assert.match(prompt, /不得截断英文术语或中文解释/);
     assert.match(prompt, /Digital SAT、Bluebook、Desmos、Module、Domain/);
   }
 });
