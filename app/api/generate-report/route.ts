@@ -5,6 +5,7 @@ import { z } from 'zod';
 import { resolveSubject } from '@/lib/subjects/catalog';
 import { buildSystemPrompt, buildUserInput } from '@/lib/subjects/prompt';
 import { hasSubjectScopeViolation } from '@/lib/subjects/scope';
+import { getCoursePlanQualityIssues } from '@/lib/subjects/course-plan-quality';
 import { getAuthResult, AUTH_STATUS } from '@/lib/auth/current-user';
 
 export const runtime = 'nodejs';
@@ -206,8 +207,13 @@ export async function POST(request: Request) {
     if (!modelReport) {
       return NextResponse.json({ error: 'EMPTY_MODEL_OUTPUT' }, { status: 502 });
     }
-    if (hasSubjectScopeViolation(subject.code, modelReport)) {
-      modelReport = await generateModelReport(`\n13. 上一版内容出现跨科目术语。本次必须只使用 ${subject.displayName} 的模块与术语，任何其他 SAT 或 AP 科目的专属内容都不得出现。`);
+    const scopeViolation = hasSubjectScopeViolation(subject.code, modelReport);
+    const qualityIssues = getCoursePlanQualityIssues(modelReport, subject.code);
+    if (scopeViolation || qualityIssues.length > 0) {
+      const retryRequirements: string[] = [];
+      if (scopeViolation) retryRequirements.push(`只使用 ${subject.displayName} 的模块与术语，删除其他 SAT 或 AP 科目的专属内容`);
+      if (qualityIssues.length > 0) retryRequirements.push(`重写整个 coursePlan，并解决这些问题：${qualityIssues.join('；')}`);
+      modelReport = await generateModelReport(`\n13. 上一版未达到交付标准。本次必须${retryRequirements.join('；')}。不要只替换同义词，要让每节课体现真实教学任务、具体易错点和可检查结果。`);
     }
     if (!modelReport || hasSubjectScopeViolation(subject.code, modelReport)) {
       return NextResponse.json({ error: 'SUBJECT_SCOPE_VIOLATION' }, { status: 502 });
