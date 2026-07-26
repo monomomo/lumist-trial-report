@@ -52,6 +52,19 @@ export function normalizeTeacherProfile(apiData) {
   };
 }
 
+export function buildPdfFileName(subjectName, studentName) {
+  const sanitize = (value, fallback) => {
+    const normalized = String(value || '')
+      .replace(/[\\/:*?"<>|]/g, '-')
+      .replace(/\s+/g, ' ')
+      .replace(/-+/g, '-')
+      .trim()
+      .replace(/^[.\s-]+|[.\s-]+$/g, '');
+    return normalized || fallback;
+  };
+  return `${sanitize(subjectName, '课程')}-${sanitize(studentName, '学生')}-学情诊断`;
+}
+
 /**
  * @typedef {{ displayName: string; displayPlaceholder: string; title: string; summary: string; bio: string[]; sections: Array<{ title: string; content: string[] }>; subjects: string[]; photoUrl: string | null; qrUrl: string | null }} TeacherDisplayData
  */

@@ -1,6 +1,6 @@
 import { ALLOWED_DURATIONS, cloneCoursePlan, calculateTotalHours, validateCoursePlan, moveItem, moveLesson, rebalanceFinalPage, createStage, createLesson } from './course-plan-utils.js';
 import { SUBJECT_CODES, SUBJECT_CATALOG, resolveSubject } from './catalog.js';
-import { createSubjectViewModel, normalizeTeacherProfile, canUseFallback, buildFallbackReport } from './report-domain.js';
+import { createSubjectViewModel, normalizeTeacherProfile, buildPdfFileName, canUseFallback, buildFallbackReport } from './report-domain.js';
 
 const sampleOne = '我刚上了一节SAT数学试听课。根据课前沟通，学生已经不记得SAT数学的知识点了。所以我们计划从头开始梳理知识点，同学上课互动很积极，做题的正确率也挺好的，中等难度的题也可以做对，没有她自己说的那么基础差。但是确实是有些知识点有遗忘。所以我计划接下来先从头补知识点，让同学建立SAT数学知识图谱。';
 const sampleTwo = '学生课上挺活泼的，爱互动，愿意思考，做题的准确率其实很不错。因为学生不了解SAT考点，第一节课带学生看了SAT的4章内容。学生现在在学微积分，所以Algebra的内容比较熟练，但因为比较久没有接触概率、几何的东西，这两章相对薄弱。';
@@ -752,10 +752,21 @@ $('#open-history').addEventListener('click', () => { renderReport(currentReportD
 $('#back-edit').addEventListener('click', () => changeView('new'));
 $('#print-report').addEventListener('click', () => {
   const previousOverflow = document.body.style.overflow;
-  const restoreOverflow = () => { document.body.style.overflow = previousOverflow; window.removeEventListener('afterprint', restoreOverflow); };
-  window.addEventListener('afterprint', restoreOverflow);
+  const previousTitle = document.title;
+  const subjectName = createSubjectViewModel(currentSubjectCode).displayName;
+  const studentName = $('#student-name').value.trim();
+  let restored = false;
+  document.title = buildPdfFileName(subjectName, studentName);
+  const restorePrintState = () => {
+    if (restored) return;
+    restored = true;
+    document.body.style.overflow = previousOverflow;
+    document.title = previousTitle;
+    window.removeEventListener('afterprint', restorePrintState);
+  };
+  window.addEventListener('afterprint', restorePrintState);
   window.print();
-  window.setTimeout(restoreOverflow, 1000);
+  window.setTimeout(restorePrintState, 1000);
 });
 $('#edit-course-plan').addEventListener('click', openPlanEditor);
 $('#plan-editor-content').addEventListener('input', (event) => {
