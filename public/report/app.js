@@ -21,6 +21,8 @@ const PLAN_PAGE_AVAILABLE_HEIGHT = A4_PAGE_HEIGHT_MM / MILLIMETERS_PER_INCH * CS
 
 let currentSubjectCode = 'sat_math';
 let currentReportData = null;
+let currentReportId = null;
+let historicalTeacherProfile = null;
 let summaryPageCount = 1;
 
 function populateSubjectSelect() {
@@ -55,17 +57,20 @@ function configureExamDateField(subjectCode) {
 }
 
 function onSubjectChange() {
-  const code = $('#subject-select').value;
+  applySubjectSelection($('#subject-select').value);
+  refreshPreview();
+}
+
+function applySubjectSelection(code) {
   currentSubjectCode = code;
   const vm = createSubjectViewModel(code);
+  $('#subject-select').value = code;
   $('#form-eyebrow').textContent = `${vm.displayName}试听`;
   $('#score-label-current').textContent = `当前${vm.scoreLabel}（可选）`;
   $('#score-label-target').textContent = `目标${vm.scoreLabel}（可选）`;
   $('#current-score').placeholder = vm.scoreMax > 100 ? `例如：${Math.round((vm.scoreMin + vm.scoreMax) / 2)}` : `例如：${Math.round((vm.scoreMin + vm.scoreMax) / 2)}`;
   $('#target-score').placeholder = vm.scoreMax > 100 ? `例如：${vm.scoreMax}` : `例如：${vm.scoreMax}`;
   configureExamDateField(code);
-  // 刷新默认兜底预览
-  refreshPreview();
 }
 
 function refreshPreview() {
@@ -88,7 +93,7 @@ async function loadTeacherProfile() {
     if (teacherProfile) {
       renderSidebarTeacher();
       renderTeacherProfile();
-      setText('#info-teacher', teacherProfile.displayName);
+      setText('#info-teacher', getActiveTeacherProfile().displayName);
     }
   } catch {
     // 静默忽略，保持默认占位
@@ -99,6 +104,10 @@ function renderSidebarTeacher() {
   if (!teacherProfile) return;
   const footer = $('#sidebar-teacher');
   footer.innerHTML = `<div class="avatar">${escapeHtml(teacherProfile.displayPlaceholder)}</div><div><strong>${escapeHtml(teacherProfile.displayName)}</strong><small>${escapeHtml(teacherProfile.title)}</small></div>`;
+}
+
+function getActiveTeacherProfile() {
+  return historicalTeacherProfile || teacherProfile;
 }
 
 /* ── 兜底默认规划（从 HTML 初始静态课时页提取） ── */
@@ -368,25 +377,26 @@ function deriveReport(notes, name, target) {
 function renderTeacherProfile() {
   const container = $('#teacher-profile-container');
   if (!container) return;
+  const profile = getActiveTeacherProfile();
 
-  if (teacherProfile) {
+  if (profile) {
     const subjectName = createSubjectViewModel(currentSubjectCode).displayName;
-    const photoHtml = teacherProfile.photoUrl
-      ? `<div class="teacher-photo-wrap"><img src="${escapeHtml(teacherProfile.photoUrl)}" alt="${escapeHtml(teacherProfile.displayName)}" /><span class="teacher-photo-name">${escapeHtml(teacherProfile.displayName)}</span></div>`
-      : `<div class="teacher-photo-wrap"><div class="avatar-placeholder">${escapeHtml(teacherProfile.displayPlaceholder)}</div><span class="teacher-photo-name">${escapeHtml(teacherProfile.displayName)}</span></div>`;
-    const summaryHtml = teacherProfile.summary
-      ? `<p class="teacher-summary">${escapeHtml(teacherProfile.summary)}</p>`
+    const photoHtml = profile.photoUrl
+      ? `<div class="teacher-photo-wrap"><img src="${escapeHtml(profile.photoUrl)}" alt="${escapeHtml(profile.displayName)}" /><span class="teacher-photo-name">${escapeHtml(profile.displayName)}</span></div>`
+      : `<div class="teacher-photo-wrap"><div class="avatar-placeholder">${escapeHtml(profile.displayPlaceholder)}</div><span class="teacher-photo-name">${escapeHtml(profile.displayName)}</span></div>`;
+    const summaryHtml = profile.summary
+      ? `<p class="teacher-summary">${escapeHtml(profile.summary)}</p>`
       : '';
-    const sectionsHtml = teacherProfile.sections.length > 0
-      ? `<div class="teacher-sections">${teacherProfile.sections.map((section) => `<section><h3>${escapeHtml(section.title)}</h3>${section.content.map((paragraph) => `<p>${escapeHtml(paragraph)}</p>`).join('')}</section>`).join('')}</div>`
-      : teacherProfile.bio.map((paragraph) => `<p>${escapeHtml(paragraph)}</p>`).join('');
-    const subjectsHtml = teacherProfile.subjects.length > 0
-      ? `<div class="teacher-tags">${teacherProfile.subjects.map((subject) => `<span>${escapeHtml(subject)}</span>`).join('')}</div>`
+    const sectionsHtml = profile.sections.length > 0
+      ? `<div class="teacher-sections">${profile.sections.map((section) => `<section><h3>${escapeHtml(section.title)}</h3>${section.content.map((paragraph) => `<p>${escapeHtml(paragraph)}</p>`).join('')}</section>`).join('')}</div>`
+      : profile.bio.map((paragraph) => `<p>${escapeHtml(paragraph)}</p>`).join('');
+    const subjectsHtml = profile.subjects.length > 0
+      ? `<div class="teacher-tags">${profile.subjects.map((subject) => `<span>${escapeHtml(subject)}</span>`).join('')}</div>`
       : '';
-    const qrHtml = teacherProfile.qrUrl
-      ? `<aside class="teacher-qr"><img src="${escapeHtml(teacherProfile.qrUrl)}" alt="${escapeHtml(teacherProfile.displayName)} 老师课程二维码" /><span>扫码查看<br />课程详情</span></aside>`
+    const qrHtml = profile.qrUrl
+      ? `<aside class="teacher-qr"><img src="${escapeHtml(profile.qrUrl)}" alt="${escapeHtml(profile.displayName)} 老师课程二维码" /><span>扫码查看<br />课程详情</span></aside>`
       : '';
-    container.innerHTML = `<div class="teacher-profile">${photoHtml}<div class="teacher-intro"><span class="teacher-context">LUMIST · ${escapeHtml(subjectName)}</span><p class="teacher-label">${escapeHtml(teacherProfile.title || '')}</p><h2>${escapeHtml(teacherProfile.displayName)}</h2>${summaryHtml}${sectionsHtml}${subjectsHtml}</div>${qrHtml}</div>`;
+    container.innerHTML = `<div class="teacher-profile">${photoHtml}<div class="teacher-intro"><span class="teacher-context">LUMIST · ${escapeHtml(subjectName)}</span><p class="teacher-label">${escapeHtml(profile.title || '')}</p><h2>${escapeHtml(profile.displayName)}</h2>${summaryHtml}${sectionsHtml}${subjectsHtml}</div>${qrHtml}</div>`;
     return;
   }
 
@@ -397,7 +407,8 @@ function renderReport(data) {
   const name = $('#student-name').value.trim() || '学生';
   const target = $('#target-score').value.trim();
   const subjectName = createSubjectViewModel(currentSubjectCode).displayName;
-  const teacherName = teacherProfile ? teacherProfile.displayName : '老师';
+  const activeTeacher = getActiveTeacherProfile();
+  const teacherName = activeTeacher ? activeTeacher.displayName : '老师';
 
   setText('#report-title', `${name}个性化学习报告`);
   setText('#info-name', name);
@@ -635,36 +646,42 @@ function restoreOriginalCoursePlan() {
 }
 
 async function saveReport() {
+  if (!currentReportData) return;
   const reportStatus = document.querySelector('#report-view .eyebrow');
+  const saveButton = $('#save-report');
+  const { coursePlan, salesFollowUp, ...reportData } = currentReportData;
+  const payload = {
+    id: currentReportId,
+    studentName: $('#student-name').value.trim(),
+    currentScore: $('#current-score').value.trim(),
+    targetScore: $('#target-score').value.trim(),
+    examDate: getSelectedExamDate(),
+    teacherNotes: $('#teacher-notes').value.trim(),
+    subject: createSubjectViewModel(currentSubjectCode).displayName,
+    reportData,
+    coursePlan,
+    salesFollowUp,
+  };
   reportStatus.textContent = '正在保存报告';
-  const response = await fetch('/api/reports', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      studentName: $('#student-name').value.trim(),
-      currentScore: $('#current-score').value.trim(),
-      targetScore: $('#target-score').value.trim(),
-      examDate: getSelectedExamDate(),
-      teacherNotes: $('#teacher-notes').value.trim(),
-      subject: createSubjectViewModel(currentSubjectCode).displayName,
-      reportData: {
-        overview: $('#overview-text').textContent,
-        classroom: $('#classroom-text').textContent,
-        strength: $('#strength-text').textContent,
-        priority: $('#priority-text').textContent,
-        outcomes: Array.from($('#outcomes-list').children).map((item) => item.textContent)
-      },
-      coursePlan: { totalHours: currentReportData.coursePlan.totalHours, stages: collectCoursePlan() },
-      salesFollowUp: {
-        positive: $('#sales-positive').textContent,
-        urgent: $('#sales-urgent').textContent,
-        angle: $('#sales-angle').textContent,
-        script: $('#sales-script').textContent
-      }
-    })
-  });
-  const result = await response.json();
-  reportStatus.textContent = result.saved ? '报告已生成 · 已保存' : '报告已生成 · 本地演示';
+  saveButton.disabled = true;
+  saveButton.textContent = '保存中…';
+  try {
+    const response = await fetch('/api/reports', {
+      method: currentReportId ? 'PATCH' : 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    });
+    const result = await response.json();
+    if (!response.ok) throw new Error(result.error || 'REPORT_SAVE_FAILED');
+    if (result.id) currentReportId = result.id;
+    reportStatus.textContent = result.saved ? '报告已生成 · 已保存' : '报告已生成 · 本地演示';
+    saveButton.textContent = currentReportId ? '更新历史报告' : '保存报告';
+  } catch {
+    reportStatus.textContent = '报告保存失败 · 请稍后重试';
+    saveButton.textContent = '重新保存';
+  } finally {
+    saveButton.disabled = false;
+  }
 }
 
 function collectFormData() {
@@ -680,6 +697,90 @@ function collectFormData() {
 
 function getSelectedExamDate() {
   return currentSubjectCode.startsWith('ap_') ? $('#ap-exam-date').value : $('#exam-date').value.trim();
+}
+
+function resolveStoredSubjectCode(subjectName) {
+  return SUBJECT_CODES.find((code) => SUBJECT_CATALOG[code].displayName === subjectName) || 'sat_math';
+}
+
+function formatHistoryDate(value) {
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return '';
+  return new Intl.DateTimeFormat('zh-CN', {
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+  }).format(date);
+}
+
+async function loadHistoryReports() {
+  const container = $('#history-list');
+  container.innerHTML = '<div class="history-empty">正在读取历史报告…</div>';
+  try {
+    const response = await fetch('/api/reports');
+    const result = await response.json();
+    if (!response.ok) throw new Error(result.error || 'REPORT_LIST_FAILED');
+    if (!result.reports?.length) {
+      container.innerHTML = '<div class="history-empty">还没有保存过报告。生成报告后点击“保存报告”，这里就会出现历史记录。</div>';
+      return;
+    }
+    container.innerHTML = result.reports.map((report) => `<article class="history-card"><div><span class="history-chip">${escapeHtml(report.status === 'completed' ? '已完成' : report.status)}</span><h2>${escapeHtml(report.student_name)} · ${escapeHtml(report.subject)}</h2><p>更新于 ${escapeHtml(formatHistoryDate(report.updated_at))}</p></div><button type="button" class="secondary-btn" data-history-id="${escapeHtml(report.id)}">打开报告</button></article>`).join('');
+  } catch {
+    container.innerHTML = '<div class="history-empty">历史报告读取失败，请刷新页面后重试。</div>';
+  }
+}
+
+function buildHistoricalTeacherProfile(snapshot) {
+  if (!snapshot?.displayName) return null;
+  const publicPhoto = snapshot.photoAsset?.source === 'public' ? snapshot.photoAsset.path : null;
+  const publicQr = snapshot.qrAsset?.source === 'public' ? snapshot.qrAsset.path : null;
+  return normalizeTeacherProfile({
+    ...snapshot,
+    photoUrl: publicPhoto || teacherProfile?.photoUrl || null,
+    qrUrl: publicQr || teacherProfile?.qrUrl || null,
+  });
+}
+
+async function openHistoricalReport(reportId) {
+  const response = await fetch(`/api/reports?id=${encodeURIComponent(reportId)}`);
+  const result = await response.json();
+  if (!response.ok || !result.report) throw new Error(result.error || 'REPORT_NOT_FOUND');
+  const record = result.report;
+  const subjectCode = resolveStoredSubjectCode(record.subject);
+  applySubjectSelection(subjectCode);
+  $('#student-name').value = record.student_name || '';
+  $('#current-score').value = record.current_score || '';
+  $('#target-score').value = record.target_score || '';
+  $('#teacher-notes').value = record.original_notes || '';
+  $('#total-hours').value = record.course_plan?.totalHours || '';
+  if (subjectCode.startsWith('ap_')) {
+    const examDate = record.exam_date_text || '';
+    if (examDate && !Array.from($('#ap-exam-date').options).some((option) => option.value === examDate)) {
+      $('#ap-exam-date').add(new Option(`${examDate} AP 考试`, examDate));
+    }
+    $('#ap-exam-date').value = examDate;
+  } else {
+    $('#exam-date').value = record.exam_date_text || '';
+  }
+  const fallback = buildFallbackReport(subjectCode, collectFormData());
+  currentReportData = {
+    ...fallback,
+    ...(record.report_data || {}),
+    coursePlan: record.course_plan || fallback.coursePlan,
+    salesFollowUp: {
+      ...fallback.salesFollowUp,
+      ...(record.sales_follow_up || {}),
+    },
+  };
+  currentReportId = record.id;
+  historicalTeacherProfile = buildHistoricalTeacherProfile(record.teacher_snapshot);
+  originalAiCoursePlan = cloneCoursePlan(currentReportData.coursePlan);
+  renderReport(currentReportData);
+  changeView('report');
+  document.querySelector('#report-view .eyebrow').textContent = '历史报告 · 已保存';
+  $('#save-report').textContent = '更新历史报告';
 }
 
 async function generateAiReport() {
@@ -709,10 +810,13 @@ $('#report-form').addEventListener('submit', async (event) => {
   notice.innerHTML = '<strong>正在生成：</strong>通常需要 30–90 秒，详细课时规划可能更久，请不要重复提交或关闭页面。';
   try {
     currentReportData = await generateAiReport();
+    currentReportId = null;
+    historicalTeacherProfile = null;
     originalAiCoursePlan = cloneCoursePlan(currentReportData.coursePlan);
     renderReport(currentReportData);
     changeView('report');
     document.querySelector('#report-view .eyebrow').textContent = 'AI 报告已生成 · 未云端保存';
+    $('#save-report').textContent = '保存报告';
     notice.innerHTML = '<strong>生成原则：</strong>总课时由老师决定，AI 仅负责规划内容与课时分配。';
   } catch (error) {
     if (error.message === 'INVALID_INPUT') {
@@ -727,10 +831,13 @@ $('#report-form').addEventListener('submit', async (event) => {
     }
     if (canUseFallback(error.message)) {
       currentReportData = buildFallbackReport(currentSubjectCode, collectFormData());
+      currentReportId = null;
+      historicalTeacherProfile = null;
       originalAiCoursePlan = cloneCoursePlan(currentReportData.coursePlan);
       renderReport(currentReportData);
       changeView('report');
       document.querySelector('#report-view .eyebrow').textContent = '本地兜底版 · AI 暂不可用';
+      $('#save-report').textContent = '保存报告';
     } else {
       notice.classList.add('error');
       const messages = {
@@ -747,9 +854,24 @@ $('#report-form').addEventListener('submit', async (event) => {
 $('#sample-one').addEventListener('click', () => { $('#teacher-notes').value = sampleOne; });
 $('#sample-two').addEventListener('click', () => { $('#teacher-notes').value = sampleTwo; });
 $('#subject-select').addEventListener('change', onSubjectChange);
-document.querySelectorAll('.nav-item').forEach((item) => item.addEventListener('click', () => changeView(item.dataset.view)));
-$('#open-history').addEventListener('click', () => { renderReport(currentReportData); changeView('report'); });
+document.querySelectorAll('.nav-item').forEach((item) => item.addEventListener('click', () => {
+  changeView(item.dataset.view);
+  if (item.dataset.view === 'history') loadHistoryReports();
+}));
+$('#history-list').addEventListener('click', async (event) => {
+  const button = event.target.closest('[data-history-id]');
+  if (!button) return;
+  button.disabled = true;
+  button.textContent = '正在打开…';
+  try {
+    await openHistoricalReport(button.dataset.historyId);
+  } catch {
+    button.disabled = false;
+    button.textContent = '重试打开';
+  }
+});
 $('#back-edit').addEventListener('click', () => changeView('new'));
+$('#save-report').addEventListener('click', saveReport);
 $('#print-report').addEventListener('click', () => {
   const previousOverflow = document.body.style.overflow;
   const previousTitle = document.title;

@@ -95,64 +95,111 @@ function distributeLessonDurations<T extends { lessons: Array<{ duration: number
   }));
 }
 
-const parentFacingForbiddenPattern = /老师原始记录|老师只写|老师仅|老师未提供|老师未列出|输入中没有|信息不足|信息有限|无法判断|未能获得|没有完整|缺少数据|记录较少|未记录|未提供|暂无数据|尚无数据|课堂记录|观察记录|不构成正式|可量化/;
-
-function getTopicContext(notes: string) {
-  const topics = [];
-  if (/代数|Algebra/i.test(notes)) topics.push('代数');
-  if (/函数|Advanced Math/i.test(notes)) topics.push('函数与高阶数学');
-  if (/概率|数据|统计|Problem-Solving/i.test(notes)) topics.push('数据分析与概率');
-  if (/几何|三角|Geometry|Trigonometry/i.test(notes)) topics.push('几何与三角');
-  if (/Desmos/i.test(notes)) topics.push('Desmos 工具应用');
-  const uniqueTopics = [...new Set(topics)];
-  const label = uniqueTopics.length ? uniqueTopics.slice(0, 3).join('、') : 'SAT 数学核心内容';
-  return {
-    label,
-    module: uniqueTopics.length ? `SAT 数学${label}模块` : 'SAT 数学核心内容',
-    training: uniqueTopics.length ? `${label}相关题型` : '相关题型'
-  };
-}
+const parentFacingForbiddenPattern = /老师原始记录|原始课堂记录|原始记录|老师短评|老师评语|老师记录|教师记录|课堂观察（老师记录）|课堂记录信息|输入中没有|已知事实|信息不足|信息有限|无法判断|未能获得|没有完整|缺少数据|缺乏.{0,8}数据|记录较少|未记录|未提供|暂无数据|尚无数据|无可用.{0,8}数据|不构成正式|可量化|本报告|报告严格依据|报告依据|报告整理|本次.{0,12}记录整理|本次记录显示|依据老师|根据老师|需.{0,8}老师确认|需.{0,8}诊断确认|需要.{0,8}诊断确认/;
+const thirdPersonTeacherPattern = /(?:任课)?老师|教师/;
+const lessonTitleProcessPattern = /学情报告|课程规划|初版|\d+(?:\.\d+)?\s*(?:小时|h)/i;
 
 function getInputCompleteness(notes: string) {
   return {
-    hasSpecificContent: /方程|不等式|函数|多项式|二次|指数|比率|百分比|概率|条件概率|统计|数据表|几何|三角|圆|Desmos|Module|Bluebook/i.test(notes),
+    hasSpecificContent: /单元|章节|考点|题目|方程|不等式|函数|多项式|二次|指数|比率|百分比|概率|统计|数据表|几何|三角|圆|极限|导数|积分|级数|参数方程|极坐标|Java|代码|供需|市场|政策|汇率|Desmos|Module|Bluebook|Parametric|Polar|Vector|Series|ArrayList|Recursion|MCQ|FRQ/i.test(notes),
     hasClassroomObservation: /互动|思考|正确率|准确率|做对|做错|理解|反应|速度|用时|卡住|薄弱|熟练|遗忘|积极|专注/i.test(notes)
   };
 }
 
-function sanitizeParentReport(report: z.infer<typeof reportSchema>, notes: string, subjectCode: string) {
-  if (subjectCode !== 'sat_math') return report;
-  const topic = getTopicContext(notes);
-  const completeness = getInputCompleteness(notes);
-  const safeOverview = `本次试听课围绕 ${topic.module} 展开，帮助学生初步熟悉相关知识在考试中的呈现方式。后续将结合模块练习与 Bluebook 数学诊断，进一步明确具体学习重点并细化训练安排。`;
-  const safeLessonSummary = `本节试听课围绕 ${topic.module} 展开，通过知识讲解与课堂练习，帮助学生初步熟悉相关知识在 SAT 考试中的呈现方式。后续将结合 Bluebook 数学模块诊断，进一步确认学生在不同题型中的掌握情况，并据此细化学习重点与训练安排。`;
-  const safePerformance = `当前阶段以熟悉${topic.training}和建立解题框架为主，后续将结合模块练习持续观察学生的理解与应用情况。`;
-  const sanitizeText = (value: string, fallback: string) => parentFacingForbiddenPattern.test(value) ? fallback : value;
-  const safeOutcomes = [
-    `初步了解 ${topic.module} 的学习方向`,
-    `了解${topic.training}在考试中的基本呈现方式`,
-    '明确后续将通过模块练习与 Bluebook 诊断细化学习安排'
+function getParentVoiceIssues(report: z.infer<typeof reportSchema>) {
+  const summaryTexts = [
+    report.overview,
+    report.classroomStatus,
+    report.strength,
+    report.currentFocus,
+    report.lessonTitle,
+    report.lessonSummary,
+    report.performance,
+    ...report.outcomes,
+    ...report.priorityAreas,
   ];
-  const outcomes = completeness.hasSpecificContent && completeness.hasClassroomObservation
-    ? report.outcomes.filter((item) => !parentFacingForbiddenPattern.test(item))
-    : [...safeOutcomes];
+  const planTexts = [
+    report.coursePlan.rationale,
+    ...report.coursePlan.stages.flatMap((stage) => [
+      stage.title,
+      stage.description,
+      ...stage.lessons.flatMap((lesson) => [lesson.theme, lesson.content, lesson.difficulty, lesson.goal]),
+    ]),
+  ];
+  const issues: string[] = [];
+  if ([...summaryTexts, ...planTexts].some((value) => parentFacingForbiddenPattern.test(value))) {
+    issues.push('家长可见内容暴露了原始记录、信息缺失、报告整理或诊断确认等生成过程');
+  }
+  if ([...summaryTexts, ...planTexts].some((value) => thirdPersonTeacherPattern.test(value))) {
+    issues.push('家长可见内容使用“老师、教师”第三者口吻，没有采用任课老师本人视角');
+  }
+  if (lessonTitleProcessPattern.test(report.lessonTitle)) {
+    issues.push('lessonTitle 写成了学情报告、课程规划或总课时标题，而不是本节试听内容');
+  }
+  return issues;
+}
+
+function normalizeTeacherPerspective(value: string) {
+  return value
+    .replace(/(?:依据|根据)(?:本次)?(?:任课)?(?:老师|教师)(?:的)?(?:记录|评语|短评)/g, '根据本次课堂情况')
+    .replace(/(?:任课)?老师|教师/g, '我');
+}
+
+function sanitizeParentReport(report: z.infer<typeof reportSchema>, subjectCode: string) {
+  const subject = resolveSubject(subjectCode);
+  const safeOverview = `本次试听课中，我先了解了学生目前与 ${subject.displayName} 课程的衔接情况。接下来我会通过具体任务继续观察知识掌握、作答过程和易错点，再据此调整后续课时重点。`;
+  const safeClassroomStatus = '本节课主要用于了解学生当前的学习衔接和作答习惯，接下来我会结合具体任务继续观察。';
+  const safeStrength = '我会通过后续练习确认学生已经稳定掌握的内容，并据此减少重复训练。';
+  const safeCurrentFocus = `接下来我会先完成 ${subject.displayName} 的基础诊断，再根据具体错因安排训练重点。`;
+  const safeLessonTitle = `${subject.displayName}课堂衔接与学习诊断`;
+  const safeLessonSummary = `本节课中，我主要了解了学生与 ${subject.displayName} 课程的衔接情况。接下来我会安排有明确作答过程的练习，观察学生对概念、方法和题型的实际掌握，再细化后续教学安排。`;
+  const safePerformance = '本节课先以课堂交流和学习衔接为主。接下来我会通过具体练习观察学生的理解、作答步骤和订正情况。';
+  const sanitizeText = (value: string, fallback: string) => {
+    if (parentFacingForbiddenPattern.test(value)) return fallback;
+    return normalizeTeacherPerspective(value);
+  };
+  const safeOutcomes = [
+    `我已初步了解学生与 ${subject.displayName} 课程的衔接情况`,
+    '学生明确了接下来课堂练习的重点',
+    '我会根据后续作答过程和错因继续调整教学安排'
+  ];
+  const outcomes = report.outcomes
+    .filter((item) => !parentFacingForbiddenPattern.test(item))
+    .map(normalizeTeacherPerspective);
   safeOutcomes.forEach((item) => { if (outcomes.length < 3 && !outcomes.includes(item)) outcomes.push(item); });
-  const priorityAreas = completeness.hasSpecificContent
-    ? report.priorityAreas.filter((item) => !parentFacingForbiddenPattern.test(item))
-    : [`${topic.label}模块考点梳理`, 'Bluebook 数学模块诊断', 'SAT 题型与考试节奏'];
-  if (priorityAreas.length < 2) priorityAreas.push(`${topic.label}考点梳理`, 'Bluebook 模块诊断');
+  const priorityAreas = report.priorityAreas
+    .filter((item) => !parentFacingForbiddenPattern.test(item))
+    .map(normalizeTeacherPerspective);
+  if (priorityAreas.length < 2) priorityAreas.push(`${subject.displayName}学习基础诊断`, '作答过程与错因分析');
+  const normalizedCoursePlan = {
+    ...report.coursePlan,
+    rationale: sanitizeText(report.coursePlan.rationale, '我会根据后续诊断、课堂作答、错题类型和完成时间调整课时重点。'),
+    stages: report.coursePlan.stages.map((stage) => ({
+      ...stage,
+      title: normalizeTeacherPerspective(stage.title),
+      description: normalizeTeacherPerspective(stage.description),
+      lessons: stage.lessons.map((lesson) => ({
+        ...lesson,
+        theme: normalizeTeacherPerspective(lesson.theme),
+        content: normalizeTeacherPerspective(lesson.content),
+        difficulty: normalizeTeacherPerspective(lesson.difficulty),
+        goal: normalizeTeacherPerspective(lesson.goal),
+      })),
+    })),
+  };
 
   return {
     ...report,
-    overview: completeness.hasSpecificContent && completeness.hasClassroomObservation ? sanitizeText(report.overview, safeOverview) : safeOverview,
-    classroomStatus: completeness.hasClassroomObservation ? sanitizeText(report.classroomStatus, '当前阶段以熟悉 SAT 数学考点框架与题型为主') : `本节课主要围绕 ${topic.module} 进行知识讲解与课堂练习`,
-    strength: completeness.hasClassroomObservation ? sanitizeText(report.strength, '将在后续模块练习中进一步确认并持续巩固') : '后续将结合模块练习进一步确认学生的优势题型',
-    currentFocus: completeness.hasSpecificContent ? sanitizeText(report.currentFocus, `${topic.label}考点梳理与题型熟悉`) : `${topic.label}模块框架与题型熟悉`,
-    lessonTitle: completeness.hasSpecificContent ? sanitizeText(report.lessonTitle, `${topic.label}内容梳理`) : `${topic.label}模块导入与题型认识`,
-    lessonSummary: completeness.hasSpecificContent ? sanitizeText(report.lessonSummary, safeLessonSummary) : safeLessonSummary,
-    performance: completeness.hasClassroomObservation ? sanitizeText(report.performance, safePerformance) : safePerformance,
+    overview: sanitizeText(report.overview, safeOverview),
+    classroomStatus: sanitizeText(report.classroomStatus, safeClassroomStatus),
+    strength: sanitizeText(report.strength, safeStrength),
+    currentFocus: sanitizeText(report.currentFocus, safeCurrentFocus),
+    lessonTitle: lessonTitleProcessPattern.test(report.lessonTitle) ? safeLessonTitle : sanitizeText(report.lessonTitle, safeLessonTitle),
+    lessonSummary: sanitizeText(report.lessonSummary, safeLessonSummary),
+    performance: sanitizeText(report.performance, safePerformance),
     outcomes: outcomes.slice(0, 5),
-    priorityAreas: [...new Set(priorityAreas)].slice(0, 6)
+    priorityAreas: [...new Set(priorityAreas)].slice(0, 6),
+    coursePlan: normalizedCoursePlan,
   };
 }
 
@@ -209,17 +256,19 @@ export async function POST(request: Request) {
     }
     const scopeViolation = hasSubjectScopeViolation(subject.code, modelReport);
     const qualityIssues = getCoursePlanQualityIssues(modelReport, subject.code);
-    if (scopeViolation || qualityIssues.length > 0) {
+    const parentVoiceIssues = getParentVoiceIssues(modelReport);
+    if (scopeViolation || qualityIssues.length > 0 || parentVoiceIssues.length > 0) {
       const retryRequirements: string[] = [];
       if (scopeViolation) retryRequirements.push(`只使用 ${subject.displayName} 的模块与术语，删除其他 SAT 或 AP 科目的专属内容`);
       if (qualityIssues.length > 0) retryRequirements.push(`重写整个 coursePlan，并解决这些问题：${qualityIssues.join('；')}`);
-      modelReport = await generateModelReport(`\n13. 上一版未达到交付标准。本次必须${retryRequirements.join('；')}。不要只替换同义词，要让每节课体现真实教学任务、具体易错点和可检查结果。`);
+      if (parentVoiceIssues.length > 0) retryRequirements.push(`以任课老师本人向家长反馈的口吻重写家长可见内容，并解决这些问题：${parentVoiceIssues.join('；')}`);
+      modelReport = await generateModelReport(`\n15. 上一版未达到交付标准。本次必须${retryRequirements.join('；')}。不要只替换同义词，要让每节课体现真实教学任务、具体易错点和可检查结果。`);
     }
     if (!modelReport || hasSubjectScopeViolation(subject.code, modelReport)) {
       return NextResponse.json({ error: 'SUBJECT_SCOPE_VIOLATION' }, { status: 502 });
     }
 
-    const parentReport = sanitizeParentReport(modelReport, parsed.data.teacherNotes, subject.code);
+    const parentReport = sanitizeParentReport(modelReport, subject.code);
     const normalizedPriorityAreas = [...new Set(parentReport.priorityAreas.map(normalizePlanTitle))].slice(0, 6);
     const normalizedStages = parentReport.coursePlan.stages.map((stage) => ({
       ...stage,

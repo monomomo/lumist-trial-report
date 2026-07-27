@@ -72,7 +72,7 @@ const UNIQUE_MODULES = {
 
 const SHARED_RULE_PATTERNS = [
   /只把输入中明确出现的信息写成已知事实/,
-  /区分“本次课堂观察”和“后续建议”/,
+  /区分“我在本次课堂中的观察”和“我接下来的教学安排”/,
   /家长报告使用专业、清晰、鼓励但不过度承诺的语气/,
   /课程规划仅针对.+只可使用本学科模块/,
   /总课时由老师决定/,
@@ -225,6 +225,10 @@ test('buildSystemPrompt covers all shared rules with stable semantics for every 
     assert.match(prompt, /不得凭空断定学生薄弱项/);
     assert.match(prompt, /不要为了覆盖全部模块而平均分配课时/);
     assert.match(prompt, /相邻课时不得机械重复同一句式/);
+    assert.match(prompt, /你正在亲自向家长反馈/);
+    assert.match(prompt, /不得把“老师、教师、任课老师”写成第三者/);
+    assert.match(prompt, /家长可见内容禁止出现“原始记录、老师短评/);
+    assert.match(prompt, /lessonTitle 只写本节试听内容/);
   }
 });
 

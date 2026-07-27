@@ -63,10 +63,18 @@ test('AP subjects use upcoming May exam options', async () => {
   assert.match(appSource, /`\$\{year\}年5月`/);
 });
 
-test('SAT-specific parent copy protection does not rewrite AP reports', async () => {
+test('parent copy protection applies teacher voice rules to every subject', async () => {
   const source = await readFile(new URL('../app/api/generate-report/route.ts', import.meta.url), 'utf8');
-  assert.match(source, /if \(subjectCode !== 'sat_math'\) return report;/);
-  assert.match(source, /sanitizeParentReport\(modelReport, parsed\.data\.teacherNotes, subject\.code\)/);
+  assert.equal(source.includes("if (subjectCode !== 'sat_math') return report;"), false);
+  assert.match(source, /sanitizeParentReport\(modelReport, subject\.code\)/);
+  assert.match(source, /getParentVoiceIssues\(modelReport\)/);
+  assert.match(source, /以任课老师本人向家长反馈的口吻重写家长可见内容/);
+  assert.match(source, /原始课堂记录/);
+  assert.match(source, /已知事实/);
+  assert.match(source, /无可用/);
+  assert.match(source, /第三者口吻/);
+  assert.match(source, /本次试听课中，我先了解了学生目前与/);
+  assert.match(source, /接下来我会通过具体任务继续观察/);
 });
 
 test('priority areas preserve complete bilingual subject terms', async () => {

@@ -39,8 +39,9 @@ test('teacher page has no Amber or SAT Math presentation hardcoding', async () =
   assert.doesNotMatch(styles, /content:"LUMIST · SAT MATH"/);
   assert.match(appSource, /teacher-photo-name/);
   assert.match(appSource, /LUMIST · \$\{escapeHtml\(subjectName\)\}/);
-  assert.match(appSource, /teacherProfile\.sections/);
-  assert.match(appSource, /teacherProfile\.subjects/);
+  assert.match(appSource, /profile\.sections/);
+  assert.match(appSource, /profile\.subjects/);
+  assert.match(appSource, /getActiveTeacherProfile/);
 });
 
 test('report persistence uses a server-resolved teacher snapshot', async () => {

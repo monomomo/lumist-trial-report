@@ -48,11 +48,11 @@
 
         <section id="history-view" class="view">
           <header class="topbar"><div><p class="eyebrow">报告管理</p><h1>历史报告</h1></div></header>
-          <div class="history-card"><div><span class="history-chip">已完成</span><h2>阮同学 · 个性化学习报告</h2><p>今天 · 基于自然语言试听反馈生成</p></div><button class="secondary-btn" id="open-history">打开报告</button></div>
+          <div id="history-list" class="history-list"><div class="history-empty">正在读取历史报告…</div></div>
         </section>
 
         <section id="report-view" class="view">
-          <header class="topbar report-topbar"><div><p class="eyebrow">报告已生成</p><h1 id="report-title">阮同学个性化学习报告</h1></div><div class="report-actions"><button class="secondary-btn" id="edit-course-plan">编辑课程规划</button><button class="secondary-btn" id="back-edit">返回编辑</button><button class="secondary-btn" id="print-report">导出 PDF</button></div></header>
+          <header class="topbar report-topbar"><div><p class="eyebrow">报告已生成</p><h1 id="report-title">阮同学个性化学习报告</h1></div><div class="report-actions"><button class="secondary-btn save-report-btn" id="save-report">保存报告</button><button class="secondary-btn" id="edit-course-plan">编辑课程规划</button><button class="secondary-btn" id="back-edit">返回编辑</button><button class="secondary-btn" id="print-report">导出 PDF</button></div></header>
           <div class="tabs"><button class="tab active" data-report-tab="parent">家长版报告</button><button class="tab" data-report-tab="sales">销售跟进卡 <span>内部</span></button></div>
           <div id="report-quality-notice" class="quality-notice hidden"></div>
 
