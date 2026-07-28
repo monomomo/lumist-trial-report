@@ -37,6 +37,18 @@ function populateSubjectSelect() {
   });
   select.value = currentSubjectCode;
   configureExamDateField(currentSubjectCode);
+  applyReportBrandAssets(currentSubjectCode);
+}
+
+function applyReportBrandAssets(subjectCode) {
+  const track = subjectCode.startsWith('ap_') ? 'ap' : 'sat';
+  const trackLabel = track === 'ap' ? 'AP' : 'SAT';
+  const cover = $('#report-cover-image');
+  const closing = $('#report-closing-image');
+  cover.src = `assets/lumist-${track}-cover.png`;
+  cover.alt = `路觅 ${trackLabel} 学员学情报告封面`;
+  closing.src = `assets/lumist-${track}-back.png`;
+  closing.alt = `路觅 ${trackLabel} 学员学情报告封底`;
 }
 
 function configureExamDateField(subjectCode) {
@@ -71,6 +83,7 @@ function applySubjectSelection(code) {
   $('#current-score').placeholder = vm.scoreMax > 100 ? `例如：${Math.round((vm.scoreMin + vm.scoreMax) / 2)}` : `例如：${Math.round((vm.scoreMin + vm.scoreMax) / 2)}`;
   $('#target-score').placeholder = vm.scoreMax > 100 ? `例如：${vm.scoreMax}` : `例如：${vm.scoreMax}`;
   configureExamDateField(code);
+  applyReportBrandAssets(code);
 }
 
 function refreshPreview() {
@@ -207,7 +220,7 @@ function layoutSummaryPages() {
   page.classList.remove('summary-page-condensed');
   const continuation = document.createElement('article');
   continuation.className = 'report-page summary-page summary-continuation-page summary-page-compact';
-  continuation.innerHTML = '<div class="summary-page-content"><div class="page-kicker">02 / 试听课总结 · 续</div><h2>试听反馈与学习成果</h2></div>';
+  continuation.innerHTML = '<div class="summary-page-content"><img class="report-brand-header" src="assets/lumist-report-header-black.png" alt="路觅教育" /><div class="page-kicker">02 / 试听课总结 · 续</div><h2>试听反馈与学习成果</h2></div>';
   continuation.querySelector('.summary-page-content').appendChild(learningSection);
   page.after(continuation);
   if (!pageFits(page)) page.classList.add('summary-page-condensed');
@@ -233,7 +246,7 @@ function renderCoursePlan(coursePlan) {
   const createPage = () => {
     const page = document.createElement('article');
     page.className = 'report-page hour-plan reference-plan-page';
-    const planTitleHtml = `<div class="plan-page-body"><div class="page-kicker"></div><div class="plan-page-heading"><div><h2>${escapeHtml(createSubjectViewModel(currentSubjectCode).displayName)}个性化课程规划</h2><p>依据学生试听表现与目标动态编排，相邻阶段将按页面容量连续呈现。</p></div><div class="plan-total-hours"><span>建议总课时</span><b>${escapeHtml(coursePlan.totalHours)}h</b></div></div><table><thead><tr><th>课时</th><th>时长</th><th>授课内容、目标与重难点</th></tr></thead><tbody></tbody></table><div class="plan-note plan-note-reserve"><strong>动态调整原则：</strong>${escapeHtml(coursePlan.rationale)} 课时可按 0.5h、1h、1.5h 或 2h 灵活调整。</div></div>`;
+    const planTitleHtml = `<div class="plan-page-body"><img class="report-brand-header" src="assets/lumist-report-header-black.png" alt="路觅教育" /><div class="page-kicker"></div><div class="plan-page-heading"><div><h2>${escapeHtml(createSubjectViewModel(currentSubjectCode).displayName)}个性化课程规划</h2><p>依据学生试听表现与目标动态编排，相邻阶段将按页面容量连续呈现。</p></div><div class="plan-total-hours"><span>建议总课时</span><b>${escapeHtml(coursePlan.totalHours)}h</b></div></div><table><thead><tr><th>课时</th><th>时长</th><th>授课内容、目标与重难点</th></tr></thead><tbody></tbody></table><div class="plan-note plan-note-reserve"><strong>动态调整原则：</strong>${escapeHtml(coursePlan.rationale)} 课时可按 0.5h、1h、1.5h 或 2h 灵活调整。</div></div>`;
     page.innerHTML = planTitleHtml;
     measurementHost.appendChild(page);
     pages.push(page);
