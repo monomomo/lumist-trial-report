@@ -67,14 +67,29 @@ test('parent copy protection applies teacher voice rules to every subject', asyn
   const source = await readFile(new URL('../app/api/generate-report/route.ts', import.meta.url), 'utf8');
   assert.equal(source.includes("if (subjectCode !== 'sat_math') return report;"), false);
   assert.match(source, /sanitizeParentReport\(modelReport, subject\.code\)/);
-  assert.match(source, /getParentVoiceIssues\(modelReport\)/);
-  assert.match(source, /以任课老师本人向家长反馈的口吻重写家长可见内容/);
+  assert.match(source, /getParentVoiceIssues\(report\)/);
+  assert.match(source, /上一版报告未通过校验/);
+  assert.match(source, /上一版报告：/);
+  assert.match(source, /reviewIssues = reviewReport\(modelReport\)/);
+  assert.match(source, /REPORT_QUALITY_FAILED/);
   assert.match(source, /原始课堂记录/);
   assert.match(source, /已知事实/);
   assert.match(source, /无可用/);
   assert.match(source, /第三者口吻/);
   assert.match(source, /本次试听课中，我先了解了学生目前与/);
   assert.match(source, /接下来我会通过具体任务继续观察/);
+});
+
+test('lesson durations are computed before generation and attached after validation', async () => {
+  const source = await readFile(new URL('../app/api/generate-report/route.ts', import.meta.url), 'utf8');
+  assert.match(source, /buildLessonDurationSlots\(parsed\.data\.totalHours\)/);
+  assert.match(source, /buildUserInput\(subject, promptData\)/);
+  assert.match(source, /getCoursePlanQualityIssues\(report, subject\.code, lessonDurations\.length\)/);
+  assert.match(source, /applyLessonDurationSlots\(normalizedStages, lessonDurations\)/);
+  assert.equal(source.includes('distributeLessonDurations'), false);
+  assert.equal(source.includes('duration: z.number()'), false);
+  assert.match(source, /content: z\.string\(\)\.min\(8\)\.max\(105\)/);
+  assert.match(source, /goal: z\.string\(\)\.min\(8\)\.max\(80\)/);
 });
 
 test('priority areas preserve complete bilingual subject terms', async () => {

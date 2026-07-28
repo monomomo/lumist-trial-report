@@ -842,7 +842,8 @@ $('#report-form').addEventListener('submit', async (event) => {
       notice.classList.add('error');
       const messages = {
         AI_GENERATION_FAILED: 'AI 服务暂时无响应，请稍后重试。',
-        SUBJECT_SCOPE_VIOLATION: 'AI 内容出现跨科目术语，请重新生成。'
+        SUBJECT_SCOPE_VIOLATION: 'AI 内容出现跨科目术语，请重新生成。',
+        REPORT_QUALITY_FAILED: 'AI 连续两次未达到报告质量要求，请重新生成。'
       };
       notice.innerHTML = `<strong>生成失败：</strong>${messages[error.message] || `报告渲染异常（${escapeHtml(error.message || 'UNKNOWN_ERROR')}），请重试。`}`;
     }

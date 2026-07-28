@@ -61,3 +61,19 @@ test('AP quality review accepts subject-specific evidence-led teaching tasks', (
   ]);
   assert.deepEqual(getCoursePlanQualityIssues(report, 'ap_csa'), []);
 });
+
+test('quality review requires the server-planned lesson count', () => {
+  const report = createReport([
+    {
+      title: 'Algebra 作答检查',
+      lessons: Array.from({ length: 4 }, (_, index) => ({
+        theme: `Algebra Skill ${index + 1}`,
+        content: '使用 Student Question Bank 检查同类题的作答步骤',
+        difficulty: '等式变形时容易漏掉负号，且不能说明每一步依据',
+        goal: '能解释错因，并独立完成同 Skill 的订正题',
+      })),
+    },
+  ]);
+  assert.match(getCoursePlanQualityIssues(report, 'sat_math', 5).join('；'), /必须包含 5 个课时块/);
+  assert.deepEqual(getCoursePlanQualityIssues(report, 'sat_math', 4), []);
+});

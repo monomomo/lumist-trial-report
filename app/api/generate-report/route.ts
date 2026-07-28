@@ -6,6 +6,7 @@ import { resolveSubject } from '@/lib/subjects/catalog';
 import { buildSystemPrompt, buildUserInput } from '@/lib/subjects/prompt';
 import { hasSubjectScopeViolation } from '@/lib/subjects/scope';
 import { getCoursePlanQualityIssues } from '@/lib/subjects/course-plan-quality';
+import { applyLessonDurationSlots, buildLessonDurationSlots } from '@/lib/subjects/lesson-slots';
 import { getAuthResult, AUTH_STATUS } from '@/lib/auth/current-user';
 
 export const runtime = 'nodejs';
@@ -15,11 +16,10 @@ export const maxDuration = 300;
 export const dynamic = 'force-dynamic';
 
 const lessonSchema = z.object({
-  duration: z.number().min(0.5).max(2).multipleOf(0.5),
-  theme: z.string().min(2).max(40),
-  content: z.string().min(8).max(160),
-  difficulty: z.string().min(8).max(160),
-  goal: z.string().min(8).max(120)
+  theme: z.string().min(2).max(36),
+  content: z.string().min(8).max(105),
+  difficulty: z.string().min(8).max(105),
+  goal: z.string().min(8).max(80)
 });
 
 const reportSchema = z.object({
@@ -33,12 +33,12 @@ const reportSchema = z.object({
   outcomes: z.array(z.string().min(6).max(120)).min(3).max(5),
   priorityAreas: z.array(z.string().min(2).max(80)).min(2).max(6),
   coursePlan: z.object({
-    rationale: z.string().min(20).max(300),
+    rationale: z.string().min(20).max(180),
     stages: z.array(z.object({
       title: z.string().min(4).max(50),
-      description: z.string().min(10).max(160),
-      lessons: z.array(lessonSchema).min(2).max(12)
-    })).min(2).max(6)
+      description: z.string().min(10).max(100),
+      lessons: z.array(lessonSchema).min(1).max(12)
+    })).min(1).max(6)
   }),
   salesFollowUp: z.object({
     positive: z.string().min(15).max(240),
@@ -63,7 +63,7 @@ function normalizePlanTitle(value: string) {
   const openingCount = (normalized.match(/[（(]/g) || []).length;
   const closingCount = (normalized.match(/[）)]/g) || []).length;
   if (openingCount > closingCount) normalized = normalized.replace(/[（(][^）)]*$/g, '').trim();
-  return normalized || '专项训练';
+  return normalized || '课堂任务';
 }
 
 function normalizeRationale(value: string) {
@@ -75,24 +75,6 @@ function limitText(value: string, maximum: number) {
   const normalized = value.trim();
   if (normalized.length <= maximum) return normalized;
   return `${normalized.slice(0, maximum - 1).replace(/[，。；、,:：\s]+$/g, '')}。`;
-}
-
-function distributeLessonDurations<T extends { lessons: Array<{ duration: number }> }>(stages: T[], totalHours: number): T[] {
-  const lessonCount = stages.reduce((total, stage) => total + stage.lessons.length, 0);
-  const targetUnits = totalHours * 2;
-  if (targetUnits < lessonCount || targetUnits > lessonCount * 4) {
-    throw new RangeError('COURSE_PLAN_LESSON_COUNT_MISMATCH');
-  }
-  const baseUnits = Math.floor(targetUnits / lessonCount);
-  let remainder = targetUnits - baseUnits * lessonCount;
-  return stages.map((stage) => ({
-    ...stage,
-    lessons: stage.lessons.map((lesson) => {
-      const units = baseUnits + (remainder > 0 ? 1 : 0);
-      if (remainder > 0) remainder -= 1;
-      return { ...lesson, duration: units / 2 };
-    })
-  }));
 }
 
 const parentFacingForbiddenPattern = /老师原始记录|原始课堂记录|原始记录|老师短评|老师评语|老师记录|教师记录|课堂观察（老师记录）|课堂记录信息|输入中没有|已知事实|信息不足|信息有限|无法判断|未能获得|没有完整|缺少数据|缺乏.{0,8}数据|记录较少|未记录|未提供|暂无数据|尚无数据|无可用.{0,8}数据|不构成正式|可量化|本报告|报告严格依据|报告依据|报告整理|本次.{0,12}记录整理|本次记录显示|依据老师|根据老师|需.{0,8}老师确认|需.{0,8}诊断确认|需要.{0,8}诊断确认/;
@@ -130,7 +112,7 @@ function getParentVoiceIssues(report: z.infer<typeof reportSchema>) {
   if ([...summaryTexts, ...planTexts].some((value) => parentFacingForbiddenPattern.test(value))) {
     issues.push('家长可见内容暴露了原始记录、信息缺失、报告整理或诊断确认等生成过程');
   }
-  if ([...summaryTexts, ...planTexts].some((value) => thirdPersonTeacherPattern.test(value))) {
+  if (summaryTexts.some((value) => thirdPersonTeacherPattern.test(value))) {
     issues.push('家长可见内容使用“老师、教师”第三者口吻，没有采用任课老师本人视角');
   }
   if (lessonTitleProcessPattern.test(report.lessonTitle)) {
@@ -176,14 +158,14 @@ function sanitizeParentReport(report: z.infer<typeof reportSchema>, subjectCode:
     rationale: sanitizeText(report.coursePlan.rationale, '我会根据后续诊断、课堂作答、错题类型和完成时间调整课时重点。'),
     stages: report.coursePlan.stages.map((stage) => ({
       ...stage,
-      title: normalizeTeacherPerspective(stage.title),
-      description: normalizeTeacherPerspective(stage.description),
+      title: stage.title,
+      description: stage.description,
       lessons: stage.lessons.map((lesson) => ({
         ...lesson,
-        theme: normalizeTeacherPerspective(lesson.theme),
-        content: normalizeTeacherPerspective(lesson.content),
-        difficulty: normalizeTeacherPerspective(lesson.difficulty),
-        goal: normalizeTeacherPerspective(lesson.goal),
+        theme: lesson.theme,
+        content: lesson.content,
+        difficulty: lesson.difficulty,
+        goal: lesson.goal,
       })),
     })),
   };
@@ -230,22 +212,45 @@ export async function POST(request: Request) {
     }
 
     const subject = resolveSubject(parsed.data.subjectCode);
+    const lessonDurations = buildLessonDurationSlots(parsed.data.totalHours);
+    const promptData = {
+      ...parsed.data,
+      lessonDurations,
+    };
 
     const client = new OpenAI({
       apiKey,
       timeout: 240000,
       maxRetries: 0
     });
-    const generateModelReport = async (scopeReminder = '') => {
+    const generateModelReport = async (repair?: {
+      report: z.infer<typeof reportSchema>;
+      issues: string[];
+    }) => {
+      const input = [
+        { role: 'system' as const, content: buildSystemPrompt(subject) },
+        { role: 'user' as const, content: buildUserInput(subject, promptData) },
+      ];
+      if (repair) {
+        input.push({
+          role: 'user',
+          content: `上一版报告未通过校验。保留没有问题的字段，只修改与下列问题直接相关的内容，并重新返回完整结构。
+
+校验问题：
+${repair.issues.map((issue) => `- ${issue}`).join('\n')}
+
+上一版报告：
+<previous_report>
+${JSON.stringify(repair.report)}
+</previous_report>`,
+        });
+      }
       const response = await client.responses.parse({
         model: process.env.OPENAI_MODEL || 'gpt-5-mini',
-        input: [
-          { role: 'system', content: `${buildSystemPrompt(subject)}${scopeReminder}` },
-          { role: 'user', content: buildUserInput(subject, parsed.data) }
-        ],
+        input,
         text: { format: zodTextFormat(reportSchema, 'trial_report') },
-        reasoning: { effort: 'low' },
-        max_output_tokens: 8000
+        reasoning: { effort: lessonDurations.length >= 20 ? 'medium' : 'low' },
+        max_output_tokens: Math.min(16000, Math.max(8000, 4500 + lessonDurations.length * 300))
       });
       return response.output_parsed;
     };
@@ -254,18 +259,31 @@ export async function POST(request: Request) {
     if (!modelReport) {
       return NextResponse.json({ error: 'EMPTY_MODEL_OUTPUT' }, { status: 502 });
     }
-    const scopeViolation = hasSubjectScopeViolation(subject.code, modelReport);
-    const qualityIssues = getCoursePlanQualityIssues(modelReport, subject.code);
-    const parentVoiceIssues = getParentVoiceIssues(modelReport);
-    if (scopeViolation || qualityIssues.length > 0 || parentVoiceIssues.length > 0) {
-      const retryRequirements: string[] = [];
-      if (scopeViolation) retryRequirements.push(`只使用 ${subject.displayName} 的模块与术语，删除其他 SAT 或 AP 科目的专属内容`);
-      if (qualityIssues.length > 0) retryRequirements.push(`重写整个 coursePlan，并解决这些问题：${qualityIssues.join('；')}`);
-      if (parentVoiceIssues.length > 0) retryRequirements.push(`以任课老师本人向家长反馈的口吻重写家长可见内容，并解决这些问题：${parentVoiceIssues.join('；')}`);
-      modelReport = await generateModelReport(`\n15. 上一版未达到交付标准。本次必须${retryRequirements.join('；')}。不要只替换同义词，要让每节课体现真实教学任务、具体易错点和可检查结果。`);
+    const reviewReport = (report: z.infer<typeof reportSchema>) => {
+      const issues = [];
+      if (hasSubjectScopeViolation(subject.code, report)) {
+        issues.push(`内容只能使用 ${subject.displayName} 的模块和术语`);
+      }
+      issues.push(...getCoursePlanQualityIssues(report, subject.code, lessonDurations.length));
+      issues.push(...getParentVoiceIssues(report));
+      return issues;
+    };
+    let reviewIssues = reviewReport(modelReport);
+    if (reviewIssues.length > 0) {
+      modelReport = await generateModelReport({
+        report: modelReport,
+        issues: reviewIssues,
+      });
     }
-    if (!modelReport || hasSubjectScopeViolation(subject.code, modelReport)) {
+    if (!modelReport) {
+      return NextResponse.json({ error: 'EMPTY_MODEL_OUTPUT' }, { status: 502 });
+    }
+    reviewIssues = reviewReport(modelReport);
+    if (hasSubjectScopeViolation(subject.code, modelReport)) {
       return NextResponse.json({ error: 'SUBJECT_SCOPE_VIOLATION' }, { status: 502 });
+    }
+    if (reviewIssues.length > 0) {
+      return NextResponse.json({ error: 'REPORT_QUALITY_FAILED' }, { status: 502 });
     }
 
     const parentReport = sanitizeParentReport(modelReport, subject.code);
@@ -282,8 +300,7 @@ export async function POST(request: Request) {
         goal: limitText(lesson.goal, 80)
       }))
     }));
-    const stages = distributeLessonDurations(normalizedStages, parsed.data.totalHours);
-    const totalHours = stages.reduce((sum, stage) => sum + stage.lessons.reduce((stageSum, lesson) => stageSum + lesson.duration, 0), 0);
+    const stages = applyLessonDurationSlots(normalizedStages, lessonDurations);
 
     return NextResponse.json({
       generated: true,
@@ -296,7 +313,7 @@ export async function POST(request: Request) {
           ...parentReport.coursePlan,
           rationale: limitText(normalizeRationale(parentReport.coursePlan.rationale), 180),
           stages,
-          totalHours
+          totalHours: parsed.data.totalHours
         }
       }
     });

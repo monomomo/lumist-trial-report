@@ -18,7 +18,7 @@ const GENERIC_GOAL_PATTERN = /^(掌握|提升|建立|巩固|熟悉|强化)(?!.*(
 const SAT_EVIDENCE_PATTERN = /Bluebook|Student Question Bank|Educator Question Bank|My Practice|官方题库/i;
 const AP_EVIDENCE_PATTERN = /AP Classroom|Topic Questions?|Progress Checks?|Question Bank|Practice Exam|MCQ|FRQ|scoring guidelines?|评分标准|真题/i;
 
-export function getCoursePlanQualityIssues(report: CoursePlanQualityReport, subjectCode: string) {
+export function getCoursePlanQualityIssues(report: CoursePlanQualityReport, subjectCode: string, expectedLessonCount?: number) {
   const stages = report.coursePlan?.stages ?? [];
   const lessons = stages.flatMap((stage) => stage.lessons ?? []);
   const issues: string[] = [];
@@ -50,6 +50,9 @@ export function getCoursePlanQualityIssues(report: CoursePlanQualityReport, subj
   }
   if (lessons.length >= 8 && subjectCode.startsWith('ap_') && !AP_EVIDENCE_PATTERN.test(planText)) {
     issues.push('较长的 AP 规划没有安排 AP 题型、官方资源或可复核的作答证据');
+  }
+  if (expectedLessonCount !== undefined && lessons.length !== expectedLessonCount) {
+    issues.push(`课程规划必须包含 ${expectedLessonCount} 个课时块，当前生成了 ${lessons.length} 个`);
   }
   return issues;
 }
