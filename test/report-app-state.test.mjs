@@ -72,6 +72,8 @@ test('parent copy protection applies teacher voice rules to every subject', asyn
   assert.match(source, /上一版报告：/);
   assert.match(source, /reviewIssues = reviewReport\(modelReport\)/);
   assert.match(source, /REPORT_QUALITY_FAILED/);
+  assert.match(source, /generatedLessonCount !== lessonDurations\.length/);
+  assert.match(source, /accepted after quality repair with non-structural issues/);
   assert.match(source, /原始课堂记录/);
   assert.match(source, /已知事实/);
   assert.match(source, /无可用/);

@@ -270,6 +270,11 @@ ${JSON.stringify(repair.report)}
     };
     let reviewIssues = reviewReport(modelReport);
     if (reviewIssues.length > 0) {
+      console.warn('Report quality repair requested', {
+        subjectCode: subject.code,
+        lessonCount: lessonDurations.length,
+        issues: reviewIssues,
+      });
       modelReport = await generateModelReport({
         report: modelReport,
         issues: reviewIssues,
@@ -282,8 +287,16 @@ ${JSON.stringify(repair.report)}
     if (hasSubjectScopeViolation(subject.code, modelReport)) {
       return NextResponse.json({ error: 'SUBJECT_SCOPE_VIOLATION' }, { status: 502 });
     }
-    if (reviewIssues.length > 0) {
+    const generatedLessonCount = modelReport.coursePlan.stages.reduce((total, stage) => total + stage.lessons.length, 0);
+    if (generatedLessonCount !== lessonDurations.length) {
       return NextResponse.json({ error: 'REPORT_QUALITY_FAILED' }, { status: 502 });
+    }
+    if (reviewIssues.length > 0) {
+      console.warn('Report accepted after quality repair with non-structural issues', {
+        subjectCode: subject.code,
+        lessonCount: lessonDurations.length,
+        issues: reviewIssues,
+      });
     }
 
     const parentReport = sanitizeParentReport(modelReport, subject.code);
