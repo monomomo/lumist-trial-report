@@ -168,6 +168,8 @@ nav .nav-item.active,nav .nav-item:hover { background:#5a4712; }
 @media screen and (max-width:900px) { .teacher-profile { grid-template-columns:1fr; grid-template-areas:"photo" "intro" "qr"; gap:18px; }.teacher-photo-wrap { height:430px; width:min(100%,300px); }.teacher-qr { align-self:auto; }.teacher-qr img { margin:0; } }
 .data-impact-page { padding:0 !important; background:#fff; }
 .data-impact-page img { display:block; width:100%; height:100%; object-fit:cover; }
+.sat-results-page { padding:0 !important; background:#fff; }
+.sat-results-page > img { display:block; width:100%; height:100%; object-fit:cover; }
 .teacher-profile { grid-template-columns:275px minmax(0,1fr); gap:0 44px; }
 .teacher-photo-wrap { height:585px; box-shadow:18px 18px 0 #ffd34f; }
 .teacher-intro { padding:14px 0 20px; }

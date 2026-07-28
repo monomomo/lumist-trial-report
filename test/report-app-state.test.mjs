@@ -53,10 +53,21 @@ test('report headers keep one size and page position across content density mode
   assert.match(styles, /\.report-brand-header \{[^}]*width:285px;[^}]*height:69px;[^}]*margin:0 0 18px;/);
   assert.match(styles, /\.summary-page \{ padding:42px 53px 38px; \}/);
   assert.match(styles, /\.teacher-page \{[^}]*padding:42px 53px 38px;/);
-  assert.match(styles, /\.sat-results-page \{[^}]*padding:42px 53px 38px;/);
   assert.match(styles, /\.reference-plan-page \{ padding:42px 53px 38px;/);
   assert.equal(styles.includes('report-brand-header { width:250px'), false);
   assert.equal(styles.includes('report-brand-header { width:225px'), false);
+});
+
+test('high-score case page switches between SAT and AP full-page materials', async () => {
+  const appSource = await readFile(new URL('../public/report/app.js', import.meta.url), 'utf8');
+  const htmlSource = await readFile(new URL('../public/report/index.html', import.meta.url), 'utf8');
+  const styles = await readFile(new URL('../public/report/styles.css', import.meta.url), 'utf8');
+  assert.match(htmlSource, /id="report-high-score-image"/);
+  assert.match(htmlSource, /lumist-sat-high-score-cases\.jpg/);
+  assert.match(appSource, /lumist-\$\{track\}-high-score-cases\.jpg/);
+  assert.match(appSource, /路觅 2026 \$\{trackLabel\} 学员高分案例/);
+  assert.match(styles, /\.sat-results-page \{ padding:0 !important;/);
+  assert.match(styles, /\.sat-results-page > img \{[^}]*width:100%;[^}]*height:100%;[^}]*object-fit:cover;/);
 });
 
 test('new report form starts with empty teacher inputs', async () => {

@@ -45,10 +45,13 @@ function applyReportBrandAssets(subjectCode) {
   const trackLabel = track === 'ap' ? 'AP' : 'SAT';
   const cover = $('#report-cover-image');
   const closing = $('#report-closing-image');
+  const highScore = $('#report-high-score-image');
   cover.src = `assets/lumist-${track}-cover.png`;
   cover.alt = `路觅 ${trackLabel} 学员学情报告封面`;
   closing.src = `assets/lumist-${track}-back.png`;
   closing.alt = `路觅 ${trackLabel} 学员学情报告封底`;
+  highScore.src = `assets/lumist-${track}-high-score-cases.jpg`;
+  highScore.alt = `路觅 2026 ${trackLabel} 学员高分案例`;
 }
 
 function configureExamDateField(subjectCode) {
