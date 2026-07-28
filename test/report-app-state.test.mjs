@@ -42,6 +42,12 @@ test('summary page compacts and splits by measured A4 content height', async () 
   assert.match(styles, /\.summary-measurement-host/);
 });
 
+test('image-based report cover does not keep the legacy decorative ring', async () => {
+  const styles = await readFile(new URL('../public/report/styles.css', import.meta.url), 'utf8');
+  assert.match(styles, /\.cover-page::after \{ display:none; \}/);
+  assert.equal(styles.includes('border:80px solid rgba(255,215,46,.85)'), false);
+});
+
 test('new report form starts with empty teacher inputs', async () => {
   const source = await readFile(new URL('../public/report/index.html', import.meta.url), 'utf8');
   for (const id of ['student-name', 'target-score', 'total-hours']) {
