@@ -48,6 +48,17 @@ test('image-based report cover does not keep the legacy decorative ring', async 
   assert.equal(styles.includes('border:80px solid rgba(255,215,46,.85)'), false);
 });
 
+test('report headers keep one size and page position across content density modes', async () => {
+  const styles = await readFile(new URL('../public/report/styles.css', import.meta.url), 'utf8');
+  assert.match(styles, /\.report-brand-header \{[^}]*width:285px;[^}]*height:69px;[^}]*margin:0 0 18px;/);
+  assert.match(styles, /\.summary-page \{ padding:42px 53px 38px; \}/);
+  assert.match(styles, /\.teacher-page \{[^}]*padding:42px 53px 38px;/);
+  assert.match(styles, /\.sat-results-page \{[^}]*padding:42px 53px 38px;/);
+  assert.match(styles, /\.reference-plan-page \{ padding:42px 53px 38px;/);
+  assert.equal(styles.includes('report-brand-header { width:250px'), false);
+  assert.equal(styles.includes('report-brand-header { width:225px'), false);
+});
+
 test('new report form starts with empty teacher inputs', async () => {
   const source = await readFile(new URL('../public/report/index.html', import.meta.url), 'utf8');
   for (const id of ['student-name', 'target-score', 'total-hours']) {
