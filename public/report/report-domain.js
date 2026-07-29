@@ -62,7 +62,7 @@ export function buildPdfFileName(subjectName, studentName) {
       .replace(/^[.\s-]+|[.\s-]+$/g, '');
     return normalized || fallback;
   };
-  return `${sanitize(subjectName, '课程')}-${sanitize(studentName, '学生')}-学情诊断`;
+  return `${sanitize(studentName, '学生')}+${sanitize(subjectName, '课程')}+学情报告`;
 }
 
 /**

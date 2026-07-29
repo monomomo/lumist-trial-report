@@ -3,14 +3,14 @@ import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 import { buildPdfFileName } from '../public/report/report-domain.js';
 
-test('PDF file name follows subject student diagnosis format', () => {
-  assert.equal(buildPdfFileName('AP Calculus BC', '小王'), 'AP Calculus BC-小王-学情诊断');
-  assert.equal(buildPdfFileName('SAT 数学', '李同学'), 'SAT 数学-李同学-学情诊断');
+test('PDF file name follows student subject report format', () => {
+  assert.equal(buildPdfFileName('AP Calculus BC', '小王'), '小王+AP Calculus BC+学情报告');
+  assert.equal(buildPdfFileName('SAT 数学', '李同学'), '李同学+SAT 数学+学情报告');
 });
 
 test('PDF file name removes unsafe characters and supplies fallbacks', () => {
-  assert.equal(buildPdfFileName('SAT/英语', '小王:*?'), 'SAT-英语-小王-学情诊断');
-  assert.equal(buildPdfFileName('', ''), '课程-学生-学情诊断');
+  assert.equal(buildPdfFileName('SAT/英语', '小王:*?'), '小王+SAT-英语+学情报告');
+  assert.equal(buildPdfFileName('', ''), '学生+课程+学情报告');
 });
 
 test('print flow temporarily uses the PDF file name as document title', async () => {
