@@ -3,6 +3,12 @@ import { isSupabaseConfigured } from '@/lib/supabase/config';
 import { createClient } from '@/lib/supabase/server';
 import { authEmailToUsername } from '@/lib/auth/username';
 import { getTeacherProfileSnapshot } from '@/lib/teachers/public-profile';
+import {
+  reportCreateSchema,
+  reportUpdateSchema,
+  type ReportCreateInput,
+  type ReportUpdateInput,
+} from '@/lib/reports/schema';
 
 export async function GET(request: Request) {
   if (!isSupabaseConfigured) {
@@ -56,7 +62,12 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
 
-  const body = await request.json();
+  const parsed = reportCreateSchema.safeParse(await readRequestBody(request));
+  if (!parsed.success) {
+    return invalidReportDataResponse(parsed.error.issues);
+  }
+
+  const body = parsed.data;
   const teacherSnapshot = await getTeacherProfileSnapshot(user.id, authEmailToUsername(user.email ?? ''));
   const payload = {
     teacher_id: user.id,
@@ -89,10 +100,12 @@ export async function PATCH(request: Request) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
 
-  const body = await request.json();
-  if (typeof body.id !== 'string' || !body.id) {
-    return NextResponse.json({ error: 'INVALID_REPORT_ID' }, { status: 400 });
+  const parsed = reportUpdateSchema.safeParse(await readRequestBody(request));
+  if (!parsed.success) {
+    return invalidReportDataResponse(parsed.error.issues);
   }
+
+  const body = parsed.data;
 
   const { data, error } = await supabase
     .from('reports')
@@ -109,7 +122,25 @@ export async function PATCH(request: Request) {
   return NextResponse.json({ saved: true, id: data.id });
 }
 
-function buildMutableReportPayload(body: Record<string, unknown>) {
+async function readRequestBody(request: Request) {
+  try {
+    return await request.json();
+  } catch {
+    return null;
+  }
+}
+
+function invalidReportDataResponse(issues: Array<{ path: PropertyKey[]; message: string }>) {
+  return NextResponse.json({
+    error: 'INVALID_REPORT_DATA',
+    issues: issues.map((issue) => ({
+      path: issue.path.map(String).join('.'),
+      message: issue.message,
+    })),
+  }, { status: 400 });
+}
+
+function buildMutableReportPayload(body: ReportCreateInput | ReportUpdateInput) {
   return {
     student_name: body.studentName,
     subject: body.subject || 'SAT 数学',

@@ -91,25 +91,26 @@ export function buildFallbackReport(subjectCode, formData) {
   const name = formData.studentName || '学生';
   const target = formData.targetScore || '待老师确认';
   const notes = formData.teacherNotes || '';
+  const totalHours = normalizeFallbackTotalHours(formData.totalHours);
 
   const positive = /活泼|互动积极|爱互动/.test(notes)
-    ? '课堂互动积极，愿意主动表达与思考'
-    : '课堂投入度良好，能够跟随讲解完成思考';
+    ? '学生课堂互动积极，愿意主动表达与思考'
+    : '学生能够跟随课堂讲解完成思考';
   const accuracy = /正确率|准确率|做对|中等难度/.test(notes)
-    ? '中等难度题目完成情况较好，具备进一步提升的基础'
-    : '具备继续诊断与专项训练的基础';
+    ? '我观察到学生能够完成部分中等难度题目'
+    : '我会通过后续具体练习继续确认学生的实际掌握情况';
 
   return {
-    overview: `从本次试听表现看，${name}的实际基础优于其课前预期。学生${positive}，且${accuracy}。当前需要通过系统诊断明确薄弱点，并制定针对性的${vm.displayName}学习计划。`,
-    classroomStatus: positive,
-    strength: '理解与作答表现优于学生自我预期',
-    currentFocus: `建立${vm.displayName}知识框架与诊断薄弱点`,
+    overview: `本次试听课中，我先了解了${name}与${vm.displayName}课程的衔接情况。${positive}；${accuracy}。接下来我会结合具体作答过程定位易错点，并据此调整后续课程重点。`,
+    classroomStatus: `课堂上，${positive}`,
+    strength: /正确率|准确率|做对|中等难度/.test(notes) ? '我观察到学生具备继续提升的作答基础' : '我会在后续练习中确认学生已经稳定掌握的内容',
+    currentFocus: `接下来我会先完成${vm.displayName}基础诊断，再按具体错因安排训练`,
     lessonTitle: `${vm.displayName}试听诊断与学习规划`,
-    lessonSummary: `本节课以${vm.displayName}知识框架为切入点，结合课堂题目初步观察学生的知识结构与题型适应情况。`,
+    lessonSummary: `本节课中，我先从${vm.displayName}知识框架切入，了解学生目前的课程衔接与作答习惯。后续我会通过可复核的课堂任务继续确认各模块掌握情况。`,
     performance: `${positive}；${accuracy}。`,
-    outcomes: [positive, accuracy, '确认各知识模块掌握情况', `明确${vm.displayName}后续优先方向`],
+    outcomes: [`我已初步了解学生与${vm.displayName}课程的衔接情况`, accuracy, '学生明确了接下来课堂练习的重点', `我会继续细化${vm.displayName}后续训练顺序`],
     priorityAreas: ['建立完整知识框架', ...(vm.modules.length > 2 ? vm.modules.slice(0, 2) : vm.modules)],
-    coursePlan: buildGenericCoursePlan(vm),
+    coursePlan: resizeFallbackCoursePlan(buildGenericCoursePlan(vm), totalHours),
     salesFollowUp: {
       positive: `${positive}，${accuracy}。`,
       urgent: `最需要优先解决的是建立${vm.displayName}知识框架以及对题型体系的熟悉度。如果缺少系统框架，学生即使有基础，也容易在陌生模块和限时作答中产生不必要失分。`,
@@ -117,6 +118,58 @@ export function buildFallbackReport(subjectCode, formData) {
       script: `今天老师反馈，${name}课堂上的状态很好，互动和思考都比较主动。\n\n当前最需要尽快解决的是建立完整的${vm.displayName}知识框架。老师建议先完成整体知识框架梳理，再针对薄弱模块做专项训练和题型适应，这样才能把已有基础更稳定地转化为考试表现。\n\n后续课程会结合每次诊断题的错题和用时动态调整，不会重复占用已经掌握模块的课时。`,
     },
     target,
+  };
+}
+
+function normalizeFallbackTotalHours(value) {
+  const totalHours = Number(value);
+  return Number.isFinite(totalHours) && totalHours >= 2 && totalHours <= 60 && Number.isInteger(totalHours * 2)
+    ? totalHours
+    : 30;
+}
+
+function buildFallbackDurations(totalHours) {
+  const lessonCount = Math.ceil(totalHours / 2);
+  const totalUnits = totalHours * 2;
+  const baseUnits = Math.floor(totalUnits / lessonCount);
+  let remainder = totalUnits - baseUnits * lessonCount;
+  return Array.from({ length: lessonCount }, () => {
+    const units = baseUnits + (remainder > 0 ? 1 : 0);
+    if (remainder > 0) remainder -= 1;
+    return units / 2;
+  });
+}
+
+function resizeFallbackCoursePlan(coursePlan, totalHours) {
+  const durations = buildFallbackDurations(totalHours);
+  const templates = coursePlan.stages.flatMap((stage) => stage.lessons);
+  const lessons = durations.map((duration, index) => {
+    const templateIndex = durations.length <= templates.length
+      ? Math.round(index * (templates.length - 1) / Math.max(1, durations.length - 1))
+      : index % templates.length;
+    const cycle = Math.floor(index / templates.length);
+    const template = templates[templateIndex];
+    return {
+      ...template,
+      duration,
+      theme: cycle > 0 ? `${template.theme} · 复测 ${cycle + 1}` : template.theme,
+    };
+  });
+  const stageCount = Math.min(coursePlan.stages.length, lessons.length);
+  const stages = Array.from({ length: stageCount }, (_, stageIndex) => {
+    const start = Math.floor(stageIndex * lessons.length / stageCount);
+    const end = Math.floor((stageIndex + 1) * lessons.length / stageCount);
+    const sourceStage = coursePlan.stages[stageIndex];
+    return {
+      title: sourceStage.title,
+      description: sourceStage.description,
+      lessons: lessons.slice(start, end),
+    };
+  });
+  return {
+    ...coursePlan,
+    totalHours,
+    stages,
   };
 }
 
