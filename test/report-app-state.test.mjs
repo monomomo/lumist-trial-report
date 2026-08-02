@@ -70,14 +70,14 @@ test('high-score case page switches between SAT and AP full-page materials', asy
   assert.match(styles, /\.sat-results-page > img \{[^}]*width:100%;[^}]*height:100%;[^}]*object-fit:cover;/);
 });
 
-test('course introduction appears before company introduction as a full-page material', async () => {
+test('course introduction appears after company introduction as a full-page material', async () => {
   const htmlSource = await readFile(new URL('../public/report/index.html', import.meta.url), 'utf8');
   const styles = await readFile(new URL('../public/report/styles.css', import.meta.url), 'utf8');
   const coursePageIndex = htmlSource.indexOf('course-introduction-page');
   const companyPageIndex = htmlSource.indexOf('company-page data-impact-page');
   assert.notEqual(coursePageIndex, -1);
   assert.notEqual(companyPageIndex, -1);
-  assert.ok(coursePageIndex < companyPageIndex);
+  assert.ok(companyPageIndex < coursePageIndex);
   assert.match(htmlSource, /lumist-course-introduction\.jpg/);
   assert.match(styles, /\.course-introduction-page \{ padding:0 !important;/);
   assert.match(styles, /\.course-introduction-page > img \{[^}]*width:100%;[^}]*height:100%;[^}]*object-fit:cover;/);
