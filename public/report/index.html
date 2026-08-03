@@ -4,7 +4,7 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>路觅教育｜试听课报告生成器</title>
-    <link rel="stylesheet" href="styles.css?v=multi-subject" />
+    <link rel="stylesheet" href="styles.css?v=subjects-31" />
   </head>
   <body>
     <div class="app-shell">
@@ -41,10 +41,15 @@
               </div>
               <div class="field-grid">
                 <label>学生姓名<input id="student-name" required /></label>
-                <label>
-                  课程科目
-                  <select id="subject-select"></select>
-                </label>
+                <div class="subject-field">
+                  <span class="label-text">课程科目</span>
+                  <div class="subject-combobox" id="subject-combobox">
+                    <input id="subject-search" type="text" role="combobox" aria-autocomplete="list" aria-expanded="false" aria-controls="subject-options" autocomplete="off" placeholder="搜索科目，如：物理、CSP" />
+                    <button id="subject-toggle" type="button" aria-label="展开科目列表">⌄</button>
+                    <div id="subject-options" class="subject-options hidden" role="listbox"></div>
+                  </div>
+                  <select id="subject-select" hidden aria-hidden="true"></select>
+                </div>
                 <label
                   ><span id="score-label-current"
                     >当前 SAT 数学成绩（可选）</span
@@ -120,7 +125,7 @@
               <div class="callout">
                 <strong>本版功能</strong
                 ><span
-                  >支持 SAT、AP 等 7
+                  >支持 SAT、AP 等 31
                   个考试科目；动态课程规划与路觅数据页。</span
                 >
               </div>
@@ -617,6 +622,6 @@
         </footer>
       </div>
     </div>
-    <script type="module" src="app.js?v=multi-subject"></script>
+    <script type="module" src="app.js?v=subjects-31"></script>
   </body>
 </html>

@@ -1,14 +1,8 @@
 import { z } from 'zod';
+import { SUBJECT_CODES, SUBJECT_CATALOG } from '../subjects/catalog.js';
 
-const subjectSchema = z.enum([
-  'SAT 数学',
-  'SAT 英语',
-  'AP Calculus AB',
-  'AP Calculus BC',
-  'AP Computer Science A',
-  'AP Microeconomics',
-  'AP Macroeconomics',
-]);
+const subjectNames = SUBJECT_CODES.map((code) => SUBJECT_CATALOG[code].displayName) as [string, ...string[]];
+const subjectSchema = z.enum(subjectNames);
 
 const lessonSchema = z.object({
   duration: z.union([z.literal(0.5), z.literal(1), z.literal(1.5), z.literal(2)]),

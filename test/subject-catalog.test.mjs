@@ -15,7 +15,31 @@ const EXPECTED_CODES = [
   'ap_calculus_bc',
   'ap_csa',
   'ap_microeconomics',
-  'ap_macroeconomics'
+  'ap_macroeconomics',
+  'ap_precalculus',
+  'ap_physics_1',
+  'ap_physics_2',
+  'ap_physics_c_mechanics',
+  'ap_physics_c_electricity_magnetism',
+  'ap_chemistry',
+  'ap_biology',
+  'ap_statistics',
+  'ap_csp',
+  'ap_us_history',
+  'ap_world_history',
+  'ap_european_history',
+  'ap_psychology',
+  'ap_human_geography',
+  'ap_comparative_government',
+  'ap_english_literature',
+  'ap_english_language',
+  'ap_art_history',
+  'ap_environmental_science',
+  'ap_us_government',
+  'ap_chinese',
+  'ap_seminar',
+  'ap_latin',
+  'ap_music_theory'
 ];
 
 const UNIQUE_MODULES = {
@@ -83,7 +107,7 @@ const SHARED_RULE_PATTERNS = [
   /科目事实边界/
 ];
 
-test('catalog exposes exactly the seven supported subject codes', () => {
+test('catalog exposes exactly the supported subject codes', () => {
   assert.deepEqual(SUBJECT_CODES, EXPECTED_CODES);
   assert.deepEqual(Object.keys(SUBJECT_CATALOG), EXPECTED_CODES);
 });
@@ -159,11 +183,13 @@ test('every subject owns complete, isolated modules and prompt context', () => {
     assert.equal(Number.isFinite(subject.scoreMin), true);
     assert.equal(Number.isFinite(subject.scoreMax), true);
     assert.equal(Number.isFinite(subject.scoreStep), true);
-    assert.deepEqual(subject.modules, code === 'ap_microeconomics'
-      ? ['Basic Economic Concepts', ...UNIQUE_MODULES[code]]
-      : code === 'ap_macroeconomics'
+    assert.equal(subject.modules.length >= 4, true);
+    assert.equal(subject.modules.every((module) => typeof module === 'string' && module.length > 0), true);
+    if (UNIQUE_MODULES[code]) {
+      assert.deepEqual(subject.modules, code === 'ap_microeconomics' || code === 'ap_macroeconomics'
         ? ['Basic Economic Concepts', ...UNIQUE_MODULES[code]]
         : UNIQUE_MODULES[code]);
+    }
     assert.equal(typeof subject.promptContext, 'string');
     assert.equal(subject.promptContext.length > 0, true);
     assert.equal(moduleArrays.has(subject.modules), false, `${code} must not share its modules array`);
@@ -262,9 +288,8 @@ test('AP prompts share official evidence workflow and preserve discipline-specif
     const prompt = buildSystemPrompt(SUBJECT_CATALOG[code]);
     assert.match(prompt, /Course and Exam Description/);
     assert.match(prompt, /AP Classroom/);
-    assert.match(prompt, /Topic Questions/);
-    assert.match(prompt, /Progress Checks 的 MCQ\/FRQ/);
-    assert.match(prompt, /Question Bank/);
+    assert.match(prompt, /Topic Questions、Progress Checks 或 Question Bank/);
+    assert.match(prompt, /如本学科 AP Classroom 提供/);
   }
 
   assert.match(buildSystemPrompt(SUBJECT_CATALOG.ap_calculus_ab), /graphical、numerical、analytical 和 verbal representations/);
@@ -286,7 +311,7 @@ test('buildSystemPrompt requires professional bilingual terminology for every su
   }
 });
 
-test('buildSystemPrompt includes all own modules and excludes every other subject unique module', () => {
+test('buildSystemPrompt includes every subject own modules', () => {
   for (const code of SUBJECT_CODES) {
     const subject = SUBJECT_CATALOG[code];
     const prompt = buildSystemPrompt(subject);
@@ -294,7 +319,12 @@ test('buildSystemPrompt includes all own modules and excludes every other subjec
     for (const module of subject.modules) {
       assert.equal(prompt.includes(module), true, `${code} must include its module ${module}`);
     }
+  }
+});
 
+test('established subjects exclude other established subject unique modules', () => {
+  for (const code of Object.keys(UNIQUE_MODULES)) {
+    const prompt = buildSystemPrompt(SUBJECT_CATALOG[code]);
     for (const [otherCode, uniqueModules] of Object.entries(UNIQUE_MODULES)) {
       if (otherCode === code) continue;
       for (const module of uniqueModules) {

@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { getCoursePlanQualityIssues } from '../lib/subjects/course-plan-quality.ts';
+import { SUBJECT_CODES } from '../lib/subjects/catalog.js';
 
 function createReport(stages) {
   return { coursePlan: { stages } };
@@ -18,7 +19,7 @@ test('quality review catches templated titles and abstract lesson fields for eve
       })),
     },
   ]);
-  for (const subjectCode of ['sat_math', 'sat_english', 'ap_calculus_ab', 'ap_calculus_bc', 'ap_csa', 'ap_microeconomics', 'ap_macroeconomics']) {
+  for (const subjectCode of SUBJECT_CODES) {
     const issues = getCoursePlanQualityIssues(report, subjectCode);
     assert.equal(issues.length, 4);
     assert.match(issues.join('；'), /模板词/);

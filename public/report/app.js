@@ -17,6 +17,55 @@ const PLAN_PAGE_AVAILABLE_HEIGHT = A4_PAGE_HEIGHT_MM / MILLIMETERS_PER_INCH * CS
   - PLAN_PAGE_VERTICAL_PADDING
   - PLAN_PAGE_SAFETY_MARGIN;
 
+const SUBJECT_GROUPS = [
+  { label: '标化考试', codes: ['sat_math', 'sat_english'] },
+  { label: 'AP 数学', codes: ['ap_precalculus', 'ap_calculus_ab', 'ap_calculus_bc', 'ap_statistics'] },
+  { label: 'AP 计算机', codes: ['ap_csa', 'ap_csp'] },
+  { label: 'AP 物理', codes: ['ap_physics_1', 'ap_physics_2', 'ap_physics_c_mechanics', 'ap_physics_c_electricity_magnetism'] },
+  { label: 'AP 自然科学', codes: ['ap_chemistry', 'ap_biology', 'ap_environmental_science'] },
+  { label: 'AP 经济', codes: ['ap_microeconomics', 'ap_macroeconomics'] },
+  { label: 'AP 历史', codes: ['ap_us_history', 'ap_world_history', 'ap_european_history'] },
+  { label: 'AP 社会科学', codes: ['ap_psychology', 'ap_human_geography', 'ap_comparative_government', 'ap_us_government'] },
+  { label: 'AP 英语', codes: ['ap_english_literature', 'ap_english_language'] },
+  { label: 'AP 艺术', codes: ['ap_art_history', 'ap_music_theory'] },
+  { label: 'AP 世界语言', codes: ['ap_chinese', 'ap_latin'] },
+  { label: 'AP Capstone', codes: ['ap_seminar'] }
+];
+
+const SUBJECT_SEARCH_ALIASES = {
+  sat_math: 'SAT数学 数学',
+  sat_english: 'SAT英语 阅读 写作',
+  ap_precalculus: 'AP预备微积分 预备微积分',
+  ap_calculus_ab: 'AP微积分AB 微积分AB',
+  ap_calculus_bc: 'AP微积分BC 微积分BC',
+  ap_statistics: 'AP统计 统计学',
+  ap_csa: 'AP计算机科学A APCSA CSA Java',
+  ap_csp: 'AP计算机科学原理 APCSP CSP',
+  ap_physics_1: 'AP物理1 代数物理',
+  ap_physics_2: 'AP物理2 代数物理',
+  ap_physics_c_mechanics: 'AP物理C力学 物理C力学 mechanics',
+  ap_physics_c_electricity_magnetism: 'AP物理C电磁 物理C电磁 电磁学 electricity magnetism E&M',
+  ap_chemistry: 'AP化学 化学',
+  ap_biology: 'AP生物 生物',
+  ap_environmental_science: 'AP环境科学 环科',
+  ap_microeconomics: 'AP微观经济 微观经济学',
+  ap_macroeconomics: 'AP宏观经济 宏观经济学',
+  ap_us_history: 'AP美国历史 APUSH 美史',
+  ap_world_history: 'AP世界史 世界历史 WHAP',
+  ap_european_history: 'AP欧洲史 欧洲历史',
+  ap_psychology: 'AP心理学 心理',
+  ap_human_geography: 'AP人文地理 人文地理',
+  ap_comparative_government: 'AP比较政府与政治 比较政府 比较政治',
+  ap_us_government: 'AP美国政府与政治 美国政府 AP Gov US Gov',
+  ap_english_literature: 'AP英语文学与写作 英语文学 文学写作 AP Lit',
+  ap_english_language: 'AP英语语言与写作 英语语言 语言写作 AP Lang',
+  ap_art_history: 'AP艺术史 艺术历史',
+  ap_music_theory: 'AP音乐理论 乐理',
+  ap_chinese: 'AP汉语语言与文化 AP中文 汉语 中文',
+  ap_latin: 'AP拉丁语 拉丁文',
+  ap_seminar: 'AP研讨会 Seminar Capstone'
+};
+
 /* ── 科目选择 ── */
 
 let currentSubjectCode = 'sat_math';
@@ -24,6 +73,8 @@ let currentReportData = null;
 let currentReportId = null;
 let historicalTeacherProfile = null;
 let summaryPageCount = 1;
+let visibleSubjectCodes = [];
+let activeSubjectOptionIndex = -1;
 
 function populateSubjectSelect() {
   const select = $('#subject-select');
@@ -36,8 +87,69 @@ function populateSubjectSelect() {
     select.appendChild(option);
   });
   select.value = currentSubjectCode;
+  $('#subject-search').value = getSubjectShortName(currentSubjectCode);
+  renderSubjectOptions('');
   configureExamDateField(currentSubjectCode);
   applyReportBrandAssets(currentSubjectCode);
+}
+
+function normalizeSubjectSearch(value) {
+  return String(value || '').toLocaleLowerCase().replace(/[\s:：·\-—_&]+/g, '');
+}
+
+function getSubjectShortName(code) {
+  const shortName = (SUBJECT_SEARCH_ALIASES[code] || SUBJECT_CATALOG[code].displayName).split(' ')[0];
+  return shortName.replace(/^SAT(?=数学|英语)/, 'SAT ');
+}
+
+function getFilteredSubjectGroups(query) {
+  const normalizedQuery = normalizeSubjectSearch(query);
+  return SUBJECT_GROUPS.map((group) => ({
+    ...group,
+    codes: group.codes.filter((code) => {
+      const haystack = normalizeSubjectSearch(`${SUBJECT_CATALOG[code].displayName} ${SUBJECT_SEARCH_ALIASES[code] || ''}`);
+      return !normalizedQuery || haystack.includes(normalizedQuery);
+    })
+  })).filter((group) => group.codes.length > 0);
+}
+
+function renderSubjectOptions(query) {
+  const container = $('#subject-options');
+  const groups = getFilteredSubjectGroups(query);
+  visibleSubjectCodes = groups.flatMap((group) => group.codes);
+  activeSubjectOptionIndex = visibleSubjectCodes.indexOf(currentSubjectCode);
+  if (activeSubjectOptionIndex < 0 && visibleSubjectCodes.length > 0) activeSubjectOptionIndex = 0;
+  container.innerHTML = groups.length > 0
+    ? groups.map((group) => `<section class="subject-option-group"><div>${escapeHtml(group.label)}</div>${group.codes.map((code) => `<button id="subject-option-${escapeHtml(code)}" type="button" role="option" data-subject-code="${escapeHtml(code)}" aria-selected="${code === currentSubjectCode}"><span>${escapeHtml(SUBJECT_CATALOG[code].displayName)}</span><small>${escapeHtml((SUBJECT_SEARCH_ALIASES[code] || '').split(' ')[0])}</small></button>`).join('')}</section>`).join('')
+    : '<p class="subject-empty">没有匹配的科目</p>';
+  updateActiveSubjectOption();
+}
+
+function updateActiveSubjectOption() {
+  document.querySelectorAll('[data-subject-code]').forEach((option) => option.classList.toggle('active', option.dataset.subjectCode === visibleSubjectCodes[activeSubjectOptionIndex]));
+  const activeCode = visibleSubjectCodes[activeSubjectOptionIndex];
+  if (activeCode) $('#subject-search').setAttribute('aria-activedescendant', `subject-option-${activeCode}`);
+  else $('#subject-search').removeAttribute('aria-activedescendant');
+}
+
+function openSubjectOptions() {
+  $('#subject-options').classList.remove('hidden');
+  $('#subject-search').setAttribute('aria-expanded', 'true');
+}
+
+function closeSubjectOptions() {
+  $('#subject-options').classList.add('hidden');
+  $('#subject-search').setAttribute('aria-expanded', 'false');
+  $('#subject-search').removeAttribute('aria-activedescendant');
+  $('#subject-search').value = getSubjectShortName(currentSubjectCode);
+}
+
+function chooseSubject(code) {
+  if (!SUBJECT_CODES.includes(code)) return;
+  $('#subject-select').value = code;
+  $('#subject-search').value = getSubjectShortName(code);
+  closeSubjectOptions();
+  $('#subject-select').dispatchEvent(new Event('change'));
 }
 
 function applyReportBrandAssets(subjectCode) {
@@ -80,9 +192,11 @@ function applySubjectSelection(code) {
   currentSubjectCode = code;
   const vm = createSubjectViewModel(code);
   $('#subject-select').value = code;
-  $('#form-eyebrow').textContent = `${vm.displayName}试听`;
-  $('#score-label-current').textContent = `当前${vm.scoreLabel}（可选）`;
-  $('#score-label-target').textContent = `目标${vm.scoreLabel}（可选）`;
+  $('#subject-search').value = getSubjectShortName(code);
+  $('#form-eyebrow').textContent = `${getSubjectShortName(code)}试听`;
+  const scoreLabel = code.startsWith('ap_') ? 'AP 成绩' : vm.scoreLabel;
+  $('#score-label-current').textContent = `当前 ${scoreLabel}（可选）`;
+  $('#score-label-target').textContent = `目标 ${scoreLabel}（可选）`;
   $('#current-score').placeholder = vm.scoreMax > 100 ? `例如：${Math.round((vm.scoreMin + vm.scoreMax) / 2)}` : `例如：${Math.round((vm.scoreMin + vm.scoreMax) / 2)}`;
   $('#target-score').placeholder = vm.scoreMax > 100 ? `例如：${vm.scoreMax}` : `例如：${vm.scoreMax}`;
   configureExamDateField(code);
@@ -870,6 +984,50 @@ $('#report-form').addEventListener('submit', async (event) => {
 });
 $('#sample-one').addEventListener('click', () => { $('#teacher-notes').value = sampleOne; });
 $('#sample-two').addEventListener('click', () => { $('#teacher-notes').value = sampleTwo; });
+$('#subject-search').addEventListener('focus', (event) => {
+  event.target.select();
+  renderSubjectOptions('');
+  openSubjectOptions();
+});
+$('#subject-search').addEventListener('input', (event) => {
+  renderSubjectOptions(event.target.value);
+  openSubjectOptions();
+});
+$('#subject-search').addEventListener('keydown', (event) => {
+  if (event.key === 'Escape') {
+    closeSubjectOptions();
+    event.target.blur();
+    return;
+  }
+  if (!['ArrowDown', 'ArrowUp', 'Enter'].includes(event.key)) return;
+  event.preventDefault();
+  openSubjectOptions();
+  if (event.key === 'ArrowDown' && visibleSubjectCodes.length > 0) activeSubjectOptionIndex = (activeSubjectOptionIndex + 1) % visibleSubjectCodes.length;
+  if (event.key === 'ArrowUp' && visibleSubjectCodes.length > 0) activeSubjectOptionIndex = (activeSubjectOptionIndex - 1 + visibleSubjectCodes.length) % visibleSubjectCodes.length;
+  if (event.key === 'Enter' && visibleSubjectCodes[activeSubjectOptionIndex]) {
+    chooseSubject(visibleSubjectCodes[activeSubjectOptionIndex]);
+    return;
+  }
+  updateActiveSubjectOption();
+  document.querySelector(`[data-subject-code="${visibleSubjectCodes[activeSubjectOptionIndex]}"]`)?.scrollIntoView({ block: 'nearest' });
+});
+$('#subject-toggle').addEventListener('click', () => {
+  if ($('#subject-options').classList.contains('hidden')) {
+    renderSubjectOptions('');
+    openSubjectOptions();
+    $('#subject-search').focus();
+  } else {
+    closeSubjectOptions();
+  }
+});
+$('#subject-options').addEventListener('mousedown', (event) => event.preventDefault());
+$('#subject-options').addEventListener('click', (event) => {
+  const option = event.target.closest('[data-subject-code]');
+  if (option) chooseSubject(option.dataset.subjectCode);
+});
+document.addEventListener('click', (event) => {
+  if (!event.target.closest('#subject-combobox')) closeSubjectOptions();
+});
 $('#subject-select').addEventListener('change', onSubjectChange);
 document.querySelectorAll('.nav-item').forEach((item) => item.addEventListener('click', () => {
   changeView(item.dataset.view);
