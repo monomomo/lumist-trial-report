@@ -7,7 +7,8 @@
     "build": "next build",
     "start": "next start",
     "teachers:preview": "node --env-file-if-exists=.env.local scripts/sync-feishu-teachers.mjs",
-    "teachers:sync": "node --env-file-if-exists=.env.local scripts/sync-feishu-teachers.mjs --apply"
+    "teachers:sync": "node --env-file-if-exists=.env.local scripts/sync-feishu-teachers.mjs --apply",
+    "teachers:reset-passwords": "node --env-file-if-exists=.env.local scripts/sync-feishu-teachers.mjs --apply --reset-passwords"
   },
   "dependencies": {
     "@supabase/ssr": "^0.7.0",

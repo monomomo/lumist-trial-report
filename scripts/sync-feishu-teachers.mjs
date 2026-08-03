@@ -1,6 +1,5 @@
 import { createClient } from '@supabase/supabase-js';
 import { execFileSync } from 'node:child_process';
-import { randomBytes } from 'node:crypto';
 import { chmodSync, mkdtempSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { basename, extname, join, relative } from 'node:path';
 
@@ -13,6 +12,8 @@ const AUTH_DOMAIN = 'teachers.lumist.internal';
 const APPLY = process.argv.includes('--apply');
 const ALLOW_WARNINGS = process.argv.includes('--allow-warnings');
 const SKIP_PHOTOS = process.argv.includes('--skip-photos');
+const RESET_PASSWORDS = process.argv.includes('--reset-passwords');
+const INITIAL_PASSWORD = process.env.TEACHER_INITIAL_PASSWORD || '123456';
 
 const fieldNames = ['导师姓名', '海报用英文名', '所授科目', '导师小简介', '导师职业照片', '导师宣传二维码'];
 const sectionNames = ['教育背景', '教学经历', '语言能力', '过往成就', '擅长科目'];
@@ -142,10 +143,6 @@ function downloadPhoto(teacher, directory) {
   return output;
 }
 
-function randomPassword() {
-  return `${randomBytes(9).toString('base64url')}Aa7!`;
-}
-
 async function listUsers(supabase) {
   const users = [];
   for (let page = 1; ; page += 1) {
@@ -166,11 +163,38 @@ function saveCredentials(outputPath, credentials) {
   chmodSync(outputPath, 0o600);
 }
 
-async function applyTeachers(teachers) {
+function createAdminClient() {
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
   const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
   if (!supabaseUrl || !serviceRoleKey) throw new Error('缺少 NEXT_PUBLIC_SUPABASE_URL 或 SUPABASE_SERVICE_ROLE_KEY');
-  const supabase = createClient(supabaseUrl, serviceRoleKey, { auth: { autoRefreshToken: false, persistSession: false } });
+  if (INITIAL_PASSWORD.length < 6) throw new Error('TEACHER_INITIAL_PASSWORD 不能少于 6 位');
+  return createClient(supabaseUrl, serviceRoleKey, { auth: { autoRefreshToken: false, persistSession: false } });
+}
+
+async function resetTeacherPasswords(teachers) {
+  const supabase = createAdminClient();
+  const users = await listUsers(supabase);
+  const usersByEmail = new Map(users.map((user) => [user.email?.toLowerCase(), user]));
+  const credentialsDirectory = join(process.cwd(), '.teacher-sync');
+  mkdirSync(credentialsDirectory, { recursive: true });
+  const credentialsPath = join(credentialsDirectory, `all-accounts-${new Date().toISOString().replaceAll(':', '-')}.csv`);
+  const credentials = [];
+  for (const teacher of teachers) {
+    const profile = buildProfile(teacher);
+    const email = `${profile.username}@${AUTH_DOMAIN}`;
+    const user = usersByEmail.get(email);
+    if (!user) throw new Error(`${teacher.name} 的账号不存在，不能统一重置密码`);
+    const { error } = await supabase.auth.admin.updateUserById(user.id, { password: INITIAL_PASSWORD });
+    if (error) throw new Error(`${teacher.name} 重置密码失败：${error.message}`);
+    credentials.push([profile.username, INITIAL_PASSWORD, teacher.name, profile.publicName]);
+    saveCredentials(credentialsPath, credentials);
+    process.stdout.write(`已重置 ${teacher.name} / ${profile.username}\n`);
+  }
+  process.stdout.write(`全部账号凭据已写入 ${credentialsPath}\n`);
+}
+
+async function applyTeachers(teachers) {
+  const supabase = createAdminClient();
   const users = await listUsers(supabase);
   const usersByEmail = new Map(users.map((user) => [user.email?.toLowerCase(), user]));
   const credentialsDirectory = join(process.cwd(), '.teacher-sync');
@@ -185,16 +209,15 @@ async function applyTeachers(teachers) {
     if (!SKIP_PHOTOS) localPhoto = downloadPhoto(teacher, tempDirectory);
     let user = usersByEmail.get(email);
     if (!user) {
-      const password = randomPassword();
       const { data, error } = await supabase.auth.admin.createUser({
         email,
-        password,
+        password: INITIAL_PASSWORD,
         email_confirm: true,
         user_metadata: { display_name: profile.publicName, username: profile.username },
       });
       if (error) throw new Error(`${teacher.name} 创建账号失败：${error.message}`);
       user = data.user;
-      credentials.push([profile.username, password, teacher.name, profile.publicName]);
+      credentials.push([profile.username, INITIAL_PASSWORD, teacher.name, profile.publicName]);
       saveCredentials(credentialsPath, credentials);
     } else {
       const { data: existingConfig, error: existingConfigError } = await supabase
@@ -204,10 +227,9 @@ async function applyTeachers(teachers) {
         .maybeSingle();
       if (existingConfigError) throw new Error(`${teacher.name} 检查 teacher_configs 失败：${existingConfigError.message}`);
       if (!existingConfig && profile.username !== 'amberlyu') {
-        const password = randomPassword();
-        const { error } = await supabase.auth.admin.updateUserById(user.id, { password });
+        const { error } = await supabase.auth.admin.updateUserById(user.id, { password: INITIAL_PASSWORD });
         if (error) throw new Error(`${teacher.name} 修复初始密码失败：${error.message}`);
-        credentials.push([profile.username, password, teacher.name, profile.publicName]);
+        credentials.push([profile.username, INITIAL_PASSWORD, teacher.name, profile.publicName]);
         saveCredentials(credentialsPath, credentials);
       }
     }
@@ -271,5 +293,6 @@ if (errors.length > 0) throw new Error(`教师资料校验失败：${errors.join
 if (APPLY && warnings.length > 0 && !ALLOW_WARNINGS) {
   throw new Error(`存在资料警告，请先修复飞书数据或明确追加 --allow-warnings：${warnings.join('；')}`);
 }
-if (APPLY) await applyTeachers(profiles.map((item) => item.teacher));
+if (APPLY && RESET_PASSWORDS) await resetTeacherPasswords(profiles.map((item) => item.teacher));
+else if (APPLY) await applyTeachers(profiles.map((item) => item.teacher));
 else process.stdout.write('当前为预览模式，未修改 Supabase\n');
