@@ -175,6 +175,131 @@ input {
   font-size: 12px;
 }
 
+.workspace-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.password-modal-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  display: grid;
+  place-items: center;
+  padding: 20px;
+  background: rgba(18, 25, 42, 0.48);
+}
+
+.password-modal {
+  width: min(100%, 440px);
+  border-radius: 16px;
+  padding: 26px;
+  background: #fff;
+  box-shadow: 0 22px 70px rgba(23, 32, 51, 0.24);
+}
+
+.password-modal header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 20px;
+}
+
+.password-modal header span {
+  margin: 0;
+  color: #9b7200;
+  font-size: 11px;
+  font-weight: 900;
+  letter-spacing: 1px;
+}
+
+.password-modal h2 {
+  margin: 6px 0 0;
+  font-size: 24px;
+}
+
+.password-modal > p {
+  margin: 12px 0 20px;
+  color: #6d7486;
+  font-size: 13px;
+  line-height: 1.7;
+}
+
+.workspace-topbar .password-close {
+  width: 34px;
+  height: 34px;
+  padding: 0;
+  border-radius: 50%;
+  background: #f1f3f7;
+  color: #51596b;
+  font-size: 22px;
+  line-height: 1;
+}
+
+.password-form {
+  display: grid;
+  gap: 14px;
+}
+
+.password-form label {
+  display: grid;
+  gap: 7px;
+  color: #41495c;
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.password-form input {
+  height: 44px;
+  border: 1px solid #dfe3ec;
+  border-radius: 8px;
+  padding: 0 12px;
+  outline: none;
+}
+
+.password-form input:focus {
+  border-color: #d6a500;
+  box-shadow: 0 0 0 3px rgba(255, 201, 40, 0.2);
+}
+
+.password-message {
+  border-radius: 8px;
+  padding: 10px 12px;
+  background: #fff0ee;
+  color: #b3261e;
+  font-size: 13px;
+}
+
+.password-message.success {
+  background: #eaf7ef;
+  color: #247242;
+}
+
+.password-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-top: 4px;
+}
+
+.workspace-topbar .password-actions button {
+  min-width: 88px;
+  background: #f1f3f7;
+  color: #51596b;
+}
+
+.workspace-topbar .password-actions .password-submit {
+  background: #17254b;
+  color: #fff;
+}
+
+.workspace-topbar button:disabled,
+.password-form input:disabled {
+  cursor: not-allowed;
+  opacity: 0.65;
+}
+
 .workspace-topbar button {
   padding: 8px 12px;
   background: #fff4ca;
