@@ -1,5 +1,7 @@
 # 路觅教育试听课报告生成器交接文档
 
+> 本文件保留为 2026-07-24 的历史记录，内容已经过期。当前技术交接与重新部署说明请阅读 [`TECHNICAL_HANDOFF.md`](./TECHNICAL_HANDOFF.md)。
+
 更新时间：2026-07-24  
 当前阶段：多科目老师工作台第二版
 生产地址：https://lumist-trial-report.vercel.app/  
