@@ -5,7 +5,9 @@
   "scripts": {
     "dev": "next dev",
     "build": "next build",
-    "start": "next start"
+    "start": "next start",
+    "teachers:preview": "node --env-file-if-exists=.env.local scripts/sync-feishu-teachers.mjs",
+    "teachers:sync": "node --env-file-if-exists=.env.local scripts/sync-feishu-teachers.mjs --apply"
   },
   "dependencies": {
     "@supabase/ssr": "^0.7.0",

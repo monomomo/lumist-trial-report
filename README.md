@@ -33,6 +33,24 @@ OPENAI_API_KEY=你的OpenAI API Key
 OPENAI_MODEL=gpt-5-mini
 ```
 
+## 同步飞书教师账号
+
+教师资料来自飞书多维表格。同步脚本会读取当前教师视图，校验姓名、英文名、科目、简介和职业照，使用英文名生成稳定账号，并把教师资料与照片写入 Supabase。已有账号只更新资料，不重置密码；新账号使用独立随机初始密码。
+
+先执行只读预览：
+
+```bash
+npm run teachers:preview
+```
+
+在 `.env.local` 中配置 `NEXT_PUBLIC_SUPABASE_URL` 和仅供本地使用的 `SUPABASE_SERVICE_ROLE_KEY` 后执行同步：
+
+```bash
+npm run teachers:sync
+```
+
+新账号凭据会写入 Git 忽略的 `.teacher-sync/` 目录，文件权限为仅当前用户可读。脚本不打印密码，也不会重置已有账号密码。飞书资料存在质量警告时会阻止写入，应优先修正源数据。
+
 ## Vercel 部署
 
 1. 将本目录推送到 GitHub 仓库。
