@@ -2,8 +2,7 @@ import { createClient } from '@supabase/supabase-js';
 import { execFileSync } from 'node:child_process';
 import { randomBytes } from 'node:crypto';
 import { chmodSync, mkdtempSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
-import { tmpdir } from 'node:os';
-import { basename, extname, join } from 'node:path';
+import { basename, extname, join, relative } from 'node:path';
 
 const BASE_TOKEN = process.env.FEISHU_TEACHER_BASE_TOKEN || 'LmYfb8Mw4a8T6wsOtexc6RfEnNh';
 const TABLE_ID = process.env.FEISHU_TEACHER_TABLE_ID || 'tblWhRxPsnyr7kVW';
@@ -134,10 +133,11 @@ function downloadPhoto(teacher, directory) {
   const attachment = teacher.photos[0];
   const extension = extname(attachment.name) || '.jpg';
   const output = join(directory, `${teacher.recordId}${extension}`);
+  const relativeOutput = relative(process.cwd(), output);
   runLark([
     'base', '+record-download-attachment', '--profile', PROFILE, '--base-token', BASE_TOKEN,
     '--table-id', TABLE_ID, '--record-id', teacher.recordId, '--file-token', attachment.file_token,
-    '--output', output, '--overwrite', '--format', 'json',
+    '--output', relativeOutput, '--overwrite', '--format', 'json',
   ]);
   return output;
 }
@@ -160,6 +160,12 @@ function csvCell(value) {
   return `"${String(value).replaceAll('"', '""')}"`;
 }
 
+function saveCredentials(outputPath, credentials) {
+  const rows = [['账号', '初始密码', '姓名', '报告展示名'], ...credentials].map((row) => row.map(csvCell).join(','));
+  writeFileSync(outputPath, `${rows.join('\n')}\n`, { mode: 0o600 });
+  chmodSync(outputPath, 0o600);
+}
+
 async function applyTeachers(teachers) {
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
   const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
@@ -167,11 +173,16 @@ async function applyTeachers(teachers) {
   const supabase = createClient(supabaseUrl, serviceRoleKey, { auth: { autoRefreshToken: false, persistSession: false } });
   const users = await listUsers(supabase);
   const usersByEmail = new Map(users.map((user) => [user.email?.toLowerCase(), user]));
-  const tempDirectory = mkdtempSync(join(tmpdir(), 'lumist-teachers-'));
+  const credentialsDirectory = join(process.cwd(), '.teacher-sync');
+  mkdirSync(credentialsDirectory, { recursive: true });
+  const tempDirectory = mkdtempSync(join(credentialsDirectory, 'downloads-'));
+  const credentialsPath = join(credentialsDirectory, `new-accounts-${new Date().toISOString().replaceAll(':', '-')}.csv`);
   const credentials = [];
   for (const teacher of teachers) {
     const profile = buildProfile(teacher);
     const email = `${profile.username}@${AUTH_DOMAIN}`;
+    let localPhoto = null;
+    if (!SKIP_PHOTOS) localPhoto = downloadPhoto(teacher, tempDirectory);
     let user = usersByEmail.get(email);
     if (!user) {
       const password = randomPassword();
@@ -184,12 +195,26 @@ async function applyTeachers(teachers) {
       if (error) throw new Error(`${teacher.name} 创建账号失败：${error.message}`);
       user = data.user;
       credentials.push([profile.username, password, teacher.name, profile.publicName]);
+      saveCredentials(credentialsPath, credentials);
+    } else {
+      const { data: existingConfig, error: existingConfigError } = await supabase
+        .from('teacher_configs')
+        .select('teacher_id')
+        .eq('teacher_id', user.id)
+        .maybeSingle();
+      if (existingConfigError) throw new Error(`${teacher.name} 检查 teacher_configs 失败：${existingConfigError.message}`);
+      if (!existingConfig && profile.username !== 'amberlyu') {
+        const password = randomPassword();
+        const { error } = await supabase.auth.admin.updateUserById(user.id, { password });
+        if (error) throw new Error(`${teacher.name} 修复初始密码失败：${error.message}`);
+        credentials.push([profile.username, password, teacher.name, profile.publicName]);
+        saveCredentials(credentialsPath, credentials);
+      }
     }
     const { error: profileError } = await supabase.from('profiles').upsert({ id: user.id, display_name: profile.publicName, role: 'teacher' });
     if (profileError) throw new Error(`${teacher.name} 更新 profiles 失败：${profileError.message}`);
     let photoPath = null;
-    if (!SKIP_PHOTOS) {
-      const localPhoto = downloadPhoto(teacher, tempDirectory);
+    if (localPhoto) {
       photoPath = `${user.id}/profile${extname(localPhoto).toLowerCase() || '.jpg'}`;
       const { error: uploadError } = await supabase.storage.from('teacher-assets').upload(photoPath, readFileSync(localPhoto), {
         contentType: contentType(basename(localPhoto)),
@@ -212,13 +237,7 @@ async function applyTeachers(teachers) {
     process.stdout.write(`已同步 ${teacher.name} / ${profile.username}\n`);
   }
   if (credentials.length > 0) {
-    const directory = join(process.cwd(), '.teacher-sync');
-    mkdirSync(directory, { recursive: true });
-    const outputPath = join(directory, `new-accounts-${new Date().toISOString().replaceAll(':', '-')}.csv`);
-    const rows = [['账号', '初始密码', '姓名', '报告展示名'], ...credentials].map((row) => row.map(csvCell).join(','));
-    writeFileSync(outputPath, `${rows.join('\n')}\n`, { mode: 0o600 });
-    chmodSync(outputPath, 0o600);
-    process.stdout.write(`新账号凭据已写入 ${outputPath}\n`);
+    process.stdout.write(`新账号凭据已写入 ${credentialsPath}\n`);
   } else {
     process.stdout.write('没有创建新账号，现有账号资料已更新\n');
   }
