@@ -315,8 +315,13 @@ body.modal-open { overflow:hidden; }
 .plan-editor-footer>div { display:flex; gap:9px; }
 .plan-editor-footer .primary-btn { width:auto; margin:0; padding:10px 18px; }
 .danger-btn { color:#9b392e; border-color:#ecc6c0; }
-.summary-editor-shell { width:min(1180px,100%); }
-.summary-editor-content { min-height:0; overflow:auto; padding:24px 30px 50px; background:#fffefa; display:grid; gap:20px; }
+.summary-editor-shell { width:min(1180px,100%); height:calc(100dvh - 32px); display:flex; flex-direction:column; }
+.summary-editor-shell>.plan-editor-header,.summary-editor-shell>.plan-editor-message,.summary-editor-shell>.plan-editor-footer { flex:none; }
+.summary-editor-content { flex:1 1 auto; height:0; min-height:0; overflow-x:hidden; overflow-y:scroll; overscroll-behavior:contain; scrollbar-gutter:stable; padding:24px 30px 50px; background:#fffefa; display:flex; flex-direction:column; gap:20px; }
+.summary-editor-content>.summary-editor-section { flex:none; }
+.summary-editor-content::-webkit-scrollbar { width:12px; }
+.summary-editor-content::-webkit-scrollbar-track { background:#f6f0df; }
+.summary-editor-content::-webkit-scrollbar-thumb { background:#c9a642; border:3px solid #f6f0df; border-radius:999px; }
 .summary-editor-section { border:1px solid #e7d89f; border-radius:12px; overflow:hidden; background:#fff; }
 .summary-editor-section>header { display:flex; align-items:center; gap:14px; padding:15px 18px; background:#fff8df; }
 .summary-editor-section>header>span { display:grid; place-items:center; width:34px; height:34px; flex:none; background:#ffc928; color:#30260d; font-size:12px; font-weight:900; }

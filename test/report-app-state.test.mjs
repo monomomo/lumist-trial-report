@@ -53,6 +53,10 @@ test('student trial summary can be edited and persisted with the report', async 
   assert.match(source, /Object\.assign\(currentReportData, cloneReportSummary\(draftSummary\)\)/);
   assert.match(source, /renderReport\(currentReportData\)/);
   assert.match(styles, /\.summary-editor-content/);
+  assert.match(styles, /\.summary-editor-shell \{[^}]*display:flex;[^}]*flex-direction:column;/);
+  assert.match(styles, /\.summary-editor-content \{[^}]*flex:1 1 auto;[^}]*height:0;[^}]*overflow-y:scroll;[^}]*display:flex;[^}]*flex-direction:column;/);
+  assert.match(styles, /\.summary-editor-content>\.summary-editor-section \{[^}]*flex:none;/);
+  assert.match(styles, /scrollbar-gutter:stable/);
   assert.match(styles, /#edit-summary \{ display:none !important; \}/);
 });
 
