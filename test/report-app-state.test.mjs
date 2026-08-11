@@ -42,6 +42,20 @@ test('summary page compacts and splits by measured A4 content height', async () 
   assert.match(styles, /\.summary-measurement-host/);
 });
 
+test('student trial summary can be edited and persisted with the report', async () => {
+  const source = await readFile(new URL('../public/report/app.js', import.meta.url), 'utf8');
+  const html = await readFile(new URL('../public/report/index.html', import.meta.url), 'utf8');
+  const styles = await readFile(new URL('../public/report/styles.css', import.meta.url), 'utf8');
+
+  assert.match(html, /id="edit-summary"/);
+  assert.match(html, /id="summary-editor-modal"/);
+  assert.match(source, /function openSummaryEditor\(\)/);
+  assert.match(source, /Object\.assign\(currentReportData, cloneReportSummary\(draftSummary\)\)/);
+  assert.match(source, /renderReport\(currentReportData\)/);
+  assert.match(styles, /\.summary-editor-content/);
+  assert.match(styles, /#edit-summary \{ display:none !important; \}/);
+});
+
 test('image-based report cover does not keep the legacy decorative ring', async () => {
   const styles = await readFile(new URL('../public/report/styles.css', import.meta.url), 'utf8');
   assert.match(styles, /\.cover-page::after \{ display:none; \}/);

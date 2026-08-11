@@ -154,6 +154,8 @@
             <div class="report-actions">
               <button class="secondary-btn save-report-btn" id="save-report">
                 保存报告</button
+              ><button class="secondary-btn" id="edit-summary">
+                编辑试听总结</button
               ><button class="secondary-btn" id="edit-course-plan">
                 编辑课程规划</button
               ><button class="secondary-btn" id="back-edit">返回编辑</button
@@ -556,6 +558,36 @@
       </main>
     </div>
     <div
+      id="summary-editor-modal"
+      class="plan-editor-modal summary-editor-modal hidden"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="summary-editor-title"
+    >
+      <div class="plan-editor-shell summary-editor-shell">
+        <header class="plan-editor-header">
+          <div>
+            <p class="eyebrow">试听总结编辑器</p>
+            <h2 id="summary-editor-title">调整课堂诊断与学习成果</h2>
+            <p>修改会同步到页面、历史报告和 PDF，点击“应用到报告”后生效。</p>
+          </div>
+          <div class="plan-editor-summary">
+            <span id="summary-editor-student-name">学生</span>
+            <span>01 / 学生信息与试听课总结</span>
+          </div>
+        </header>
+        <main id="summary-editor-content" class="summary-editor-content"></main>
+        <div id="summary-editor-message" class="plan-editor-message" aria-live="polite"></div>
+        <footer class="plan-editor-footer summary-editor-footer">
+          <span>学生姓名、科目和目标分数请返回首页表单修改</span>
+          <div>
+            <button type="button" class="secondary-btn" data-summary-action="cancel">取消</button
+            ><button type="button" class="primary-btn" data-summary-action="apply">应用到报告</button>
+          </div>
+        </footer>
+      </div>
+    </div>
+    <div
       id="course-plan-modal"
       class="plan-editor-modal hidden"
       role="dialog"
@@ -622,6 +654,6 @@
         </footer>
       </div>
     </div>
-    <script type="module" src="app.js?v=subjects-31"></script>
+    <script type="module" src="app.js?v=summary-editor-1"></script>
   </body>
 </html>

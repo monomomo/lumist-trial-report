@@ -1,6 +1,7 @@
 import { ALLOWED_DURATIONS, cloneCoursePlan, calculateTotalHours, validateCoursePlan, moveItem, moveLesson, rebalanceFinalPage, createStage, createLesson } from './course-plan-utils.js';
 import { SUBJECT_CODES, SUBJECT_CATALOG, resolveSubject } from './catalog.js';
 import { createSubjectViewModel, normalizeTeacherProfile, buildPdfFileName, canUseFallback, buildFallbackReport, resolveTargetScore } from './report-domain.js';
+import { SUMMARY_FIELD_RULES, cloneReportSummary, validateReportSummary } from './summary-editor-utils.js';
 
 const sampleOne = '我刚上了一节SAT数学试听课。根据课前沟通，学生已经不记得SAT数学的知识点了。所以我们计划从头开始梳理知识点，同学上课互动很积极，做题的正确率也挺好的，中等难度的题也可以做对，没有她自己说的那么基础差。但是确实是有些知识点有遗忘。所以我计划接下来先从头补知识点，让同学建立SAT数学知识图谱。';
 const sampleTwo = '学生课上挺活泼的，爱互动，愿意思考，做题的准确率其实很不错。因为学生不了解SAT考点，第一节课带学生看了SAT的4章内容。学生现在在学微积分，所以Algebra的内容比较熟练，但因为比较久没有接触概率、几何的东西，这两章相对薄弱。';
@@ -572,6 +573,131 @@ function changeView(id) {
   window.scrollTo({ top: 0, behavior: 'smooth' });
 }
 
+let draftSummary = null;
+let summaryEditorBaseline = '';
+
+function isSummaryEditorDirty() {
+  return draftSummary !== null && JSON.stringify(draftSummary) !== summaryEditorBaseline;
+}
+
+function setSummaryEditorMessage(message, type = '') {
+  const element = $('#summary-editor-message');
+  element.textContent = message;
+  element.className = `plan-editor-message ${type}`.trim();
+}
+
+function createSummaryEditorField(field, rule) {
+  const label = document.createElement('label');
+  label.className = 'summary-editor-field';
+  label.innerHTML = `<span>${escapeHtml(rule.label)}</span><small>${draftSummary[field].length} / ${rule.maximum}</small>`;
+  const textarea = document.createElement('textarea');
+  textarea.value = draftSummary[field];
+  textarea.rows = field === 'overview' || field === 'lessonSummary' || field === 'performance' ? 5 : 3;
+  textarea.dataset.summaryPath = field;
+  label.appendChild(textarea);
+  return label;
+}
+
+function createSummaryListEditor(field, title, maximum) {
+  const section = document.createElement('section');
+  section.className = 'summary-list-editor';
+  section.innerHTML = `<header><div><b>${escapeHtml(title)}</b><span>${draftSummary[field].length} / ${maximum} 项</span></div><button type="button" class="secondary-btn" data-summary-action="add" data-summary-field="${field}" ${draftSummary[field].length >= maximum ? 'disabled' : ''}>新增一项</button></header>`;
+  const list = document.createElement('div');
+  draftSummary[field].forEach((item, index) => {
+    const row = document.createElement('div');
+    row.className = 'summary-list-row';
+    row.innerHTML = `<span>${String(index + 1).padStart(2, '0')}</span><textarea rows="2" data-summary-path="${field}.${index}">${escapeHtml(item)}</textarea><button type="button" data-summary-action="delete" data-summary-field="${field}" data-summary-index="${index}" ${draftSummary[field].length === 1 ? 'disabled' : ''}>删除</button>`;
+    list.appendChild(row);
+  });
+  section.appendChild(list);
+  return section;
+}
+
+function renderSummaryEditor() {
+  const content = $('#summary-editor-content');
+  content.innerHTML = '';
+  const diagnosis = document.createElement('section');
+  diagnosis.className = 'summary-editor-section';
+  diagnosis.innerHTML = '<header><span>01</span><div><b>学习背景与课堂诊断</b><p>调整试听结论、课堂状态、优势和当前重点</p></div></header>';
+  const diagnosisFields = document.createElement('div');
+  diagnosisFields.className = 'summary-editor-fields';
+  ['overview', 'classroomStatus', 'strength', 'currentFocus'].forEach((field) => diagnosisFields.appendChild(createSummaryEditorField(field, SUMMARY_FIELD_RULES[field])));
+  diagnosis.appendChild(diagnosisFields);
+
+  const outcomes = document.createElement('section');
+  outcomes.className = 'summary-editor-section';
+  outcomes.innerHTML = '<header><span>02</span><div><b>试听课反馈与本节课学习成果</b><p>调整试听内容、学生表现、收获和后续提升项</p></div></header>';
+  const outcomeFields = document.createElement('div');
+  outcomeFields.className = 'summary-editor-fields';
+  ['lessonTitle', 'lessonSummary', 'performance'].forEach((field) => outcomeFields.appendChild(createSummaryEditorField(field, SUMMARY_FIELD_RULES[field])));
+  outcomes.append(outcomeFields, createSummaryListEditor('outcomes', '本节课收获', 5), createSummaryListEditor('priorityAreas', '后续需要优先提升的内容', 6));
+  content.append(diagnosis, outcomes);
+  $('#summary-editor-student-name').textContent = $('#student-name').value.trim() || '学生';
+}
+
+function setSummaryDraftValue(path, value) {
+  const [field, index] = path.split('.');
+  if (index === undefined) draftSummary[field] = value;
+  else draftSummary[field][Number(index)] = value;
+  const input = $(`[data-summary-path="${path}"]`);
+  const counter = input?.closest('.summary-editor-field')?.querySelector('small');
+  if (counter) counter.textContent = `${value.length} / ${SUMMARY_FIELD_RULES[field].maximum}`;
+  setSummaryEditorMessage('');
+}
+
+function openSummaryEditor() {
+  draftSummary = cloneReportSummary(currentReportData);
+  summaryEditorBaseline = JSON.stringify(draftSummary);
+  renderSummaryEditor();
+  $('#summary-editor-modal').classList.remove('hidden');
+  document.body.classList.add('modal-open');
+}
+
+function closeSummaryEditor() {
+  draftSummary = null;
+  $('#summary-editor-modal').classList.add('hidden');
+  document.body.classList.remove('modal-open');
+}
+
+function cancelSummaryEditor() {
+  if (isSummaryEditorDirty() && !window.confirm('当前修改尚未应用，确定取消吗？')) return;
+  closeSummaryEditor();
+}
+
+function clearSummaryValidationErrors() {
+  $('#summary-editor-content').querySelectorAll('.editor-field-error').forEach((element) => element.remove());
+  $('#summary-editor-content').querySelectorAll('.is-invalid').forEach((element) => element.classList.remove('is-invalid'));
+}
+
+function showSummaryValidationErrors(errors) {
+  clearSummaryValidationErrors();
+  errors.forEach((error) => {
+    const field = $(`[data-summary-path="${error.path}"]`);
+    const target = field || $(`[data-summary-field="${error.path}"]`)?.closest('.summary-list-editor');
+    target?.classList.add('is-invalid');
+    const reason = document.createElement('span');
+    reason.className = 'editor-field-error';
+    reason.textContent = error.message;
+    target?.insertAdjacentElement('afterend', reason);
+  });
+}
+
+function applySummaryEdits() {
+  const validation = validateReportSummary(draftSummary);
+  if (!validation.valid) {
+    showSummaryValidationErrors(validation.errors);
+    setSummaryEditorMessage(`共有 ${validation.errors.length} 项需要修改：${validation.errors[0].message}`, 'error');
+    $(`[data-summary-path="${validation.errors[0].path}"]`)?.focus();
+    return;
+  }
+  clearSummaryValidationErrors();
+  Object.assign(currentReportData, cloneReportSummary(draftSummary));
+  renderReport(currentReportData);
+  document.querySelector('#report-view .eyebrow').textContent = '试听总结已编辑 · 未云端保存';
+  closeSummaryEditor();
+  document.querySelector('.summary-page')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+
 function collectCoursePlan() {
   return currentReportData.coursePlan.stages;
 }
@@ -1065,6 +1191,25 @@ $('#print-report').addEventListener('click', () => {
   window.print();
   window.setTimeout(restorePrintState, 1000);
 });
+$('#edit-summary').addEventListener('click', openSummaryEditor);
+$('#summary-editor-content').addEventListener('input', (event) => {
+  if (event.target.dataset.summaryPath) setSummaryDraftValue(event.target.dataset.summaryPath, event.target.value);
+});
+$('#summary-editor-modal').addEventListener('click', (event) => {
+  const action = event.target.dataset.summaryAction;
+  const field = event.target.dataset.summaryField;
+  if (action === 'add') {
+    draftSummary[field].push('');
+    renderSummaryEditor();
+    $(`[data-summary-path="${field}.${draftSummary[field].length - 1}"]`)?.focus();
+  }
+  if (action === 'delete') {
+    draftSummary[field].splice(Number(event.target.dataset.summaryIndex), 1);
+    renderSummaryEditor();
+  }
+  if (action === 'cancel') cancelSummaryEditor();
+  if (action === 'apply') applySummaryEdits();
+});
 $('#edit-course-plan').addEventListener('click', openPlanEditor);
 $('#plan-editor-content').addEventListener('input', (event) => {
   if (event.target.dataset.path) setDraftValue(event.target.dataset.path, event.target.value);
@@ -1126,7 +1271,7 @@ $('#plan-stage-nav-list').addEventListener('click', (event) => {
   if (event.target.dataset.scrollStage !== undefined) $(`[data-stage-editor="${event.target.dataset.scrollStage}"]`)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
 });
 window.addEventListener('beforeunload', (event) => {
-  if (!isCoursePlanDirty()) return;
+  if (!isCoursePlanDirty() && !isSummaryEditorDirty()) return;
   event.preventDefault();
   event.returnValue = '';
 });
