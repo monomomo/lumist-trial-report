@@ -215,6 +215,7 @@ export async function POST(request: Request) {
     const lessonDurations = buildLessonDurationSlots(parsed.data.totalHours);
     const promptData = {
       ...parsed.data,
+      targetScore: parsed.data.targetScore || (subject.code.startsWith('ap_') ? '5' : ''),
       lessonDurations,
     };
 

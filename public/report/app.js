@@ -1,6 +1,6 @@
 import { ALLOWED_DURATIONS, cloneCoursePlan, calculateTotalHours, validateCoursePlan, moveItem, moveLesson, rebalanceFinalPage, createStage, createLesson } from './course-plan-utils.js';
 import { SUBJECT_CODES, SUBJECT_CATALOG, resolveSubject } from './catalog.js';
-import { createSubjectViewModel, normalizeTeacherProfile, buildPdfFileName, canUseFallback, buildFallbackReport } from './report-domain.js';
+import { createSubjectViewModel, normalizeTeacherProfile, buildPdfFileName, canUseFallback, buildFallbackReport, resolveTargetScore } from './report-domain.js';
 
 const sampleOne = '我刚上了一节SAT数学试听课。根据课前沟通，学生已经不记得SAT数学的知识点了。所以我们计划从头开始梳理知识点，同学上课互动很积极，做题的正确率也挺好的，中等难度的题也可以做对，没有她自己说的那么基础差。但是确实是有些知识点有遗忘。所以我计划接下来先从头补知识点，让同学建立SAT数学知识图谱。';
 const sampleTwo = '学生课上挺活泼的，爱互动，愿意思考，做题的准确率其实很不错。因为学生不了解SAT考点，第一节课带学生看了SAT的4章内容。学生现在在学微积分，所以Algebra的内容比较熟练，但因为比较久没有接触概率、几何的东西，这两章相对薄弱。';
@@ -196,9 +196,9 @@ function applySubjectSelection(code) {
   $('#form-eyebrow').textContent = `${getSubjectShortName(code)}试听`;
   const scoreLabel = code.startsWith('ap_') ? 'AP 成绩' : vm.scoreLabel;
   $('#score-label-current').textContent = `当前 ${scoreLabel}（可选）`;
-  $('#score-label-target').textContent = `目标 ${scoreLabel}（可选）`;
+  $('#score-label-target').textContent = code.startsWith('ap_') ? '目标 AP 成绩（默认 5）' : `目标 ${scoreLabel}（可选）`;
   $('#current-score').placeholder = vm.scoreMax > 100 ? `例如：${Math.round((vm.scoreMin + vm.scoreMax) / 2)}` : `例如：${Math.round((vm.scoreMin + vm.scoreMax) / 2)}`;
-  $('#target-score').placeholder = vm.scoreMax > 100 ? `例如：${vm.scoreMax}` : `例如：${vm.scoreMax}`;
+  $('#target-score').placeholder = code.startsWith('ap_') ? '默认 5 分' : `例如：${vm.scoreMax}`;
   configureExamDateField(code);
   applyReportBrandAssets(code);
 }
@@ -500,7 +500,7 @@ function deriveReport(notes, name, target) {
       script
     },
     teacherNotice: missingDetails.length ? `当前课堂记录较为简略，家长版已采用保守表达。建议补充${missingDetails.join('、')}，以生成更有针对性的报告。` : '',
-    target: target || '待老师确认'
+    target: target || (currentSubjectCode.startsWith('ap_') ? '5' : '待老师确认')
   };
 }
 
@@ -535,7 +535,7 @@ function renderTeacherProfile() {
 
 function renderReport(data) {
   const name = $('#student-name').value.trim() || '学生';
-  const target = $('#target-score').value.trim();
+  const target = resolveTargetScore(currentSubjectCode, $('#target-score').value);
   const subjectName = createSubjectViewModel(currentSubjectCode).displayName;
   const activeTeacher = getActiveTeacherProfile();
   const teacherName = activeTeacher ? activeTeacher.displayName : '老师';
@@ -784,7 +784,7 @@ async function saveReport() {
     id: currentReportId,
     studentName: $('#student-name').value.trim(),
     currentScore: $('#current-score').value.trim(),
-    targetScore: $('#target-score').value.trim(),
+    targetScore: resolveTargetScore(currentSubjectCode, $('#target-score').value),
     examDate: getSelectedExamDate(),
     teacherNotes: $('#teacher-notes').value.trim(),
     subject: createSubjectViewModel(currentSubjectCode).displayName,
@@ -818,7 +818,7 @@ function collectFormData() {
   return {
     studentName: $('#student-name').value.trim(),
     currentScore: $('#current-score').value.trim(),
-    targetScore: $('#target-score').value.trim(),
+    targetScore: resolveTargetScore(currentSubjectCode, $('#target-score').value),
     examDate: getSelectedExamDate(),
     totalHours: $('#total-hours').value,
     teacherNotes: $('#teacher-notes').value.trim(),

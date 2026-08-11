@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { buildFallbackReport } from '../public/report/report-domain.js';
+import { buildFallbackReport, resolveTargetScore } from '../public/report/report-domain.js';
 import { SUBJECT_CODES } from '../public/report/catalog.js';
 
 const baseForm = {
@@ -48,4 +48,15 @@ test('fallback uses 30 hours only when the submitted value is invalid', () => {
     const report = buildFallbackReport('sat_math', { ...baseForm, totalHours });
     assert.equal(report.coursePlan.totalHours, 30);
   }
+});
+
+test('AP subjects default an empty target score to 5', () => {
+  for (const subjectCode of SUBJECT_CODES.filter((code) => code.startsWith('ap_'))) {
+    assert.equal(resolveTargetScore(subjectCode, ''), '5');
+    assert.equal(buildFallbackReport(subjectCode, { ...baseForm, totalHours: '20' }).target, '5');
+  }
+
+  assert.equal(resolveTargetScore('sat_math', ''), '');
+  assert.equal(buildFallbackReport('sat_math', { ...baseForm, totalHours: '20' }).target, '待老师确认');
+  assert.equal(resolveTargetScore('ap_calculus_bc', '4'), '4');
 });

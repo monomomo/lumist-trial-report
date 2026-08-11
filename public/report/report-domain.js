@@ -65,6 +65,12 @@ export function buildPdfFileName(subjectName, studentName) {
   return `${sanitize(studentName, '学生')}+${sanitize(subjectName, '课程')}+学情报告`;
 }
 
+export function resolveTargetScore(subjectCode, targetScore) {
+  const provided = String(targetScore || '').trim();
+  if (provided) return provided;
+  return subjectCode.startsWith('ap_') ? '5' : '';
+}
+
 /**
  * @typedef {{ displayName: string; displayPlaceholder: string; title: string; summary: string; bio: string[]; sections: Array<{ title: string; content: string[] }>; subjects: string[]; photoUrl: string | null; qrUrl: string | null }} TeacherDisplayData
  */
@@ -89,7 +95,7 @@ export function canUseFallback(errorCode) {
 export function buildFallbackReport(subjectCode, formData) {
   const vm = createSubjectViewModel(subjectCode);
   const name = formData.studentName || '学生';
-  const target = formData.targetScore || '待老师确认';
+  const target = resolveTargetScore(subjectCode, formData.targetScore) || '待老师确认';
   const notes = formData.teacherNotes || '';
   const totalHours = normalizeFallbackTotalHours(formData.totalHours);
 

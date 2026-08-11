@@ -104,6 +104,15 @@ test('AP subjects use upcoming May exam options', async () => {
   assert.match(appSource, /`\$\{year\}年5月`/);
 });
 
+test('AP subjects use 5 as the default target score', async () => {
+  const appSource = await readFile(new URL('../public/report/app.js', import.meta.url), 'utf8');
+  const routeSource = await readFile(new URL('../app/api/generate-report/route.ts', import.meta.url), 'utf8');
+
+  assert.match(appSource, /目标 AP 成绩（默认 5）/);
+  assert.match(appSource, /resolveTargetScore\(currentSubjectCode, \$\('#target-score'\)\.value\)/);
+  assert.match(routeSource, /targetScore: parsed\.data\.targetScore \|\| \(subject\.code\.startsWith\('ap_'\) \? '5' : ''\)/);
+});
+
 test('parent copy protection applies teacher voice rules to every subject', async () => {
   const source = await readFile(new URL('../app/api/generate-report/route.ts', import.meta.url), 'utf8');
   assert.equal(source.includes("if (subjectCode !== 'sat_math') return report;"), false);
