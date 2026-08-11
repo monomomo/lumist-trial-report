@@ -17,7 +17,7 @@ const RESET_PASSWORDS = process.argv.includes('--reset-passwords');
 const INITIAL_PASSWORD = process.env.TEACHER_INITIAL_PASSWORD || '123456';
 
 const fieldNames = ['导师姓名', '海报用英文名', '所授科目', '导师小简介', '导师职业照片', '导师宣传二维码'];
-const sectionNames = ['教育背景', '教学经历', '语言能力', '过往成就', '擅长科目'];
+const sectionNames = ['教育背景', '教学经历', '过往成就', '擅长科目'];
 
 function runLark(args) {
   const output = execFileSync(LARK_CLI, args, {
@@ -67,7 +67,11 @@ function parseSections(intro, englishName) {
   for (const rawLine of intro.split(/\r?\n/)) {
     const line = rawLine.trim();
     if (!line || line.replace(/[：:]/g, '').trim().toLowerCase() === englishName.toLowerCase()) continue;
-    const match = line.match(/^(教育背景|教学经历|语言能力|过往成就|擅长科目)[：:]\s*(.*)$/);
+    if (/^语言能力[：:]/.test(line)) {
+      current = '';
+      continue;
+    }
+    const match = line.match(/^(教育背景|教学经历|过往成就|擅长科目)[：:]\s*(.*)$/);
     if (match) {
       current = match[1];
       if (match[2]) initial[current].push(match[2]);

@@ -11,6 +11,7 @@ test('teacher profile keeps structured multi-teacher presentation fields', () =>
     bio: ['多年教学经验。'],
     sections: [
       { title: '教学背景', content: ['熟悉北美课程体系。'] },
+      { title: '语言能力', content: ['中英文授课。'] },
       { title: '', content: ['不应保留。'] },
     ],
     subjects: ['SAT 英语', 'AP English Language'],
@@ -42,6 +43,15 @@ test('teacher page has no Amber or SAT Math presentation hardcoding', async () =
   assert.match(appSource, /profile\.sections/);
   assert.match(appSource, /profile\.subjects/);
   assert.match(appSource, /getActiveTeacherProfile/);
+});
+
+test('teacher profile excludes language ability from current and historical reports', async () => {
+  const profileSource = await readFile(new URL('../lib/teachers/public-profile.ts', import.meta.url), 'utf8');
+  const syncSource = await readFile(new URL('../scripts/sync-feishu-teachers.mjs', import.meta.url), 'utf8');
+
+  assert.match(profileSource, /title !== '语言能力'/);
+  assert.match(syncSource, /if \(\/\^语言能力\[：:\]\//);
+  assert.doesNotMatch(syncSource, /const sectionNames = \[[^\]]*语言能力/);
 });
 
 test('report persistence uses a server-resolved teacher snapshot', async () => {

@@ -43,7 +43,7 @@ export function normalizeTeacherProfile(apiData) {
     bio: Array.isArray(apiData.bio) ? apiData.bio : [],
     sections: Array.isArray(apiData.sections)
       ? apiData.sections
-        .filter((section) => section && section.title && Array.isArray(section.content))
+        .filter((section) => section && section.title && section.title.trim() !== '语言能力' && Array.isArray(section.content))
         .map((section) => ({ title: section.title, content: section.content.filter(Boolean) }))
       : [],
     subjects: Array.isArray(apiData.subjects) ? apiData.subjects.filter(Boolean) : [],

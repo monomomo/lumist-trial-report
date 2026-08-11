@@ -194,7 +194,7 @@ function normalizeSections(value: unknown): TeacherProfileSection[] {
     const record = item as Record<string, unknown>;
     const title = cleanOptionalText(record.title);
     const content = normalizeStringList(record.content);
-    return title && content.length > 0 ? [{ title, content }] : [];
+    return title && title !== '语言能力' && content.length > 0 ? [{ title, content }] : [];
   });
 }
 
