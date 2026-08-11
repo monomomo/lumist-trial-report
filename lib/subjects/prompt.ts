@@ -51,13 +51,16 @@ AP 课程规划必须符合真实授课流程：
 - MCQ 和 FRQ 不应只作为课时名称；content 必须说明要观察的推理、表达、计算或作答步骤，goal 必须能用作答结果核对。`;
 
   if (['ap_precalculus', 'ap_calculus_ab', 'ap_calculus_bc'].includes(subject.code)) {
+    const progressionGuidance = subject.code === 'ap_precalculus' ? `
+- 可以在学习目标、阶段说明和家长反馈中说明 AP Precalculus 与 AP Calculus AB/BC、SAT 数学的真实衔接，具体落到函数行为、covariation、multiple representations、代数变形和三角函数等可迁移能力。
+- 衔接只说明当前 Precalculus 内容的后续用途，不安排 Differentiation、Applications of Derivatives、Integration、Differential Equations 等微积分教学，也不安排 Bluebook、SAT Module 或 Question Bank 等 SAT 专项训练。` : '';
     return `${apShared}
 
 AP 数学课程规划要求：
 - 同一概念应在 graphical、numerical、analytical 和 verbal representations 之间建立联系，并要求学生说明选择定理、公式或方法的理由。
 - 讲评既检查计算，也检查 notation、units、条件和 justification。计算器与非计算器任务按概念需要安排，不把计算器操作单独包装成能力提升课。
 - difficulty 应具体到符号、定义、条件或推理，例如 derivative 符号与函数增减混淆、Fundamental Theorem of Calculus 使用条件不清、series test 选择缺少依据。
-- AP Precalculus 不得提前写成微积分课；AB 不得引入 BC 专属内容；BC 可以诊断 AB 前置知识，但主要课时仍应服从老师提供的真实薄弱点。`;
+- AP Precalculus 不得提前写成微积分课；AB 不得引入 BC 专属内容；BC 可以诊断 AB 前置知识，但主要课时仍应服从老师提供的真实薄弱点。${progressionGuidance}`;
   }
 
   if (subject.code === 'ap_statistics') {
@@ -210,7 +213,7 @@ export function buildSystemPrompt(subject: SubjectDefinition): string {
 事实与范围
 - 只把输入明确提供的内容写成课堂事实，不编造成绩、日期、正确率、诊断结果或课堂活动。
 - 区分本节课已经观察到的表现和接下来准备验证的判断，不把试听表现等同于正式考试能力。
-- 内容只能涉及 ${subject.displayName}，允许使用的模块为：${modules}。
+- 课程主体和课时训练只能围绕 ${subject.displayName}，允许使用的模块为：${modules}。可以说明与前置或后续课程的真实衔接，但不能把其他科目的知识点写成本课程授课内容。
 
 受众与口吻
 - overview、classroomStatus、strength、currentFocus、lessonSummary、performance 和 outcomes 是老师本人向家长反馈。自然使用“我”“课堂上”“接下来我会”，也可以省略主语，不把老师写成第三者。

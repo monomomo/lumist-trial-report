@@ -124,7 +124,7 @@ export const SUBJECT_CATALOG = Object.freeze({
     'ap_precalculus',
     'AP Precalculus',
     ['Polynomial and Rational Functions', 'Exponential and Logarithmic Functions', 'Trigonometric and Polar Functions', 'Functions Involving Parameters, Vectors, and Matrices'],
-    'AP Precalculus 聚焦多项式与有理函数、指数与对数函数、三角与极坐标函数，以及含参数、向量和矩阵的函数建模；课程强调 covariation、multiple representations 与真实情境建模，不得写成 AP Calculus 课程。'
+    'AP Precalculus 聚焦多项式与有理函数、指数与对数函数、三角与极坐标函数，以及含参数、向量和矩阵的函数建模；课程强调 covariation、multiple representations 与真实情境建模。可以说明这些能力如何衔接 AP Calculus AB/BC 或迁移到 SAT 数学，但不得把求导、积分、微分方程或 SAT 专项训练写成本课程内容。'
   ),
   ap_physics_1: createApSubject(
     'ap_physics_1',

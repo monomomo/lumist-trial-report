@@ -98,7 +98,7 @@ const SHARED_RULE_PATTERNS = [
   /只把输入明确提供的内容写成课堂事实/,
   /区分本节课已经观察到的表现和接下来准备验证的判断/,
   /salesFollowUp 仅供内部使用/,
-  /内容只能涉及.+允许使用的模块/,
+  /课程主体和课时训练只能围绕.+允许使用的模块/,
   /固定课时块数量和时长顺序/,
   /每个 lesson 写 theme、content、difficulty 和 goal/,
   /coursePlan\.rationale 只写后续调整依据/,
@@ -106,6 +106,14 @@ const SHARED_RULE_PATTERNS = [
   /使用自然、克制、具体的中文/,
   /科目事实边界/
 ];
+
+test('AP Precalculus prompt supports bounded Calculus and SAT progression', () => {
+  const prompt = buildSystemPrompt(SUBJECT_CATALOG.ap_precalculus);
+  assert.match(prompt, /AP Calculus AB\/BC、SAT 数学的真实衔接/);
+  assert.match(prompt, /当前 Precalculus 内容的后续用途/);
+  assert.match(prompt, /不安排 Differentiation/);
+  assert.match(prompt, /不安排 Bluebook/);
+});
 
 test('catalog exposes exactly the supported subject codes', () => {
   assert.deepEqual(SUBJECT_CODES, EXPECTED_CODES);

@@ -30,7 +30,8 @@ const forbiddenPatterns: Record<string, RegExp[]> = {
     /Consumer Surplus|Producer Surplus|Price Elasticity|Perfect Competition|Monopoly|Oligopoly|Factor Markets|Externalities/i
   ],
   ap_precalculus: [
-    /Applications of Derivatives|Differential Equations|Infinite Sequences and Series|Taylor Series|Maclaurin Series/i
+    /Differentiation|Applications of Derivatives|Integration and Accumulation of Change|Applications of Integration|Differential Equations|Infinite Sequences and Series|Taylor Series|Maclaurin Series/i,
+    /Bluebook|Student Question Bank|Educator Question Bank|Digital SAT|SAT Module|Module 1|Module 2/i
   ],
   ap_physics_1: [
     /Gauss(?:’s|'s)? Law|Electric Potential|Capacitors|Electromagnetic Induction|Modern Physics/i
@@ -55,10 +56,15 @@ const forbiddenPatterns: Record<string, RegExp[]> = {
   ]
 };
 
+const allowedRelatedCourseCodes: Record<string, Set<string>> = {
+  ap_precalculus: new Set(['ap_calculus_ab', 'ap_calculus_bc', 'sat_math'])
+};
+
 export function hasSubjectScopeViolation(subjectCode: string, report: unknown): boolean {
   const text = JSON.stringify(report);
+  const allowedRelatedCourses = allowedRelatedCourseCodes[subjectCode] || new Set<string>();
   const explicitOtherCourse = SUBJECT_CODES
-    .filter((code) => code !== subjectCode)
+    .filter((code) => code !== subjectCode && !allowedRelatedCourses.has(code))
     .some((code) => new RegExp(escapeRegExp(SUBJECT_CATALOG[code].displayName), 'i').test(text));
   return explicitOtherCourse || (forbiddenPatterns[subjectCode] || []).some((pattern) => pattern.test(text));
 }

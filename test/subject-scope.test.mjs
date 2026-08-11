@@ -23,3 +23,12 @@ test('AP Computer Science A rejects calculus modules', () => {
   assert.equal(hasSubjectScopeViolation('ap_csa', { coursePlan: 'Classes, Recursion, Inheritance' }), false);
   assert.equal(hasSubjectScopeViolation('ap_csa', { coursePlan: 'Polar Coordinates and Taylor Series' }), true);
 });
+
+test('AP Precalculus allows Calculus and SAT progression without teaching those courses', () => {
+  assert.equal(hasSubjectScopeViolation('ap_precalculus', {
+    overview: '函数行为与多重表示能力可以衔接 AP Calculus AB/BC，也能迁移到 SAT 数学。',
+    coursePlan: 'Polynomial and Rational Functions, Exponential and Logarithmic Functions, Trigonometric and Polar Functions'
+  }), false);
+  assert.equal(hasSubjectScopeViolation('ap_precalculus', { coursePlan: 'Differentiation, Applications of Derivatives and Integration' }), true);
+  assert.equal(hasSubjectScopeViolation('ap_precalculus', { coursePlan: '使用 Bluebook Module 2 和 Student Question Bank 开展 SAT 专项训练' }), true);
+});
