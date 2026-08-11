@@ -2,6 +2,7 @@ import { createClient } from '@supabase/supabase-js';
 import { execFileSync } from 'node:child_process';
 import { chmodSync, mkdtempSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { basename, extname, join, relative } from 'node:path';
+import { compactCompleteText } from './teacher-profile-text.mjs';
 
 const BASE_TOKEN = process.env.FEISHU_TEACHER_BASE_TOKEN || 'LmYfb8Mw4a8T6wsOtexc6RfEnNh';
 const TABLE_ID = process.env.FEISHU_TEACHER_TABLE_ID || 'tblWhRxPsnyr7kVW';
@@ -56,11 +57,6 @@ function cleanText(value) {
   return typeof value === 'string' ? value.trim() : '';
 }
 
-function compactText(value, maxLength) {
-  const normalized = value.replace(/\s+/g, ' ').trim();
-  return normalized.length <= maxLength ? normalized : `${normalized.slice(0, maxLength - 1)}…`;
-}
-
 function splitSubjects(value) {
   return [...new Set(value.split(/[,，、/]/).map((item) => item.trim()).filter(Boolean))];
 }
@@ -83,7 +79,7 @@ function parseSections(intro, englishName) {
     const content = initial[title];
     if (content.length === 0) return [];
     const limit = title === '教学经历' || title === '过往成就' ? 210 : 160;
-    return [{ title, content: [compactText(content.join('；'), limit)] }];
+    return [{ title, content: [compactCompleteText(content.join('；'), limit)] }];
   }).slice(0, 4);
 }
 
@@ -102,7 +98,7 @@ function buildProfile(teacher) {
     username: buildUsername(teacher),
     publicName: teacher.englishName,
     title: titleSubjects ? `${titleSubjects}导师` : '国际课程导师',
-    summary: compactText(teaching || `${teacher.englishName} 老师专注于国际课程教学与个性化辅导。`, 115),
+    summary: compactCompleteText(teaching || `${teacher.englishName} 老师专注于国际课程教学与个性化辅导。`, 115),
     bio: sections.map((section) => section.content[0]),
     sections,
     subjects,
