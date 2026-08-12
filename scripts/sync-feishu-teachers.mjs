@@ -14,7 +14,13 @@ const APPLY = process.argv.includes('--apply');
 const ALLOW_WARNINGS = process.argv.includes('--allow-warnings');
 const SKIP_PHOTOS = process.argv.includes('--skip-photos');
 const RESET_PASSWORDS = process.argv.includes('--reset-passwords');
+const QR_ONLY = process.argv.includes('--qr-only');
 const INITIAL_PASSWORD = process.env.TEACHER_INITIAL_PASSWORD || '123456';
+
+const usernameOverrides = new Map([
+  ['吕静一', 'amberlyu'],
+  ['王琪涵', 'qihanwang'],
+]);
 
 const fieldNames = ['导师姓名', '海报用英文名', '所授科目', '导师小简介', '导师职业照片', '导师宣传二维码'];
 const sectionNames = ['教育背景', '教学经历', '过往成就', '擅长科目'];
@@ -48,7 +54,7 @@ function readTeachers() {
       subjectText: cleanText(values['所授科目']),
       intro: cleanText(values['导师小简介']),
       photos: Array.isArray(values['导师职业照片']) ? values['导师职业照片'] : [],
-      qrText: cleanText(values['导师宣传二维码']),
+      qrAttachments: Array.isArray(values['导师宣传二维码']) ? values['导师宣传二维码'] : [],
     }];
   });
 }
@@ -88,7 +94,7 @@ function parseSections(intro, englishName) {
 }
 
 function buildUsername(teacher) {
-  if (teacher.englishName.toLowerCase().startsWith('amber ')) return 'amberlyu';
+  if (usernameOverrides.has(teacher.name)) return usernameOverrides.get(teacher.name);
   return teacher.englishName.toLowerCase().replace(/[^a-z0-9]/g, '').slice(0, 32);
 }
 
@@ -130,10 +136,9 @@ function contentType(filename) {
   return 'image/jpeg';
 }
 
-function downloadPhoto(teacher, directory) {
-  const attachment = teacher.photos[0];
+function downloadAttachment(teacher, attachment, directory, prefix) {
   const extension = extname(attachment.name) || '.jpg';
-  const output = join(directory, `${teacher.recordId}${extension}`);
+  const output = join(directory, `${teacher.recordId}-${prefix}${extension}`);
   const relativeOutput = relative(process.cwd(), output);
   runLark([
     'base', '+record-download-attachment', '--profile', PROFILE, '--base-token', BASE_TOKEN,
@@ -141,6 +146,14 @@ function downloadPhoto(teacher, directory) {
     '--output', relativeOutput, '--overwrite', '--format', 'json',
   ]);
   return output;
+}
+
+function downloadPhoto(teacher, directory) {
+  return downloadAttachment(teacher, teacher.photos[0], directory, 'profile');
+}
+
+function downloadQr(teacher, directory) {
+  return downloadAttachment(teacher, teacher.qrAttachments[0], directory, 'qr');
 }
 
 async function listUsers(supabase) {
@@ -191,6 +204,55 @@ async function resetTeacherPasswords(teachers) {
     process.stdout.write(`已重置 ${teacher.name} / ${profile.username}\n`);
   }
   process.stdout.write(`全部账号凭据已写入 ${credentialsPath}\n`);
+}
+
+async function syncTeacherQrs(teachers) {
+  const withQr = teachers.filter((teacher) => teacher.qrAttachments.length > 0);
+  process.stdout.write(`飞书共 ${teachers.length} 位教师，${withQr.length} 位已有二维码，${teachers.length - withQr.length} 位暂无二维码\n`);
+  if (!APPLY) {
+    process.stdout.write(`${withQr.map((teacher) => `${teacher.name} / ${teacher.englishName}`).join('\n')}\n`);
+    process.stdout.write('当前为二维码预览模式，未修改 Supabase\n');
+    return;
+  }
+  const supabase = createAdminClient();
+  const users = await listUsers(supabase);
+  const usersByEmail = new Map(users.map((user) => [user.email?.toLowerCase(), user]));
+  const syncDirectory = join(process.cwd(), '.teacher-sync');
+  mkdirSync(syncDirectory, { recursive: true });
+  const tempDirectory = mkdtempSync(join(syncDirectory, 'qr-downloads-'));
+  let synced = 0;
+  const skipped = [];
+  for (const teacher of withQr) {
+    const username = buildUsername(teacher);
+    const user = usersByEmail.get(`${username}@${AUTH_DOMAIN}`);
+    if (!user) {
+      skipped.push(`${teacher.name}：未找到账号 ${username}`);
+      continue;
+    }
+    const { data: config, error: configReadError } = await supabase
+      .from('teacher_configs')
+      .select('teacher_id')
+      .eq('teacher_id', user.id)
+      .maybeSingle();
+    if (configReadError) throw new Error(`${teacher.name} 检查 teacher_configs 失败：${configReadError.message}`);
+    if (!config) {
+      skipped.push(`${teacher.name}：账号缺少 teacher_configs`);
+      continue;
+    }
+    const localQr = downloadQr(teacher, tempDirectory);
+    const qrPath = `${user.id}/qr${extname(localQr).toLowerCase() || '.jpg'}`;
+    const { error: uploadError } = await supabase.storage.from('teacher-assets').upload(qrPath, readFileSync(localQr), {
+      contentType: contentType(basename(localQr)),
+      upsert: true,
+    });
+    if (uploadError) throw new Error(`${teacher.name} 上传二维码失败：${uploadError.message}`);
+    const { error: configError } = await supabase.from('teacher_configs').update({ qr_path: qrPath }).eq('teacher_id', user.id);
+    if (configError) throw new Error(`${teacher.name} 更新二维码路径失败：${configError.message}`);
+    synced += 1;
+    process.stdout.write(`已同步二维码 ${teacher.name} / ${username}\n`);
+  }
+  process.stdout.write(`二维码同步完成：成功 ${synced} 位，跳过 ${skipped.length} 位\n`);
+  if (skipped.length > 0) process.stdout.write(`${skipped.join('\n')}\n`);
 }
 
 async function applyTeachers(teachers) {
@@ -266,33 +328,37 @@ async function applyTeachers(teachers) {
 }
 
 const teachers = readTeachers();
-const profiles = teachers.map((teacher) => ({ teacher, profile: buildProfile(teacher) }));
-const usernames = new Set();
-for (const item of profiles) {
-  const validation = validate(item.teacher, item.profile);
-  item.errors = validation.errors;
-  item.warnings = validation.warnings;
-  if (usernames.has(item.profile.username)) item.errors.push('账号名重复');
-  usernames.add(item.profile.username);
+if (QR_ONLY) {
+  await syncTeacherQrs(teachers);
+} else {
+  const profiles = teachers.map((teacher) => ({ teacher, profile: buildProfile(teacher) }));
+  const usernames = new Set();
+  for (const item of profiles) {
+    const validation = validate(item.teacher, item.profile);
+    item.errors = validation.errors;
+    item.warnings = validation.warnings;
+    if (usernames.has(item.profile.username)) item.errors.push('账号名重复');
+    usernames.add(item.profile.username);
+  }
+
+  process.stdout.write(`${JSON.stringify(profiles.map(({ teacher, profile, errors, warnings }) => ({
+    name: teacher.name,
+    displayName: profile.publicName,
+    username: profile.username,
+    subjects: profile.subjects.length,
+    errors,
+    warnings,
+  })), null, 2)}\n`);
+
+  const errors = profiles.flatMap((item) => item.errors.map((message) => `${item.teacher.name}：${message}`));
+  const warnings = profiles.flatMap((item) => item.warnings.map((message) => `${item.teacher.name}：${message}`));
+  process.stdout.write(`共 ${profiles.length} 位教师，${errors.length} 个错误，${warnings.length} 个警告\n`);
+
+  if (errors.length > 0) throw new Error(`教师资料校验失败：${errors.join('；')}`);
+  if (APPLY && warnings.length > 0 && !ALLOW_WARNINGS) {
+    throw new Error(`存在资料警告，请先修复飞书数据或明确追加 --allow-warnings：${warnings.join('；')}`);
+  }
+  if (APPLY && RESET_PASSWORDS) await resetTeacherPasswords(profiles.map((item) => item.teacher));
+  else if (APPLY) await applyTeachers(profiles.map((item) => item.teacher));
+  else process.stdout.write('当前为预览模式，未修改 Supabase\n');
 }
-
-process.stdout.write(`${JSON.stringify(profiles.map(({ teacher, profile, errors, warnings }) => ({
-  name: teacher.name,
-  displayName: profile.publicName,
-  username: profile.username,
-  subjects: profile.subjects.length,
-  errors,
-  warnings,
-})), null, 2)}\n`);
-
-const errors = profiles.flatMap((item) => item.errors.map((message) => `${item.teacher.name}：${message}`));
-const warnings = profiles.flatMap((item) => item.warnings.map((message) => `${item.teacher.name}：${message}`));
-process.stdout.write(`共 ${profiles.length} 位教师，${errors.length} 个错误，${warnings.length} 个警告\n`);
-
-if (errors.length > 0) throw new Error(`教师资料校验失败：${errors.join('；')}`);
-if (APPLY && warnings.length > 0 && !ALLOW_WARNINGS) {
-  throw new Error(`存在资料警告，请先修复飞书数据或明确追加 --allow-warnings：${warnings.join('；')}`);
-}
-if (APPLY && RESET_PASSWORDS) await resetTeacherPasswords(profiles.map((item) => item.teacher));
-else if (APPLY) await applyTeachers(profiles.map((item) => item.teacher));
-else process.stdout.write('当前为预览模式，未修改 Supabase\n');

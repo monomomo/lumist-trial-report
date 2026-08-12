@@ -311,7 +311,7 @@ PDF 不是服务端生成文件，而是调用浏览器打印。建议使用 Chr
 
 ## 9. 老师资料模型
 
-现有 Supabase 已创建 27 位老师账号，并同步了结构化介绍和职业照片。Amber 当前有二维码；其他老师大多没有二维码，页面会自动隐藏空缺区域。飞书老师数据源位于[老师信息多维表格](https://vm94j8bzy7.feishu.cn/wiki/HH5FwfbfRiIc30kh9CPcOkMmnyb?table=tblWhRxPsnyr7kVW&view=vewGZWuWr6)，实际访问权限由公司飞书管理员控制。
+现有 Supabase 已创建 27 位老师账号，并同步了结构化介绍和职业照片。截至 2026 年 8 月 13 日，20 位现有账号已同步二维码，其余账号没有二维码时页面会自动隐藏空缺区域。飞书老师数据源当前有 31 位老师，其中新增但尚无二维码的老师不会由二维码专项同步自动创建账号。数据源位于[老师信息多维表格](https://vm94j8bzy7.feishu.cn/wiki/HH5FwfbfRiIc30kh9CPcOkMmnyb?table=tblWhRxPsnyr7kVW&view=vewGZWuWr6)，实际访问权限由公司飞书管理员控制。
 
 老师相关数据分三部分：
 
@@ -349,6 +349,8 @@ Amber 还保留了一套代码内默认资料和公开静态素材，作为配�
 ```bash
 npm run teachers:preview
 npm run teachers:sync
+npm run teachers:preview-qr
+npm run teachers:sync-qr
 npm run teachers:reset-passwords
 ```
 
@@ -378,7 +380,7 @@ TEACHER_INITIAL_PASSWORD=123456
 - 导师职业照片
 - 导师宣传二维码
 
-当前实现可以创建/更新 Auth 用户、`profiles`、`teacher_configs` 和老师照片。二维码同步尚未实现，而且飞书里的二维码字段目前不适合直接作为 Storage 图片附件使用。后续建议把二维码改成附件字段，再扩展脚本上传文件并写入 `qr_path`。
+当前实现可以创建/更新 Auth 用户、`profiles`、`teacher_configs` 和老师照片。二维码字段为附件类型，可用 `teachers:preview-qr` 只读核对，再用 `teachers:sync-qr` 将已有二维码上传到私有 `teacher-assets` bucket 并更新 `qr_path`。二维码专项同步不会创建老师账号，也不会清空飞书中仍为空的二维码。
 
 脚本现在仍带有原开发机的 `lark-cli` 路径以及飞书数据源标识默认值。公司接手后的第一项代码清理应当是删除这些机器相关默认值，改为缺少环境变量就明确报错。公司电脑还需要自行安装并授权 `lark-cli`，不能依赖原开发机上的 `lumist-feishu` profile。
 
@@ -406,7 +408,7 @@ supabase/migrations/202607270001_multi_teacher_profiles.sql
 
 | Bucket | 当前用途 |
 | --- | --- |
-| `teacher-assets` | 私有老师照片和未来二维码 |
+| `teacher-assets` | 私有老师照片和二维码 |
 | `report-pdfs` | 已创建但当前未被应用使用 |
 
 安全规则：
@@ -525,7 +527,7 @@ npm run build
 4. 配置 Auth、URL、publishable key 和 service role/secret key
 5. 在公司电脑配置飞书 CLI 与同步环境变量
 6. preview 后执行老师同步
-7. 迁移老师照片和未来二维码
+7. 迁移老师照片和二维码
 8. 单独迁移历史 `reports`
 9. 制定 Auth 用户和密码迁移方案
 10. 验证每位老师的用户 ID 与 `profiles`、`teacher_configs`、Storage 目录一致
@@ -570,7 +572,7 @@ npm run build
 ### 16.2 老师资料
 
 - [ ] 登录老师的姓名、职称、简介和科目正确
-- [ ] Amber 照片和二维码正确
+- [ ] 抽查 Amber 和至少两位非 Amber 老师的照片与二维码
 - [ ] 其他老师照片正确
 - [ ] 没有二维码的老师不会显示空白或破图
 - [ ] A 老师不能读取 B 老师资料或报告
