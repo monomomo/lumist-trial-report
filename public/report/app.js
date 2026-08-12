@@ -1,5 +1,5 @@
 import { ALLOWED_DURATIONS, cloneCoursePlan, calculateTotalHours, validateCoursePlan, moveItem, moveLesson, rebalanceFinalPage, createStage, createLesson } from './course-plan-utils.js';
-import { SUBJECT_CODES, SUBJECT_CATALOG, resolveSubject } from './catalog.js';
+import { SUBJECT_CODES, SUBJECT_CATALOG, resolveSubject, validateSubjectScores } from './catalog.js';
 import { createSubjectViewModel, normalizeTeacherProfile, buildPdfFileName, canUseFallback, buildFallbackReport, resolveTargetScore } from './report-domain.js';
 import { SUMMARY_FIELD_RULES, cloneReportSummary, validateReportSummary } from './summary-editor-utils.js';
 
@@ -76,6 +76,7 @@ let historicalTeacherProfile = null;
 let summaryPageCount = 1;
 let visibleSubjectCodes = [];
 let activeSubjectOptionIndex = -1;
+let subjectSelectionConfirmed = true;
 
 function populateSubjectSelect() {
   const select = $('#subject-select');
@@ -142,11 +143,12 @@ function closeSubjectOptions() {
   $('#subject-options').classList.add('hidden');
   $('#subject-search').setAttribute('aria-expanded', 'false');
   $('#subject-search').removeAttribute('aria-activedescendant');
-  $('#subject-search').value = getSubjectShortName(currentSubjectCode);
 }
 
 function chooseSubject(code) {
   if (!SUBJECT_CODES.includes(code)) return;
+  subjectSelectionConfirmed = true;
+  $('#subject-search').setCustomValidity('');
   $('#subject-select').value = code;
   $('#subject-search').value = getSubjectShortName(code);
   closeSubjectOptions();
@@ -192,8 +194,12 @@ function onSubjectChange() {
 function applySubjectSelection(code) {
   currentSubjectCode = code;
   const vm = createSubjectViewModel(code);
+  subjectSelectionConfirmed = true;
   $('#subject-select').value = code;
   $('#subject-search').value = getSubjectShortName(code);
+  $('#subject-search').setCustomValidity('');
+  $('#current-score').setCustomValidity('');
+  $('#target-score').setCustomValidity('');
   $('#form-eyebrow').textContent = `${getSubjectShortName(code)}试听`;
   const scoreLabel = code.startsWith('ap_') ? 'AP 成绩' : vm.scoreLabel;
   $('#score-label-current').textContent = `当前 ${scoreLabel}（可选）`;
@@ -884,8 +890,12 @@ function applyCoursePlan() {
   }
   clearValidationErrors();
   if (validation.warnings.length && !window.confirm(`有 ${validation.warnings.length} 项内容较长，可能影响排版。仍要应用吗？`)) return;
+  const previousTotalHours = Number(currentReportData.coursePlan.totalHours);
+  if (Math.abs(previousTotalHours - draftCoursePlan.totalHours) > 0.001
+    && !window.confirm(`总课时将从 ${previousTotalHours}h 调整为 ${draftCoursePlan.totalHours}h，是否确认？`)) return;
   renderCoursePlan(draftCoursePlan);
   currentReportData.coursePlan = cloneCoursePlan(draftCoursePlan);
+  $('#total-hours').value = String(draftCoursePlan.totalHours);
   document.querySelector('#report-view .eyebrow').textContent = '课程规划已编辑 · 未云端保存';
   closePlanEditor();
   document.querySelector('.reference-plan-page')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
@@ -895,6 +905,7 @@ function restoreOriginalCoursePlan() {
   if (!originalAiCoursePlan) return;
   if (!window.confirm('确定恢复为本次 AI 生成的原始课程规划吗？当前课程规划修改将被覆盖。')) return;
   currentReportData.coursePlan = cloneCoursePlan(originalAiCoursePlan);
+  $('#total-hours').value = String(currentReportData.coursePlan.totalHours);
   renderCoursePlan(currentReportData.coursePlan);
   document.querySelector('#report-view .eyebrow').textContent = '已恢复 AI 原始课程规划 · 未云端保存';
   closePlanEditor();
@@ -953,6 +964,36 @@ function collectFormData() {
 
 function getSelectedExamDate() {
   return currentSubjectCode.startsWith('ap_') ? $('#ap-exam-date').value : $('#exam-date').value.trim();
+}
+
+function validateGenerationInputs() {
+  const notice = $('#generation-notice');
+  if (!subjectSelectionConfirmed) {
+    $('#subject-search').setCustomValidity('请从下拉列表中选择课程科目');
+    notice.classList.add('error');
+    notice.innerHTML = '<strong>科目未确认：</strong>请从搜索结果中点击或按 Enter 选择课程科目。';
+    $('#subject-search').reportValidity();
+    return false;
+  }
+  const currentScore = $('#current-score');
+  const targetScore = $('#target-score');
+  currentScore.setCustomValidity('');
+  targetScore.setCustomValidity('');
+  const validation = validateSubjectScores(
+    currentSubjectCode,
+    currentScore.value,
+    resolveTargetScore(currentSubjectCode, targetScore.value),
+  );
+  if (validation.valid) return true;
+  validation.errors.forEach((error) => {
+    const input = error.path === 'currentScore' ? currentScore : targetScore;
+    input.setCustomValidity(error.message);
+  });
+  notice.classList.add('error');
+  notice.innerHTML = `<strong>成绩填写有误：</strong>${escapeHtml(validation.errors[0].message)}`;
+  const firstInput = validation.errors[0].path === 'currentScore' ? currentScore : targetScore;
+  firstInput.reportValidity();
+  return false;
 }
 
 function resolveStoredSubjectCode(subjectName) {
@@ -1060,6 +1101,7 @@ $('#report-form').addEventListener('submit', async (event) => {
   event.preventDefault();
   const button = $('#generate-report');
   const notice = $('#generation-notice');
+  if (!validateGenerationInputs()) return;
   button.disabled = true;
   button.textContent = 'AI 正在分析并生成课程规划…';
   notice.classList.remove('error');
@@ -1098,6 +1140,7 @@ $('#report-form').addEventListener('submit', async (event) => {
       notice.classList.add('error');
       const messages = {
         AI_GENERATION_FAILED: 'AI 服务暂时无响应，请稍后重试。',
+        INVALID_SCORE: '当前成绩或目标成绩不符合所选科目的分数范围。',
         SUBJECT_SCOPE_VIOLATION: 'AI 内容出现跨科目术语，请重新生成。',
         REPORT_QUALITY_FAILED: 'AI 连续两次未达到报告质量要求，请重新生成。'
       };
@@ -1116,11 +1159,16 @@ $('#subject-search').addEventListener('focus', (event) => {
   openSubjectOptions();
 });
 $('#subject-search').addEventListener('input', (event) => {
+  subjectSelectionConfirmed = false;
+  event.target.setCustomValidity('');
   renderSubjectOptions(event.target.value);
   openSubjectOptions();
 });
 $('#subject-search').addEventListener('keydown', (event) => {
   if (event.key === 'Escape') {
+    subjectSelectionConfirmed = true;
+    event.target.value = getSubjectShortName(currentSubjectCode);
+    event.target.setCustomValidity('');
     closeSubjectOptions();
     event.target.blur();
     return;
@@ -1155,6 +1203,8 @@ document.addEventListener('click', (event) => {
   if (!event.target.closest('#subject-combobox')) closeSubjectOptions();
 });
 $('#subject-select').addEventListener('change', onSubjectChange);
+$('#current-score').addEventListener('input', (event) => event.target.setCustomValidity(''));
+$('#target-score').addEventListener('input', (event) => event.target.setCustomValidity(''));
 document.querySelectorAll('.nav-item').forEach((item) => item.addEventListener('click', () => {
   changeView(item.dataset.view);
   if (item.dataset.view === 'history') loadHistoryReports();

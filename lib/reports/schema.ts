@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { SUBJECT_CODES, SUBJECT_CATALOG } from '../subjects/catalog.js';
+import { SUBJECT_CODES, SUBJECT_CATALOG, validateSubjectScores } from '../subjects/catalog.js';
 
 const subjectNames = SUBJECT_CODES.map((code) => SUBJECT_CATALOG[code].displayName) as [string, ...string[]];
 const subjectSchema = z.enum(subjectNames);
@@ -67,15 +67,27 @@ const reportSaveShape = {
   salesFollowUp: salesFollowUpSchema,
 };
 
+function validateReportScores(data: { subject: string; currentScore: string; targetScore: string }, context: z.RefinementCtx) {
+  const subjectCode = SUBJECT_CODES.find((code) => SUBJECT_CATALOG[code].displayName === data.subject);
+  if (!subjectCode) return;
+  const targetScore = data.targetScore || (subjectCode.startsWith('ap_') ? '5' : '');
+  const validation = validateSubjectScores(subjectCode, data.currentScore, targetScore);
+  validation.errors.forEach((error) => context.addIssue({
+    code: 'custom',
+    path: [error.path],
+    message: error.message,
+  }));
+}
+
 export const reportCreateSchema = z.object({
   ...reportSaveShape,
   id: z.null().optional(),
-}).strict();
+}).strict().superRefine(validateReportScores);
 
 export const reportUpdateSchema = z.object({
   ...reportSaveShape,
   id: z.string().uuid(),
-}).strict();
+}).strict().superRefine(validateReportScores);
 
 export type ReportCreateInput = z.infer<typeof reportCreateSchema>;
 export type ReportUpdateInput = z.infer<typeof reportUpdateSchema>;

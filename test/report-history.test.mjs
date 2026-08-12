@@ -83,6 +83,14 @@ test('report save schema rejects malformed data and inconsistent total hours', (
   assert.equal(reportCreateSchema.safeParse(badDuration).success, false);
 });
 
+test('report save schema rejects scores outside the selected subject range', () => {
+  const invalidApScore = { ...createValidReportPayload(), currentScore: '6' };
+  const invalidSatTarget = { ...createValidReportPayload(), subject: 'SAT 数学', currentScore: '700', targetScore: '690' };
+
+  assert.equal(reportCreateSchema.safeParse(invalidApScore).success, false);
+  assert.equal(reportCreateSchema.safeParse(invalidSatTarget).success, false);
+});
+
 test('report workspace exposes persistent history actions without stale demo controls', async () => {
   const htmlSource = await readFile(new URL('../public/report/index.html', import.meta.url), 'utf8');
   const appSource = await readFile(new URL('../public/report/app.js', import.meta.url), 'utf8');

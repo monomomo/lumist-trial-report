@@ -53,6 +53,54 @@ const forbiddenPatterns: Record<string, RegExp[]> = {
   ],
   ap_english_language: [
     /Poetry Analysis|Prose Fiction Analysis|Longer Fiction and Drama/i
+  ],
+  ap_chemistry: [
+    /Cellular Respiration|Gene Expression|Natural Selection|Ecology|Kinematics|Java Fundamentals|DBQ|LEQ/i
+  ],
+  ap_biology: [
+    /Electrochemistry|Galvanic Cell|Nernst Equation|Kinematics|Java Fundamentals|DBQ|LEQ/i
+  ],
+  ap_statistics: [
+    /Differentiation|Integration and Accumulation|Kinematics|Supply and Demand|Java Fundamentals|DBQ|LEQ/i
+  ],
+  ap_us_history: [
+    /Global Tapestry|Land-Based Empires|Renaissance and Exploration|Age of Reformation|Java Fundamentals|Differentiation/i
+  ],
+  ap_world_history: [
+    /Period 1:\s*1491|Period 9:\s*1980|Renaissance and Exploration|Age of Reformation|Java Fundamentals|Differentiation/i
+  ],
+  ap_european_history: [
+    /Global Tapestry|Land-Based Empires|Period 1:\s*1491|Period 9:\s*1980|Java Fundamentals|Differentiation/i
+  ],
+  ap_psychology: [
+    /Supply and Demand|Aggregate Demand|Kinematics|Chemical Equilibrium|Java Fundamentals|DBQ|LEQ/i
+  ],
+  ap_human_geography: [
+    /Foundations of American Democracy|Supreme Court Cases|Comparative Case Studies|Differentiation|Java Fundamentals|Chemical Equilibrium/i
+  ],
+  ap_comparative_government: [
+    /Foundations of American Democracy|Supreme Court Cases|Population and Migration Patterns|Urban Land-Use|Differentiation|Java Fundamentals/i
+  ],
+  ap_art_history: [
+    /Harmony and Voice Leading|Chord Progressions|Sight Singing|Part Writing|Differentiation|Java Fundamentals/i
+  ],
+  ap_environmental_science: [
+    /Gene Expression and Regulation|Cell Cycle|Nernst Equation|Differentiation|Java Fundamentals|Literary Argument/i
+  ],
+  ap_us_government: [
+    /Comparative Case Studies|Political Systems, Regimes|Population and Migration Patterns|Urban Land-Use|Differentiation|Java Fundamentals/i
+  ],
+  ap_chinese: [
+    /Latin Reading and Translation|Latin Syntax|Sight Reading|Literary Argument|Synthesis Essay|Java Fundamentals|Differentiation/i
+  ],
+  ap_seminar: [
+    /Bluebook|Desmos|ArrayList|Sight Singing/i
+  ],
+  ap_latin: [
+    /Interpersonal Communication|Presentational Communication|Cultural Comparison|Synthesis Essay|Java Fundamentals|Differentiation/i
+  ],
+  ap_music_theory: [
+    /Visual Analysis|Contextual Analysis|Artistic Attribution|Global Prehistory|Differentiation|Java Fundamentals/i
   ]
 };
 

@@ -128,7 +128,29 @@ test('AP subjects use 5 as the default target score', async () => {
 
   assert.match(appSource, /目标 AP 成绩（默认 5）/);
   assert.match(appSource, /resolveTargetScore\(currentSubjectCode, \$\('#target-score'\)\.value\)/);
-  assert.match(routeSource, /targetScore: parsed\.data\.targetScore \|\| \(subject\.code\.startsWith\('ap_'\) \? '5' : ''\)/);
+  assert.match(routeSource, /const targetScore = parsed\.data\.targetScore \|\| \(subject\.code\.startsWith\('ap_'\) \? '5' : ''\)/);
+  assert.match(routeSource, /promptData = \{[\s\S]*?targetScore,/);
+});
+
+test('generation requires a confirmed subject and valid subject scores', async () => {
+  const appSource = await readFile(new URL('../public/report/app.js', import.meta.url), 'utf8');
+  const routeSource = await readFile(new URL('../app/api/generate-report/route.ts', import.meta.url), 'utf8');
+
+  assert.match(appSource, /let subjectSelectionConfirmed = true/);
+  assert.match(appSource, /subjectSelectionConfirmed = false/);
+  assert.match(appSource, /请从下拉列表中选择课程科目/);
+  assert.match(appSource, /validateSubjectScores\(/);
+  assert.match(appSource, /if \(!validateGenerationInputs\(\)\) return/);
+  assert.match(routeSource, /validateSubjectScores\(subject\.code, parsed\.data\.currentScore, targetScore\)/);
+  assert.match(routeSource, /error: 'INVALID_SCORE'/);
+});
+
+test('course plan hour changes require confirmation and update the form total', async () => {
+  const appSource = await readFile(new URL('../public/report/app.js', import.meta.url), 'utf8');
+
+  assert.match(appSource, /总课时将从 \$\{previousTotalHours\}h 调整为 \$\{draftCoursePlan\.totalHours\}h/);
+  assert.match(appSource, /\$\('#total-hours'\)\.value = String\(draftCoursePlan\.totalHours\)/);
+  assert.match(appSource, /\$\('#total-hours'\)\.value = String\(currentReportData\.coursePlan\.totalHours\)/);
 });
 
 test('parent copy protection applies teacher voice rules to every subject', async () => {

@@ -2,7 +2,7 @@ import OpenAI from 'openai';
 import { zodTextFormat } from 'openai/helpers/zod';
 import { NextResponse } from 'next/server';
 import { z } from 'zod';
-import { resolveSubject } from '@/lib/subjects/catalog';
+import { resolveSubject, validateSubjectScores } from '@/lib/subjects/catalog';
 import { buildSystemPrompt, buildUserInput } from '@/lib/subjects/prompt';
 import { hasSubjectScopeViolation } from '@/lib/subjects/scope';
 import { getCoursePlanQualityIssues } from '@/lib/subjects/course-plan-quality';
@@ -212,10 +212,15 @@ export async function POST(request: Request) {
     }
 
     const subject = resolveSubject(parsed.data.subjectCode);
+    const targetScore = parsed.data.targetScore || (subject.code.startsWith('ap_') ? '5' : '');
+    const scoreValidation = validateSubjectScores(subject.code, parsed.data.currentScore, targetScore);
+    if (!scoreValidation.valid) {
+      return NextResponse.json({ error: 'INVALID_SCORE', issues: scoreValidation.errors }, { status: 400 });
+    }
     const lessonDurations = buildLessonDurationSlots(parsed.data.totalHours);
     const promptData = {
       ...parsed.data,
-      targetScore: parsed.data.targetScore || (subject.code.startsWith('ap_') ? '5' : ''),
+      targetScore,
       lessonDurations,
     };
 
