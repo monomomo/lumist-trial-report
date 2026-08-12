@@ -153,6 +153,20 @@ test('course plan hour changes require confirmation and update the form total', 
   assert.match(appSource, /\$\('#total-hours'\)\.value = String\(currentReportData\.coursePlan\.totalHours\)/);
 });
 
+test('generation waits for checklist confirmation and renders a non-blocking quality review', async () => {
+  const htmlSource = await readFile(new URL('../public/report/index.html', import.meta.url), 'utf8');
+  const appSource = await readFile(new URL('../public/report/app.js', import.meta.url), 'utf8');
+  const routeSource = await readFile(new URL('../app/api/generate-report/route.ts', import.meta.url), 'utf8');
+
+  assert.match(htmlSource, /id="generation-checklist-modal"/);
+  assert.match(htmlSource, /确认并生成/);
+  assert.match(appSource, /if \(!await openGenerationChecklist\(\)\) return/);
+  assert.match(appSource, /buildGenerationChecklist\(/);
+  assert.match(appSource, /buildReportQualityChecks\(/);
+  assert.match(routeSource, /qualityReview: \{/);
+  assert.match(routeSource, /subjectScopePassed: !hasSubjectScopeViolation/);
+});
+
 test('parent copy protection applies teacher voice rules to every subject', async () => {
   const source = await readFile(new URL('../app/api/generate-report/route.ts', import.meta.url), 'utf8');
   assert.equal(source.includes("if (subjectCode !== 'sat_math') return report;"), false);

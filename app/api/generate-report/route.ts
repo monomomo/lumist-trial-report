@@ -320,19 +320,30 @@ ${JSON.stringify(repair.report)}
       }))
     }));
     const stages = applyLessonDurationSlots(normalizedStages, lessonDurations);
+    const finalReport = {
+      ...parentReport,
+      priorityAreas: normalizedPriorityAreas,
+      teacherNotice: buildTeacherNotice(parsed.data.teacherNotes),
+      coursePlan: {
+        ...parentReport.coursePlan,
+        rationale: limitText(normalizeRationale(parentReport.coursePlan.rationale), 180),
+        stages,
+        totalHours: parsed.data.totalHours
+      }
+    };
+    const finalModelWarnings = getCoursePlanQualityIssues(finalReport, subject.code, lessonDurations.length);
+    const finalTeacherVoiceIssues = getParentVoiceIssues(finalReport);
 
     return NextResponse.json({
       generated: true,
       model: process.env.OPENAI_MODEL || 'gpt-5-mini',
       report: {
-        ...parentReport,
-        priorityAreas: normalizedPriorityAreas,
-        teacherNotice: buildTeacherNotice(parsed.data.teacherNotes),
-        coursePlan: {
-          ...parentReport.coursePlan,
-          rationale: limitText(normalizeRationale(parentReport.coursePlan.rationale), 180),
-          stages,
-          totalHours: parsed.data.totalHours
+        ...finalReport,
+        qualityReview: {
+          reviewCompleted: true,
+          subjectScopePassed: !hasSubjectScopeViolation(subject.code, finalReport),
+          teacherVoicePassed: finalTeacherVoiceIssues.length === 0,
+          modelWarnings: [...finalModelWarnings, ...finalTeacherVoiceIssues]
         }
       }
     });

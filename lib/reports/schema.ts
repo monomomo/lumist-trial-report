@@ -45,6 +45,12 @@ const reportDataSchema = z.object({
   outcomes: z.array(z.string().trim().min(1).max(120)).min(1).max(5),
   priorityAreas: z.array(z.string().trim().min(1).max(80)).min(1).max(6),
   teacherNotice: z.string().trim().max(500).optional(),
+  qualityReview: z.object({
+    reviewCompleted: z.boolean(),
+    subjectScopePassed: z.boolean(),
+    teacherVoicePassed: z.boolean(),
+    modelWarnings: z.array(z.string().trim().min(1).max(300)).max(20),
+  }).strict().optional(),
   target: z.string().trim().max(50).optional(),
 }).strict();
 

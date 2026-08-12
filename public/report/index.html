@@ -558,6 +558,26 @@
       </main>
     </div>
     <div
+      id="generation-checklist-modal"
+      class="plan-editor-modal generation-checklist-modal hidden"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="generation-checklist-title"
+    >
+      <div class="generation-checklist-shell">
+        <header>
+          <p class="eyebrow">生成前确认</p>
+          <h2 id="generation-checklist-title">请确认本次报告信息</h2>
+          <p>确认后才会调用 AI，避免因为科目、分数或课时填写错误而重新生成。</p>
+        </header>
+        <main id="generation-checklist-content"></main>
+        <footer>
+          <button type="button" class="secondary-btn" data-checklist-action="edit">返回修改</button>
+          <button type="button" class="primary-btn" data-checklist-action="confirm">确认并生成</button>
+        </footer>
+      </div>
+    </div>
+    <div
       id="summary-editor-modal"
       class="plan-editor-modal summary-editor-modal hidden"
       role="dialog"
@@ -654,6 +674,6 @@
         </footer>
       </div>
     </div>
-    <script type="module" src="app.js?v=summary-editor-1"></script>
+    <script type="module" src="app.js?v=quality-check-1"></script>
   </body>
 </html>

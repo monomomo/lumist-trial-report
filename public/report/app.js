@@ -2,6 +2,7 @@ import { ALLOWED_DURATIONS, cloneCoursePlan, calculateTotalHours, validateCourse
 import { SUBJECT_CODES, SUBJECT_CATALOG, resolveSubject, validateSubjectScores } from './catalog.js';
 import { createSubjectViewModel, normalizeTeacherProfile, buildPdfFileName, canUseFallback, buildFallbackReport, resolveTargetScore } from './report-domain.js';
 import { SUMMARY_FIELD_RULES, cloneReportSummary, validateReportSummary } from './summary-editor-utils.js';
+import { buildGenerationChecklist, buildReportQualityChecks } from './report-quality-utils.js';
 
 const sampleOne = '我刚上了一节SAT数学试听课。根据课前沟通，学生已经不记得SAT数学的知识点了。所以我们计划从头开始梳理知识点，同学上课互动很积极，做题的正确率也挺好的，中等难度的题也可以做对，没有她自己说的那么基础差。但是确实是有些知识点有遗忘。所以我计划接下来先从头补知识点，让同学建立SAT数学知识图谱。';
 const sampleTwo = '学生课上挺活泼的，爱互动，愿意思考，做题的准确率其实很不错。因为学生不了解SAT考点，第一节课带学生看了SAT的4章内容。学生现在在学微积分，所以Algebra的内容比较熟练，但因为比较久没有接触概率、几何的东西，这两章相对薄弱。';
@@ -77,6 +78,7 @@ let summaryPageCount = 1;
 let visibleSubjectCodes = [];
 let activeSubjectOptionIndex = -1;
 let subjectSelectionConfirmed = true;
+let generationChecklistResolver = null;
 
 function populateSubjectSelect() {
   const select = $('#subject-select');
@@ -568,9 +570,24 @@ function renderReport(data) {
   renderTeacherProfile();
   layoutSummaryPages();
   renderCoursePlan(data.coursePlan);
+  renderReportQualityNotice(data);
+}
+
+function renderReportQualityNotice(data) {
   const qualityNotice = $('#report-quality-notice');
-  qualityNotice.textContent = data.teacherNotice || '';
-  qualityNotice.classList.toggle('hidden', !data.teacherNotice);
+  const layoutWarnings = validateCoursePlan(data.coursePlan).warnings;
+  const checks = buildReportQualityChecks({
+    subjectCode: currentSubjectCode,
+    report: data,
+    targetScore: resolveTargetScore(currentSubjectCode, $('#target-score').value),
+    requestedTotalHours: $('#total-hours').value,
+    layoutWarnings,
+    qualityReview: data.qualityReview,
+  });
+  const warnings = checks.filter((check) => check.status === 'warning');
+  qualityNotice.classList.remove('hidden');
+  qualityNotice.classList.toggle('has-warnings', warnings.length > 0);
+  qualityNotice.innerHTML = `<div class="quality-notice-header"><strong>报告质量检查</strong><span class="quality-notice-summary">${checks.length - warnings.length} 项通过${warnings.length ? ` · ${warnings.length} 项建议检查` : ''}</span></div><ul class="quality-check-list">${checks.map((check) => `<li class="${check.status}"><span class="quality-check-icon">${check.status === 'passed' ? '✓' : '!'}</span><span class="quality-check-label">${escapeHtml(check.label)}</span><span class="quality-check-message">${escapeHtml(check.message)}</span></li>`).join('')}</ul>`;
 }
 
 function changeView(id) {
@@ -896,6 +913,7 @@ function applyCoursePlan() {
   renderCoursePlan(draftCoursePlan);
   currentReportData.coursePlan = cloneCoursePlan(draftCoursePlan);
   $('#total-hours').value = String(draftCoursePlan.totalHours);
+  renderReportQualityNotice(currentReportData);
   document.querySelector('#report-view .eyebrow').textContent = '课程规划已编辑 · 未云端保存';
   closePlanEditor();
   document.querySelector('.reference-plan-page')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
@@ -907,6 +925,7 @@ function restoreOriginalCoursePlan() {
   currentReportData.coursePlan = cloneCoursePlan(originalAiCoursePlan);
   $('#total-hours').value = String(currentReportData.coursePlan.totalHours);
   renderCoursePlan(currentReportData.coursePlan);
+  renderReportQualityNotice(currentReportData);
   document.querySelector('#report-view .eyebrow').textContent = '已恢复 AI 原始课程规划 · 未云端保存';
   closePlanEditor();
   document.querySelector('.reference-plan-page')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
@@ -964,6 +983,41 @@ function collectFormData() {
 
 function getSelectedExamDate() {
   return currentSubjectCode.startsWith('ap_') ? $('#ap-exam-date').value : $('#exam-date').value.trim();
+}
+
+function getGenerationChecklistItems() {
+  const formData = collectFormData();
+  const teacher = getActiveTeacherProfile();
+  return buildGenerationChecklist({
+    studentName: formData.studentName,
+    subjectName: createSubjectViewModel(currentSubjectCode).displayName,
+    currentScore: formData.currentScore,
+    targetScore: formData.targetScore,
+    examDate: formData.examDate,
+    totalHours: formData.totalHours,
+    teacherName: teacher?.displayName || '',
+    notesLength: formData.teacherNotes.length,
+  });
+}
+
+function closeGenerationChecklist(confirmed) {
+  $('#generation-checklist-modal').classList.add('hidden');
+  document.body.classList.remove('modal-open');
+  const resolve = generationChecklistResolver;
+  generationChecklistResolver = null;
+  resolve?.(confirmed);
+}
+
+function openGenerationChecklist() {
+  if (generationChecklistResolver) closeGenerationChecklist(false);
+  const items = getGenerationChecklistItems();
+  $('#generation-checklist-content').innerHTML = items.map((item) => `<div class="generation-checklist-item ${escapeHtml(item.status)}"><span>${escapeHtml(item.label)}</span><b>${escapeHtml(item.value)}</b></div>`).join('');
+  $('#generation-checklist-modal').classList.remove('hidden');
+  document.body.classList.add('modal-open');
+  window.setTimeout(() => $('[data-checklist-action="confirm"]')?.focus(), 0);
+  return new Promise((resolve) => {
+    generationChecklistResolver = resolve;
+  });
 }
 
 function validateGenerationInputs() {
@@ -1102,6 +1156,7 @@ $('#report-form').addEventListener('submit', async (event) => {
   const button = $('#generate-report');
   const notice = $('#generation-notice');
   if (!validateGenerationInputs()) return;
+  if (!await openGenerationChecklist()) return;
   button.disabled = true;
   button.textContent = 'AI 正在分析并生成课程规划…';
   notice.classList.remove('error');
@@ -1205,6 +1260,13 @@ document.addEventListener('click', (event) => {
 $('#subject-select').addEventListener('change', onSubjectChange);
 $('#current-score').addEventListener('input', (event) => event.target.setCustomValidity(''));
 $('#target-score').addEventListener('input', (event) => event.target.setCustomValidity(''));
+$('#generation-checklist-modal').addEventListener('click', (event) => {
+  if (event.target.dataset.checklistAction === 'edit') closeGenerationChecklist(false);
+  if (event.target.dataset.checklistAction === 'confirm') closeGenerationChecklist(true);
+});
+window.addEventListener('keydown', (event) => {
+  if (event.key === 'Escape' && generationChecklistResolver) closeGenerationChecklist(false);
+});
 document.querySelectorAll('.nav-item').forEach((item) => item.addEventListener('click', () => {
   changeView(item.dataset.view);
   if (item.dataset.view === 'history') loadHistoryReports();
