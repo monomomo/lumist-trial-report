@@ -136,11 +136,11 @@ async function getTeacherProfileContext(
   }
 
   let bio: string[] = preset?.bio ?? DEFAULT_BIO;
-  if (config?.bio) {
+  if (config && Array.isArray(config.bio)) {
+    bio = config.bio.map(String);
+  } else if (config?.bio) {
     const raw = config.bio;
-    if (Array.isArray(raw) && raw.length > 0) {
-      bio = raw.map(String);
-    } else if (typeof raw === 'object' && Array.isArray((raw as Record<string, unknown>).paragraphs) && (raw as Record<string, string[]>).paragraphs.length > 0) {
+    if (typeof raw === 'object' && Array.isArray((raw as Record<string, unknown>).paragraphs) && (raw as Record<string, string[]>).paragraphs.length > 0) {
       bio = (raw as Record<string, string[]>).paragraphs.map(String);
     }
   }

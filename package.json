@@ -8,6 +8,8 @@
     "start": "next start",
     "teachers:preview": "node --env-file-if-exists=.env.local scripts/sync-feishu-teachers.mjs",
     "teachers:sync": "node --env-file-if-exists=.env.local scripts/sync-feishu-teachers.mjs --apply",
+    "teachers:preview-new": "node --env-file-if-exists=.env.local scripts/sync-feishu-teachers.mjs --new-only",
+    "teachers:sync-new": "node --env-file-if-exists=.env.local scripts/sync-feishu-teachers.mjs --new-only --apply",
     "teachers:preview-qr": "node --env-file-if-exists=.env.local scripts/sync-feishu-teachers.mjs --qr-only",
     "teachers:sync-qr": "node --env-file-if-exists=.env.local scripts/sync-feishu-teachers.mjs --qr-only --apply",
     "teachers:reset-passwords": "node --env-file-if-exists=.env.local scripts/sync-feishu-teachers.mjs --apply --reset-passwords"

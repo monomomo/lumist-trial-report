@@ -15,6 +15,7 @@ const ALLOW_WARNINGS = process.argv.includes('--allow-warnings');
 const SKIP_PHOTOS = process.argv.includes('--skip-photos');
 const RESET_PASSWORDS = process.argv.includes('--reset-passwords');
 const QR_ONLY = process.argv.includes('--qr-only');
+const NEW_ONLY = process.argv.includes('--new-only');
 const INITIAL_PASSWORD = process.env.TEACHER_INITIAL_PASSWORD || '123456';
 
 const usernameOverrides = new Map([
@@ -108,7 +109,7 @@ function buildProfile(teacher) {
     username: buildUsername(teacher),
     publicName: teacher.englishName,
     title: titleSubjects ? `${titleSubjects}导师` : '国际课程导师',
-    summary: compactCompleteText(teaching || `${teacher.englishName} 老师专注于国际课程教学与个性化辅导。`, 115),
+    summary: compactCompleteText(teaching || (teacher.intro ? `${teacher.englishName} 老师专注于国际课程教学与个性化辅导。` : '导师详细介绍待补充。'), 115),
     bio: sections.map((section) => section.content[0]),
     sections,
     subjects,
@@ -126,6 +127,17 @@ function validate(teacher, profile) {
   const suspiciousYears = [...teacher.intro.matchAll(/(\d{2,})\s*年(?:以上|经验)/g)].map((match) => Number(match[1]));
   if (suspiciousYears.some((years) => years > 30)) warnings.push('简介中的教学年限可能有误');
   if (teacher.intro.length > 900) warnings.push('简介过长，报告页将展示压缩后的版本');
+  return { errors, warnings };
+}
+
+function validateNewTeacher(teacher, profile) {
+  const errors = [];
+  const warnings = [];
+  if (!teacher.englishName) errors.push('缺少英文名');
+  if (!/^[a-z0-9][a-z0-9._-]{2,31}$/.test(profile.username)) errors.push('无法生成有效账号名');
+  if (!teacher.subjectText) warnings.push('缺少授课科目，将显示通用导师职称');
+  if (!teacher.intro) warnings.push('缺少导师简介，将显示待补充提示');
+  if (teacher.photos.length === 0) warnings.push('缺少职业照，将显示姓名占位');
   return { errors, warnings };
 }
 
@@ -164,6 +176,12 @@ async function listUsers(supabase) {
     users.push(...data.users);
     if (data.users.length < 1000) return users;
   }
+}
+
+async function findNewTeachers(teachers) {
+  const users = await listUsers(createAdminClient());
+  const emails = new Set(users.map((user) => user.email?.toLowerCase()));
+  return teachers.filter((teacher) => !emails.has(`${buildUsername(teacher)}@${AUTH_DOMAIN}`));
 }
 
 function csvCell(value) {
@@ -268,7 +286,9 @@ async function applyTeachers(teachers) {
     const profile = buildProfile(teacher);
     const email = `${profile.username}@${AUTH_DOMAIN}`;
     let localPhoto = null;
-    if (!SKIP_PHOTOS) localPhoto = downloadPhoto(teacher, tempDirectory);
+    let localQr = null;
+    if (!SKIP_PHOTOS && teacher.photos.length > 0) localPhoto = downloadPhoto(teacher, tempDirectory);
+    if (teacher.qrAttachments.length > 0) localQr = downloadQr(teacher, tempDirectory);
     let user = usersByEmail.get(email);
     if (!user) {
       const { data, error } = await supabase.auth.admin.createUser({
@@ -316,6 +336,15 @@ async function applyTeachers(teachers) {
       subjects: profile.subjects,
     };
     if (photoPath) config.photo_path = photoPath;
+    if (localQr) {
+      const qrPath = `${user.id}/qr${extname(localQr).toLowerCase() || '.jpg'}`;
+      const { error: qrUploadError } = await supabase.storage.from('teacher-assets').upload(qrPath, readFileSync(localQr), {
+        contentType: contentType(basename(localQr)),
+        upsert: true,
+      });
+      if (qrUploadError) throw new Error(`${teacher.name} 上传二维码失败：${qrUploadError.message}`);
+      config.qr_path = qrPath;
+    }
     const { error: configError } = await supabase.from('teacher_configs').upsert(config);
     if (configError) throw new Error(`${teacher.name} 更新 teacher_configs 失败：${configError.message}`);
     process.stdout.write(`已同步 ${teacher.name} / ${profile.username}\n`);
@@ -331,10 +360,11 @@ const teachers = readTeachers();
 if (QR_ONLY) {
   await syncTeacherQrs(teachers);
 } else {
-  const profiles = teachers.map((teacher) => ({ teacher, profile: buildProfile(teacher) }));
+  const targetTeachers = NEW_ONLY ? await findNewTeachers(teachers) : teachers;
+  const profiles = targetTeachers.map((teacher) => ({ teacher, profile: buildProfile(teacher) }));
   const usernames = new Set();
   for (const item of profiles) {
-    const validation = validate(item.teacher, item.profile);
+    const validation = NEW_ONLY ? validateNewTeacher(item.teacher, item.profile) : validate(item.teacher, item.profile);
     item.errors = validation.errors;
     item.warnings = validation.warnings;
     if (usernames.has(item.profile.username)) item.errors.push('账号名重复');
@@ -352,10 +382,10 @@ if (QR_ONLY) {
 
   const errors = profiles.flatMap((item) => item.errors.map((message) => `${item.teacher.name}：${message}`));
   const warnings = profiles.flatMap((item) => item.warnings.map((message) => `${item.teacher.name}：${message}`));
-  process.stdout.write(`共 ${profiles.length} 位教师，${errors.length} 个错误，${warnings.length} 个警告\n`);
+  process.stdout.write(`${NEW_ONLY ? '待新增' : '共'} ${profiles.length} 位教师，${errors.length} 个错误，${warnings.length} 个警告\n`);
 
   if (errors.length > 0) throw new Error(`教师资料校验失败：${errors.join('；')}`);
-  if (APPLY && warnings.length > 0 && !ALLOW_WARNINGS) {
+  if (APPLY && warnings.length > 0 && !ALLOW_WARNINGS && !NEW_ONLY) {
     throw new Error(`存在资料警告，请先修复飞书数据或明确追加 --allow-warnings：${warnings.join('；')}`);
   }
   if (APPLY && RESET_PASSWORDS) await resetTeacherPasswords(profiles.map((item) => item.teacher));

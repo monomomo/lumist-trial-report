@@ -25,3 +25,15 @@ test('package exposes separate QR preview and apply commands', async () => {
   assert.match(packageJson.scripts['teachers:preview-qr'], /--qr-only$/);
   assert.match(packageJson.scripts['teachers:sync-qr'], /--qr-only --apply$/);
 });
+
+test('new teacher sync only creates missing accounts and accepts explicit placeholders', async () => {
+  const source = await readFile(new URL('../scripts/sync-feishu-teachers.mjs', import.meta.url), 'utf8');
+  const packageJson = JSON.parse(await readFile(new URL('../package.json', import.meta.url), 'utf8'));
+
+  assert.match(source, /const NEW_ONLY = process\.argv\.includes\('--new-only'\)/);
+  assert.match(source, /findNewTeachers\(teachers\)/);
+  assert.match(source, /导师详细介绍待补充/);
+  assert.match(source, /缺少职业照，将显示姓名占位/);
+  assert.match(packageJson.scripts['teachers:preview-new'], /--new-only$/);
+  assert.match(packageJson.scripts['teachers:sync-new'], /--new-only --apply$/);
+});

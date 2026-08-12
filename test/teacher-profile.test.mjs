@@ -54,6 +54,12 @@ test('teacher profile excludes language ability from current and historical repo
   assert.doesNotMatch(syncSource, /const sectionNames = \[[^\]]*语言能力/);
 });
 
+test('an explicitly empty teacher bio does not fall back to invented experience', async () => {
+  const profileSource = await readFile(new URL('../lib/teachers/public-profile.ts', import.meta.url), 'utf8');
+
+  assert.match(profileSource, /if \(config && Array\.isArray\(config\.bio\)\) \{\s*bio = config\.bio\.map\(String\)/);
+});
+
 test('report persistence uses a server-resolved teacher snapshot', async () => {
   const routeSource = await readFile(new URL('../app/api/reports/route.ts', import.meta.url), 'utf8');
   const migrationSource = await readFile(new URL('../supabase/migrations/202607270001_multi_teacher_profiles.sql', import.meta.url), 'utf8');

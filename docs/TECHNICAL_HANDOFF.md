@@ -311,7 +311,7 @@ PDF 不是服务端生成文件，而是调用浏览器打印。建议使用 Chr
 
 ## 9. 老师资料模型
 
-现有 Supabase 已创建 27 位老师账号，并同步了结构化介绍和职业照片。截至 2026 年 8 月 13 日，20 位现有账号已同步二维码，其余账号没有二维码时页面会自动隐藏空缺区域。飞书老师数据源当前有 31 位老师，其中新增但尚无二维码的老师不会由二维码专项同步自动创建账号。数据源位于[老师信息多维表格](https://vm94j8bzy7.feishu.cn/wiki/HH5FwfbfRiIc30kh9CPcOkMmnyb?table=tblWhRxPsnyr7kVW&view=vewGZWuWr6)，实际访问权限由公司飞书管理员控制。
+现有 Supabase 已创建 32 位老师账号，其中 31 位对应当前飞书老师表，另有 1 位历史账号仍保留。结构化介绍和已有职业照均已同步；截至 2026 年 8 月 13 日，20 位账号已同步二维码，其余账号没有二维码时页面会自动隐藏空缺区域。飞书老师数据源当前有 31 位老师且均已创建账号。数据源位于[老师信息多维表格](https://vm94j8bzy7.feishu.cn/wiki/HH5FwfbfRiIc30kh9CPcOkMmnyb?table=tblWhRxPsnyr7kVW&view=vewGZWuWr6)，实际访问权限由公司飞书管理员控制。
 
 老师相关数据分三部分：
 
@@ -349,6 +349,8 @@ Amber 还保留了一套代码内默认资料和公开静态素材，作为配�
 ```bash
 npm run teachers:preview
 npm run teachers:sync
+npm run teachers:preview-new
+npm run teachers:sync-new
 npm run teachers:preview-qr
 npm run teachers:sync-qr
 npm run teachers:reset-passwords
@@ -381,6 +383,8 @@ TEACHER_INITIAL_PASSWORD=123456
 - 导师宣传二维码
 
 当前实现可以创建/更新 Auth 用户、`profiles`、`teacher_configs` 和老师照片。二维码字段为附件类型，可用 `teachers:preview-qr` 只读核对，再用 `teachers:sync-qr` 将已有二维码上传到私有 `teacher-assets` bucket 并更新 `qr_path`。二维码专项同步不会创建老师账号，也不会清空飞书中仍为空的二维码。
+
+新增老师优先使用 `teachers:preview-new` 和 `teachers:sync-new`，只处理飞书中尚无账号的老师，不覆盖已有账号。职业照、科目或简介尚未补齐时，账号仍可创建：页面分别使用姓名占位、通用职称或“导师详细介绍待补充”，不会虚构老师履历。
 
 脚本现在仍带有原开发机的 `lark-cli` 路径以及飞书数据源标识默认值。公司接手后的第一项代码清理应当是删除这些机器相关默认值，改为缺少环境变量就明确报错。公司电脑还需要自行安装并授权 `lark-cli`，不能依赖原开发机上的 `lumist-feishu` profile。
 
