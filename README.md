@@ -2,7 +2,7 @@
 
 第二版技术栈：Next.js、Vercel、OpenAI Responses API、Supabase Auth + Database。
 
-项目接手请先阅读 [`docs/PROJECT_HANDOFF.md`](./docs/PROJECT_HANDOFF.md)，详细部署与技术说明见 [`docs/TECHNICAL_HANDOFF.md`](./docs/TECHNICAL_HANDOFF.md)。
+详细部署与技术说明见 [`docs/TECHNICAL_HANDOFF.md`](./docs/TECHNICAL_HANDOFF.md)。
 
 ## 本地运行
 
