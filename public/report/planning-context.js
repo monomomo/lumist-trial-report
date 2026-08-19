@@ -16,12 +16,80 @@ const SCENARIOS = {
   },
 };
 
+const FOCUS_AREAS = {
+  knowledge_foundation: {
+    label: '知识基础',
+    guidance: '优先梳理必要概念、前置知识和知识之间的联系，减少已经确认掌握内容的重复讲解。',
+  },
+  problem_solving: {
+    label: '解题方法',
+    guidance: '增加方法选择、步骤说明、错因订正和迁移练习，避免只写刷题数量。',
+  },
+  data_analysis: {
+    label: '数据分析',
+    guidance: '增加图表、数据、变量关系和证据解释任务，要求结论能够由数据支持。',
+  },
+  experimental_inquiry: {
+    label: '实验探究',
+    guidance: '增加实验设计、变量控制、数据记录、误差分析和证据解释任务。',
+  },
+  english_terminology: {
+    label: '英文术语',
+    guidance: '在真实题目和表达任务中安排术语识别与使用，不把孤立背单词作为主要课程。',
+  },
+  study_habits: {
+    label: '学习习惯',
+    guidance: '把笔记、审题、检查、订正和复盘落实为具体课堂动作，不对学生习惯作未经证实的负面结论。',
+  },
+};
+
+const DATA_ANALYSIS_SUBJECTS = new Set([
+  'sat_math',
+  'ap_statistics',
+  'ap_biology',
+  'ap_chemistry',
+  'ap_environmental_science',
+  'ap_microeconomics',
+  'ap_macroeconomics',
+  'ap_psychology',
+  'ap_human_geography',
+  'ap_comparative_government',
+  'ap_us_government',
+]);
+
+const EXPERIMENTAL_SUBJECTS = new Set([
+  'ap_biology',
+  'ap_chemistry',
+  'ap_environmental_science',
+  'ap_physics_1',
+  'ap_physics_2',
+  'ap_physics_c_mechanics',
+  'ap_physics_c_electricity_magnetism',
+]);
+
 export const PLANNING_SCENARIOS = Object.freeze(SCENARIOS);
 export const PLANNING_SCENARIO_CODES = Object.freeze(Object.keys(SCENARIOS));
 export const DEFAULT_PLANNING_SCENARIO = 'synchronous';
+export const PLANNING_FOCUS_AREAS = Object.freeze(FOCUS_AREAS);
+export const PLANNING_FOCUS_AREA_CODES = Object.freeze(Object.keys(FOCUS_AREAS));
+export const MAX_PLANNING_FOCUS_AREAS = 3;
 
 export function resolvePlanningScenario(value) {
   return PLANNING_SCENARIO_CODES.includes(value) ? value : DEFAULT_PLANNING_SCENARIO;
+}
+
+export function getPlanningFocusOptions(subjectCode) {
+  return PLANNING_FOCUS_AREA_CODES
+    .filter((code) => code !== 'data_analysis' || DATA_ANALYSIS_SUBJECTS.has(subjectCode) || String(subjectCode).startsWith('ap_physics_'))
+    .filter((code) => code !== 'experimental_inquiry' || EXPERIMENTAL_SUBJECTS.has(subjectCode))
+    .map((code) => ({ code, ...PLANNING_FOCUS_AREAS[code] }));
+}
+
+export function normalizePlanningFocusAreas(values, subjectCode) {
+  const available = new Set(getPlanningFocusOptions(subjectCode).map((option) => option.code));
+  return [...new Set(Array.isArray(values) ? values : [])]
+    .filter((value) => available.has(value))
+    .slice(0, MAX_PLANNING_FOCUS_AREAS);
 }
 
 export function buildLessonDurationSlots(totalHours, requestedLessonCount) {

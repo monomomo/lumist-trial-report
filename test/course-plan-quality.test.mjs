@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { getCoursePlanQualityIssues } from '../lib/subjects/course-plan-quality.ts';
+import { getCoursePlanQualityIssues, getCoursePlanWordingIssues } from '../lib/subjects/course-plan-quality.ts';
 import { SUBJECT_CODES } from '../lib/subjects/catalog.js';
 
 function createReport(stages) {
@@ -96,4 +96,32 @@ test('quality review rejects a first formal lesson that repeats the trial introd
     },
   };
   assert.match(getCoursePlanQualityIssues(report, 'ap_calculus_ab').join('；'), /重复试听课/);
+});
+
+test('wording review catches consecutive outline-style lesson sentences', () => {
+  const report = createReport([{
+    title: '函数任务',
+    lessons: [
+      { content: '通过图像判断函数变化', goal: '学生能够解释极限含义' },
+      { content: '通过数值表比较左右极限', goal: '学生能够完成极限计算' },
+      { content: '通过代数方法验证极限', goal: '学生能够判断连续性' },
+      { content: '完成连续性订正任务', goal: '完成错因说明' },
+    ],
+  }]);
+  const issues = getCoursePlanWordingIssues(report);
+  assert.match(issues.join('；'), /第 1–3 课的授课内容连续以“通过”开头/);
+  assert.match(issues.join('；'), /第 1–3 课的课程目标连续以“能够”开头/);
+});
+
+test('wording review accepts varied teaching actions and observable outcomes', () => {
+  const report = createReport([{
+    title: '函数任务',
+    lessons: [
+      { content: '比较函数图像与数值表中的变化趋势', goal: '说出左右极限不相等的证据' },
+      { content: '在分段函数中定位连续性条件', goal: '独立写出连续所需的三个条件' },
+      { content: '用代数方法验证图像判断', goal: '计算结果与图像结论保持一致' },
+      { content: '订正 FRQ 中缺失的理由', goal: '书面说明所用定理及适用条件' },
+    ],
+  }]);
+  assert.deepEqual(getCoursePlanWordingIssues(report), []);
 });

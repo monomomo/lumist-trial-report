@@ -3,7 +3,7 @@ import { SUBJECT_CODES, SUBJECT_CATALOG, resolveSubject, validateSubjectScores }
 import { createSubjectViewModel, normalizeTeacherProfile, canUseFallback, buildFallbackReport, resolveTargetScore } from './report-domain.js';
 import { SUMMARY_FIELD_RULES, cloneReportSummary, validateReportSummary } from './summary-editor-utils.js';
 import { buildGenerationChecklist, buildReportQualityChecks } from './report-quality-utils.js';
-import { PLANNING_SCENARIOS, resolvePlanningScenario, getLessonCountRange } from './planning-context.js';
+import { PLANNING_SCENARIOS, MAX_PLANNING_FOCUS_AREAS, getPlanningFocusOptions, normalizePlanningFocusAreas, resolvePlanningScenario, getLessonCountRange } from './planning-context.js';
 
 const $ = (selector) => document.querySelector(selector);
 const setText = (selector, value) => { $(selector).textContent = value; };
@@ -93,6 +93,7 @@ function populateSubjectSelect() {
   renderSubjectOptions('');
   configureExamDateField(currentSubjectCode);
   applyReportBrandAssets(currentSubjectCode);
+  renderPlanningFocusOptions([]);
 }
 
 function normalizeSubjectSearch(value) {
@@ -192,6 +193,7 @@ function onSubjectChange() {
 }
 
 function applySubjectSelection(code) {
+  const selectedFocusAreas = getSelectedPlanningFocusAreas();
   currentSubjectCode = code;
   const vm = createSubjectViewModel(code);
   subjectSelectionConfirmed = true;
@@ -208,6 +210,7 @@ function applySubjectSelection(code) {
   $('#target-score').placeholder = code.startsWith('ap_') ? '默认 5 分' : `例如：${vm.scoreMax}`;
   configureExamDateField(code);
   applyReportBrandAssets(code);
+  renderPlanningFocusOptions(selectedFocusAreas);
 }
 
 function refreshPreview() {
@@ -913,10 +916,7 @@ function applyCoursePlan() {
   $('#total-hours').value = String(draftCoursePlan.totalHours);
   const lessonCount = draftCoursePlan.stages.reduce((total, stage) => total + stage.lessons.length, 0);
   $('#lesson-count').value = String(lessonCount);
-  currentReportData.planningContext = {
-    scenario: resolvePlanningScenario(currentReportData.planningContext?.scenario || $('#planning-scenario').value),
-    lessonCount,
-  };
+  currentReportData.planningContext = buildCurrentPlanningContext(lessonCount);
   updateLessonCountHint();
   renderReportQualityNotice(currentReportData);
   document.querySelector('#report-view .eyebrow').textContent = '课程规划已编辑 · 未云端保存';
@@ -931,10 +931,7 @@ function restoreOriginalCoursePlan() {
   $('#total-hours').value = String(currentReportData.coursePlan.totalHours);
   const lessonCount = currentReportData.coursePlan.stages.reduce((total, stage) => total + stage.lessons.length, 0);
   $('#lesson-count').value = String(lessonCount);
-  currentReportData.planningContext = {
-    scenario: resolvePlanningScenario(currentReportData.planningContext?.scenario || $('#planning-scenario').value),
-    lessonCount,
-  };
+  currentReportData.planningContext = buildCurrentPlanningContext(lessonCount);
   updateLessonCountHint();
   renderCoursePlan(currentReportData.coursePlan);
   renderReportQualityNotice(currentReportData);
@@ -948,10 +945,7 @@ async function saveReport() {
   const reportStatus = document.querySelector('#report-view .eyebrow');
   const saveButton = $('#save-report');
   const lessonCount = currentReportData.coursePlan.stages.reduce((total, stage) => total + stage.lessons.length, 0);
-  currentReportData.planningContext = {
-    scenario: resolvePlanningScenario(currentReportData.planningContext?.scenario || $('#planning-scenario').value),
-    lessonCount,
-  };
+  currentReportData.planningContext = buildCurrentPlanningContext(lessonCount);
   const { coursePlan, salesFollowUp, ...reportData } = currentReportData;
   const payload = {
     id: currentReportId,
@@ -996,7 +990,41 @@ function collectFormData() {
     totalHours: $('#total-hours').value,
     lessonCount: $('#lesson-count').value,
     planningScenario: resolvePlanningScenario($('#planning-scenario').value),
+    planningFocusAreas: getSelectedPlanningFocusAreas(),
     teacherNotes: $('#teacher-notes').value.trim(),
+  };
+}
+
+function getSelectedPlanningFocusAreas() {
+  return normalizePlanningFocusAreas(
+    [...document.querySelectorAll('[name="planning-focus"]:checked')].map((input) => input.value),
+    currentSubjectCode,
+  );
+}
+
+function updatePlanningFocusState() {
+  const selected = getSelectedPlanningFocusAreas();
+  document.querySelectorAll('[name="planning-focus"]').forEach((input) => {
+    input.disabled = selected.length >= MAX_PLANNING_FOCUS_AREAS && !input.checked;
+  });
+  $('#planning-focus-hint').textContent = selected.length
+    ? `已选择 ${selected.length}/${MAX_PLANNING_FOCUS_AREAS} 项，只影响课程安排，不代表学生能力结论`
+    : '未选择时，系统将根据课堂记录安排课程重点';
+}
+
+function renderPlanningFocusOptions(selectedValues = []) {
+  const selected = new Set(normalizePlanningFocusAreas(selectedValues, currentSubjectCode));
+  $('#planning-focus-options').innerHTML = getPlanningFocusOptions(currentSubjectCode)
+    .map((option) => `<label><input type="checkbox" name="planning-focus" value="${escapeHtml(option.code)}"${selected.has(option.code) ? ' checked' : ''}>${escapeHtml(option.label)}</label>`)
+    .join('');
+  updatePlanningFocusState();
+}
+
+function buildCurrentPlanningContext(lessonCount) {
+  return {
+    scenario: resolvePlanningScenario(currentReportData?.planningContext?.scenario || $('#planning-scenario').value),
+    lessonCount,
+    focusAreas: getSelectedPlanningFocusAreas(),
   };
 }
 
@@ -1022,6 +1050,9 @@ function getSelectedExamDate() {
 function getGenerationChecklistItems() {
   const formData = collectFormData();
   const teacher = getActiveTeacherProfile();
+  const focusLabels = getPlanningFocusOptions(currentSubjectCode)
+    .filter((option) => formData.planningFocusAreas.includes(option.code))
+    .map((option) => option.label);
   return buildGenerationChecklist({
     studentName: formData.studentName,
     subjectName: createSubjectViewModel(currentSubjectCode).displayName,
@@ -1031,6 +1062,7 @@ function getGenerationChecklistItems() {
     totalHours: formData.totalHours,
     lessonCount: formData.lessonCount,
     planningScenarioLabel: PLANNING_SCENARIOS[formData.planningScenario].label,
+    planningFocusLabel: focusLabels.join('、'),
     teacherName: teacher?.displayName || '',
     notesLength: formData.teacherNotes.length,
   });
@@ -1157,6 +1189,7 @@ async function openHistoricalReport(reportId) {
   $('#total-hours').value = record.course_plan?.totalHours || '';
   const savedPlanningContext = record.report_data?.planningContext || {};
   $('#planning-scenario').value = resolvePlanningScenario(savedPlanningContext.scenario);
+  renderPlanningFocusOptions(savedPlanningContext.focusAreas || []);
   const savedLessons = record.course_plan?.stages?.flatMap((stage) => stage.lessons || []) || [];
   $('#lesson-count').value = savedPlanningContext.lessonCount || savedLessons.length || Math.ceil(Number(record.course_plan?.totalHours || 0) / 2) || '';
   updateLessonCountHint();
@@ -1202,6 +1235,8 @@ async function generateAiReport() {
   if (!response.ok) {
     const error = new Error(result.error || 'AI_GENERATION_FAILED');
     error.requestId = result.requestId || response.headers.get('x-request-id') || '';
+    error.reason = result.reason || '';
+    error.suggestion = result.suggestion || '';
     throw error;
   }
   return result.report;
@@ -1258,10 +1293,13 @@ $('#report-form').addEventListener('submit', async (event) => {
         SYLLABUS_COVERAGE_VIOLATION: '课程规划遗漏或错误标记了 Calculus 官方 Unit，请重新生成。',
         SUBJECT_SCOPE_VIOLATION: 'AI 内容出现跨科目术语，请重新生成。',
         UNEXPECTED_LANGUAGE: 'AI 内容出现异常语言文字，系统已阻止生成，请重新生成。',
+        COURSE_PLAN_STYLE_REPETITION: '连续课时使用了重复的大纲式句型，请重新生成。',
         REPORT_QUALITY_FAILED: 'AI 连续两次未达到报告质量要求，请重新生成。'
       };
+      const reason = error.reason || messages[error.message] || `报告渲染异常（${error.message || 'UNKNOWN_ERROR'}），请重试。`;
+      const suggestion = error.suggestion ? `<br><span>建议：${escapeHtml(error.suggestion)}</span>` : '';
       const reference = error.requestId ? ` <span>参考编号：${escapeHtml(error.requestId)}</span>` : '';
-      notice.innerHTML = `<strong>生成失败：</strong>${messages[error.message] || `报告渲染异常（${escapeHtml(error.message || 'UNKNOWN_ERROR')}），请重试。`}${reference}`;
+      notice.innerHTML = `<strong>生成失败：</strong>${escapeHtml(reason)}${suggestion}${reference}`;
     }
   } finally {
     button.disabled = false;
@@ -1330,6 +1368,7 @@ $('#lesson-count').addEventListener('input', (event) => {
   event.target.setCustomValidity('');
   updateLessonCountHint();
 });
+$('#planning-focus-options').addEventListener('change', updatePlanningFocusState);
 $('#generation-checklist-modal').addEventListener('click', (event) => {
   if (event.target.dataset.checklistAction === 'edit') closeGenerationChecklist(false);
   if (event.target.dataset.checklistAction === 'confirm') closeGenerationChecklist(true);

@@ -160,11 +160,13 @@ docs/
 | `INVALID_INPUT` | 输入字段、课时或长度不合法 |
 | `UNAUTHORIZED` | 未登录或会话过期 |
 | `AI_SERVICE_NOT_CONFIGURED` | 未配置 OpenAI API Key |
+| `INVALID_PLANNING_FOCUS` | 课程侧重点不适用于当前科目 |
 | `SUBJECT_SCOPE_VIOLATION` | AI 输出混入其他学科内容 |
+| `COURSE_PLAN_STYLE_REPETITION` | 自动修复后仍有连续大纲式句型 |
 | `REPORT_QUALITY_FAILED` | 连续两次未达到质量规则 |
 | `AI_GENERATION_FAILED` | AI 请求或响应处理失败 |
 
-部分可恢复错误会触发本地兜底报告，但不能假设所有 AI 错误都会自动兜底。排障时应先查看 Vercel Function 日志里的错误码和 OpenAI 请求状态。
+失败响应会提供老师可读的 `reason`、`suggestion` 和 `requestId`。部分可恢复错误会触发本地兜底报告，但不能假设所有 AI 错误都会自动兜底。排障时应先根据 `requestId` 查看 Vercel Function 的失败阶段、耗时、错误码和修复状态。
 
 ### 5.3 报告保存与历史记录
 

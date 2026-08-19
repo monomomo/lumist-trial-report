@@ -3,7 +3,7 @@
  * 纯函数，不依赖 DOM 或 fetch，方便测试和复用。
  */
 import { SUBJECT_CATALOG, SUBJECT_CODES, resolveSubject } from './catalog.js';
-import { buildLessonDurationSlots, resolvePlanningScenario } from './planning-context.js';
+import { buildLessonDurationSlots, normalizePlanningFocusAreas, resolvePlanningScenario } from './planning-context.js';
 
 /**
  * 创建科目视图模型，用于 HTML 渲染。
@@ -87,6 +87,7 @@ export function buildFallbackReport(subjectCode, formData) {
   const notes = formData.teacherNotes || '';
   const totalHours = normalizeFallbackTotalHours(formData.totalHours);
   const planningScenario = resolvePlanningScenario(formData.planningScenario);
+  const planningFocusAreas = normalizePlanningFocusAreas(formData.planningFocusAreas, subjectCode);
   const lessonDurations = buildLessonDurationSlots(totalHours, formData.lessonCount);
 
   const positive = /活泼|互动积极|爱互动/.test(notes)
@@ -109,6 +110,7 @@ export function buildFallbackReport(subjectCode, formData) {
     planningContext: {
       scenario: planningScenario,
       lessonCount: lessonDurations.length,
+      focusAreas: planningFocusAreas,
     },
     coursePlan: resizeFallbackCoursePlan(buildGenericCoursePlan(vm), totalHours, lessonDurations),
     salesFollowUp: {

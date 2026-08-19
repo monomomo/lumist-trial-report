@@ -22,7 +22,7 @@ function createValidReportPayload() {
       performance: '学生能够跟随讲解完成思考。',
       outcomes: ['完成初步诊断'],
       priorityAreas: ['知识框架'],
-      planningContext: { scenario: 'preview', lessonCount: 1 },
+      planningContext: { scenario: 'preview', lessonCount: 1, focusAreas: ['knowledge_foundation'] },
     },
     coursePlan: {
       totalHours: 2,
@@ -70,6 +70,12 @@ test('report save schema accepts valid create and update payloads', () => {
   assert.equal(reportUpdateSchema.safeParse({ ...payload, id: 'd9428888-122b-4e5f-a3d6-5270e4fd5f3e' }).success, true);
 });
 
+test('report save schema keeps reports created before planning focus existed compatible', () => {
+  const payload = createValidReportPayload();
+  delete payload.reportData.planningContext.focusAreas;
+  assert.equal(reportCreateSchema.safeParse(payload).success, true);
+});
+
 test('report save schema rejects malformed data and inconsistent total hours', () => {
   const mismatch = createValidReportPayload();
   mismatch.coursePlan.totalHours = 2.5;
@@ -79,12 +85,15 @@ test('report save schema rejects malformed data and inconsistent total hours', (
   badDuration.coursePlan.stages[0].lessons[0].duration = 3;
   const badLessonCount = createValidReportPayload();
   badLessonCount.reportData.planningContext.lessonCount = 2;
+  const badFocus = createValidReportPayload();
+  badFocus.reportData.planningContext.focusAreas = ['experimental_inquiry'];
 
   assert.equal(reportCreateSchema.safeParse(mismatch).success, false);
   assert.equal(reportCreateSchema.safeParse(badSubject).success, false);
   assert.equal(reportCreateSchema.safeParse(unknownField).success, false);
   assert.equal(reportCreateSchema.safeParse(badDuration).success, false);
   assert.equal(reportCreateSchema.safeParse(badLessonCount).success, false);
+  assert.equal(reportCreateSchema.safeParse(badFocus).success, false);
 });
 
 test('report save schema rejects scores outside the selected subject range', () => {

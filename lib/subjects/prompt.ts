@@ -1,5 +1,5 @@
 import type { SubjectDefinition } from './catalog.js';
-import { PLANNING_SCENARIOS, resolvePlanningScenario } from '../reports/planning-context.js';
+import { PLANNING_FOCUS_AREAS, PLANNING_SCENARIOS, normalizePlanningFocusAreas, resolvePlanningScenario } from '../reports/planning-context.js';
 import { buildCalculusSyllabusPrompt } from './ap-calculus-syllabus.js';
 
 export interface ReportPromptData {
@@ -10,6 +10,7 @@ export interface ReportPromptData {
   totalHours: number;
   lessonCount: number;
   planningScenario: string;
+  planningFocusAreas?: string[];
   teacherNotes: string;
   lessonDurations: number[];
 }
@@ -19,9 +20,11 @@ const SHARED_PLANNING_GUIDANCE = `
 课程规划标准：
 - 规划依据只能来自输入事实或未来可执行的诊断。未确认的薄弱点不得写成结论，应写成待观察的判断、步骤或作答证据。
 - 课时向实际问题倾斜，不为覆盖全部模块而平均排课。已确认的优势只做短诊断或穿插复习。
+- 课程规划侧重点是老师对后续训练方向的偏好，不代表学生已经被诊断为能力不足，不得据此编造弱点或课堂表现。
 - 阶段标题和课时主题使用自然排课名称，避开“系统学习、夯实基础、专项突破、强化提升、综合提升、高分冲刺、考前闭环”等宣传式模板词。
 - content 写本节实际会做的 1 至 2 件事；difficulty 写具体易错判断、步骤或表达；goal 写课后能核对的行为结果。
-- 相邻课时不得换词重复。测评之后安排讲评、订正或调整，不用增加套题数量代替教学。`;
+- 相邻课时不得换词重复。测评之后安排讲评、订正或调整，不用增加套题数量代替教学。
+- content 和 goal 不得连续使用“能够、通过、完成”等相同句首。用课堂动作、作答证据、判断过程和可核验结果自然组织句子，不为变化而机械替换同义词。`;
 
 function buildPlanningGuidance(subject: SubjectDefinition): string {
   const shared = SHARED_PLANNING_GUIDANCE;
@@ -247,6 +250,8 @@ export function buildSystemPrompt(subject: SubjectDefinition): string {
 export function buildUserInput(subject: SubjectDefinition, data: ReportPromptData): string {
   const planningScenario = resolvePlanningScenario(data.planningScenario);
   const scenario = PLANNING_SCENARIOS[planningScenario];
+  const planningFocusAreas = normalizePlanningFocusAreas(data.planningFocusAreas, subject.code)
+    .map((code) => ({ code, ...PLANNING_FOCUS_AREAS[code] }));
   const syllabus = buildCalculusSyllabusPrompt(subject.code, planningScenario, data.teacherNotes);
   const input = {
     studentName: data.studentName,
@@ -257,6 +262,7 @@ export function buildUserInput(subject: SubjectDefinition, data: ReportPromptDat
     planningScenario,
     planningScenarioLabel: scenario.label,
     planningScenarioGuidance: scenario.guidance,
+    planningFocusAreas,
     lessonCount: data.lessonDurations.length,
     lessonDurations: data.lessonDurations,
     syllabus,

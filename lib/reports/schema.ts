@@ -1,6 +1,6 @@
 import { z } from 'zod';
 import { SUBJECT_CODES, SUBJECT_CATALOG, validateSubjectScores } from '../subjects/catalog.js';
-import { PLANNING_SCENARIO_CODES } from './planning-context.js';
+import { PLANNING_FOCUS_AREA_CODES, PLANNING_SCENARIO_CODES, normalizePlanningFocusAreas } from './planning-context.js';
 
 const subjectNames = SUBJECT_CODES.map((code) => SUBJECT_CATALOG[code].displayName) as [string, ...string[]];
 const subjectSchema = z.enum(subjectNames);
@@ -49,6 +49,7 @@ const reportDataSchema = z.object({
   planningContext: z.object({
     scenario: z.enum(PLANNING_SCENARIO_CODES as [string, ...string[]]),
     lessonCount: z.number().int().min(1).max(60),
+    focusAreas: z.array(z.enum(PLANNING_FOCUS_AREA_CODES as [string, ...string[]])).max(3).optional(),
   }).strict().optional(),
   teacherNotice: z.string().trim().max(500).optional(),
   qualityReview: z.object({
@@ -83,7 +84,7 @@ type ReportValidationInput = {
   subject: string;
   currentScore: string;
   targetScore: string;
-  reportData: { planningContext?: { lessonCount: number } };
+  reportData: { planningContext?: { lessonCount: number; focusAreas?: string[] } };
   coursePlan: { stages: Array<{ lessons: unknown[] }> };
 };
 
@@ -97,6 +98,14 @@ function validateReport(data: ReportValidationInput, context: z.RefinementCtx) {
       path: [error.path],
       message: error.message,
     }));
+    const focusAreas = data.reportData?.planningContext?.focusAreas ?? [];
+    if (normalizePlanningFocusAreas(focusAreas, subjectCode).length !== focusAreas.length) {
+      context.addIssue({
+        code: 'custom',
+        path: ['reportData', 'planningContext', 'focusAreas'],
+        message: '课程侧重点包含不适用于当前科目的选项',
+      });
+    }
   }
   const savedLessonCount = data.reportData?.planningContext?.lessonCount;
   if (savedLessonCount !== undefined) {

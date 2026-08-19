@@ -20,6 +20,52 @@ const GENERIC_GOAL_PATTERN = /^(掌握|提升|建立|巩固|熟悉|强化)(?!.*(
 const SAT_EVIDENCE_PATTERN = /Bluebook|Student Question Bank|Educator Question Bank|My Practice|官方题库/i;
 const AP_EVIDENCE_PATTERN = /AP Classroom|Topic Questions?|Progress Checks?|Question Bank|Practice Exam|MCQ|FRQ|scoring guidelines?|评分标准|真题/i;
 const INTRODUCTION_PATTERN = /导入|课程框架|核心术语|术语适应|课程衔接/;
+const OUTLINE_OPENERS = [
+  ['能够', /^(?:本节课(?:中)?|课后|学生)?\s*能够/],
+  ['通过', /^(?:本节课(?:中)?|课后|学生)?\s*通过/],
+  ['完成', /^(?:本节课(?:中)?|课后|学生)?\s*完成/],
+] as const;
+
+function getOutlineOpener(value: string) {
+  return OUTLINE_OPENERS.find(([, pattern]) => pattern.test(value.trim()))?.[0] ?? null;
+}
+
+function getConsecutiveRun(openers: Array<string | null>, sameOpener: boolean, minimum: number) {
+  for (let start = 0; start < openers.length; start += 1) {
+    if (!openers[start]) continue;
+    let end = start + 1;
+    while (end < openers.length && openers[end] && (!sameOpener || openers[end] === openers[start])) end += 1;
+    if (end - start >= minimum) return { start, end, opener: openers[start] };
+    start = end - 1;
+  }
+  return null;
+}
+
+export function getCoursePlanWordingIssues(report: CoursePlanQualityReport) {
+  const lessons = (report.coursePlan?.stages ?? []).flatMap((stage) => stage.lessons ?? []);
+  const issues: string[] = [];
+  for (const field of ['content', 'goal'] as const) {
+    const fieldLabel = field === 'content' ? '授课内容' : '课程目标';
+    const openers = lessons.map((lesson) => getOutlineOpener(lesson[field] ?? ''));
+    const repeatedRun = getConsecutiveRun(openers, true, 3);
+    if (repeatedRun) {
+      issues.push(`第 ${repeatedRun.start + 1}–${repeatedRun.end} 课的${fieldLabel}连续以“${repeatedRun.opener}”开头，呈现大纲式重复句型`);
+      continue;
+    }
+    const outlineRun = getConsecutiveRun(openers, false, 4);
+    if (outlineRun) {
+      issues.push(`第 ${outlineRun.start + 1}–${outlineRun.end} 课的${fieldLabel}连续使用“能够、通过、完成”等大纲式句型`);
+      continue;
+    }
+    if (lessons.length >= 6) {
+      const repeated = OUTLINE_OPENERS
+        .map(([opener]) => ({ opener, count: openers.filter((value) => value === opener).length }))
+        .find(({ count }) => count >= Math.max(3, Math.ceil(lessons.length * 0.4)));
+      if (repeated) issues.push(`${lessons.length} 节课中有 ${repeated.count} 个${fieldLabel}以“${repeated.opener}”开头，句式变化不足`);
+    }
+  }
+  return issues;
+}
 
 export function getCoursePlanQualityIssues(report: CoursePlanQualityReport, subjectCode: string, expectedLessonCount?: number) {
   const stages = report.coursePlan?.stages ?? [];
@@ -63,5 +109,6 @@ export function getCoursePlanQualityIssues(report: CoursePlanQualityReport, subj
   if (INTRODUCTION_PATTERN.test(trialText) && INTRODUCTION_PATTERN.test(firstLessonText)) {
     issues.push('正式课程第 1 课重复试听课的课程框架或术语导入，应直接承接试听结论进入诊断或具体教学任务');
   }
+  issues.push(...getCoursePlanWordingIssues(report));
   return issues;
 }

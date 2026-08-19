@@ -39,13 +39,15 @@ test('generation checklist presents every decision before calling AI', () => {
     totalHours: '20',
     lessonCount: '12',
     planningScenarioLabel: '预习',
+    planningFocusLabel: '知识基础、英文术语',
     teacherName: 'Amber',
     notesLength: 128,
   });
 
-  assert.deepEqual(items.map((item) => item.label), ['学生', '科目', '当前成绩', '目标成绩', '考试时间', '辅导场景', '总课时', '预计课次', '授课老师', '试听记录']);
+  assert.deepEqual(items.map((item) => item.label), ['学生', '科目', '当前成绩', '目标成绩', '考试时间', '辅导场景', '课程侧重点', '总课时', '预计课次', '授课老师', '试听记录']);
   assert.equal(items.find((item) => item.label === '预计课次').value, '12 节');
   assert.equal(items.find((item) => item.label === '辅导场景').value, '预习');
+  assert.equal(items.find((item) => item.label === '课程侧重点').value, '知识基础、英文术语');
   assert.equal(items.every((item) => item.status === 'ready'), true);
 });
 
@@ -59,6 +61,7 @@ test('generation checklist marks optional and recommended missing fields without
     totalHours: '10',
     lessonCount: '5',
     planningScenarioLabel: '同步',
+    planningFocusLabel: '',
     teacherName: 'Amber',
     notesLength: 80,
   });
@@ -66,6 +69,7 @@ test('generation checklist marks optional and recommended missing fields without
   assert.equal(items.find((item) => item.label === '当前成绩').status, 'optional');
   assert.equal(items.find((item) => item.label === '考试时间').status, 'optional');
   assert.equal(items.find((item) => item.label === '目标成绩').status, 'warning');
+  assert.equal(items.find((item) => item.label === '课程侧重点').status, 'optional');
 });
 
 test('post-generation quality review passes a consistent server-reviewed report', () => {

@@ -1,4 +1,4 @@
-function buildGenerationChecklist({ studentName, subjectName, currentScore, targetScore, examDate, totalHours, lessonCount, planningScenarioLabel, teacherName, notesLength }) {
+function buildGenerationChecklist({ studentName, subjectName, currentScore, targetScore, examDate, totalHours, lessonCount, planningScenarioLabel, planningFocusLabel, teacherName, notesLength }) {
   const hours = Number(totalHours);
   const hasHours = String(totalHours ?? '').trim() !== '' && Number.isFinite(hours) && hours > 0;
   const lessons = Number(lessonCount);
@@ -10,6 +10,7 @@ function buildGenerationChecklist({ studentName, subjectName, currentScore, targ
     { label: '目标成绩', value: targetScore || '未填写（建议确认）', status: targetScore ? 'ready' : 'warning' },
     { label: '考试时间', value: examDate || '未填写（可继续）', status: examDate ? 'ready' : 'optional' },
     { label: '辅导场景', value: planningScenarioLabel || '未选择', status: planningScenarioLabel ? 'ready' : 'warning' },
+    { label: '课程侧重点', value: planningFocusLabel || '未选择（可继续）', status: planningFocusLabel ? 'ready' : 'optional' },
     { label: '总课时', value: hasHours ? `${hours}h` : '未填写', status: hasHours ? 'ready' : 'warning' },
     { label: '预计课次', value: hasLessonCount ? `${lessons} 节` : '未填写', status: hasLessonCount ? 'ready' : 'warning' },
     { label: '授课老师', value: teacherName || '当前登录老师', status: 'ready' },

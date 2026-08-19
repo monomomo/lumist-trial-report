@@ -119,6 +119,8 @@ test('new report form starts with empty teacher inputs', async () => {
   assert.match(source, /<textarea id="teacher-notes"[^>]*><\/textarea>/);
   assert.match(source, /id="planning-scenario"/);
   assert.match(source, /id="lesson-count"/);
+  assert.match(source, /id="planning-focus-options"/);
+  assert.match(source, /课程规划侧重点（选填，最多 3 项）/);
   assert.equal(source.match(/data-scenario-sample=/g)?.length, 3);
 });
 
@@ -188,10 +190,33 @@ test('generation failures expose a safe reference id and reject unexpected langu
   assert.match(routeSource, /failureResponse\('UNEXPECTED_LANGUAGE'/);
   assert.match(routeSource, /'x-request-id': diagnostics\.requestId/);
   assert.match(appSource, /error\.requestId = result\.requestId/);
+  assert.match(appSource, /error\.reason = result\.reason/);
+  assert.match(appSource, /error\.suggestion = result\.suggestion/);
   assert.match(appSource, /UNEXPECTED_LANGUAGE: 'AI 内容出现异常语言文字/);
   assert.match(appSource, /参考编号/);
   assert.match(promptSource, /不使用日文、韩文、俄文或其他语言文字/);
   assert.match(guideSource, /把页面上的参考编号发给管理员/);
+});
+
+test('generation repairs repeated course wording and returns an actionable failure reason', async () => {
+  const appSource = await readFile(new URL('../public/report/app.js', import.meta.url), 'utf8');
+  const routeSource = await readFile(new URL('../app/api/generate-report/route.ts', import.meta.url), 'utf8');
+  assert.match(routeSource, /getCoursePlanWordingIssues\(modelReport\)/);
+  assert.match(routeSource, /failureResponse\('COURSE_PLAN_STYLE_REPETITION'/);
+  assert.match(routeSource, /reason: details\.reason/);
+  assert.match(routeSource, /suggestion: details\.suggestion/);
+  assert.match(appSource, /COURSE_PLAN_STYLE_REPETITION/);
+  assert.match(appSource, /建议：\$\{escapeHtml\(error\.suggestion\)\}/);
+});
+
+test('planning focus is collected, persisted and restored through planning context', async () => {
+  const appSource = await readFile(new URL('../public/report/app.js', import.meta.url), 'utf8');
+  const routeSource = await readFile(new URL('../app/api/generate-report/route.ts', import.meta.url), 'utf8');
+  assert.match(appSource, /planningFocusAreas: getSelectedPlanningFocusAreas\(\)/);
+  assert.match(appSource, /focusAreas: getSelectedPlanningFocusAreas\(\)/);
+  assert.match(appSource, /renderPlanningFocusOptions\(savedPlanningContext\.focusAreas \|\| \[\]\)/);
+  assert.match(routeSource, /planningFocusAreas: z\.array/);
+  assert.match(routeSource, /focusAreas: planningFocusAreas/);
 });
 
 test('parent copy protection applies teacher voice rules to every subject', async () => {

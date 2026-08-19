@@ -5,12 +5,13 @@ import { z } from 'zod';
 import { resolveSubject, validateSubjectScores } from '@/lib/subjects/catalog';
 import { buildSystemPrompt, buildUserInput } from '@/lib/subjects/prompt';
 import { hasSubjectScopeViolation } from '@/lib/subjects/scope';
-import { getCoursePlanQualityIssues } from '@/lib/subjects/course-plan-quality';
+import { getCoursePlanQualityIssues, getCoursePlanWordingIssues } from '@/lib/subjects/course-plan-quality';
 import { applyLessonDurationSlots, buildLessonDurationSlots } from '@/lib/subjects/lesson-slots';
-import { PLANNING_SCENARIO_CODES } from '@/lib/reports/planning-context';
+import { PLANNING_FOCUS_AREA_CODES, PLANNING_SCENARIO_CODES, normalizePlanningFocusAreas } from '@/lib/reports/planning-context';
 import { reviewCalculusSyllabusCoverage } from '@/lib/subjects/ap-calculus-syllabus.js';
 import { hasUnnaturalTeacherPerspective, normalizeTeacherPerspective } from '@/lib/reports/teacher-perspective';
 import { createGenerationDiagnostics, type GenerationStage } from '@/lib/reports/generation-diagnostics';
+import { getGenerationFailureDetails } from '@/lib/reports/generation-failures';
 import { getUnexpectedLanguageIssues } from '@/lib/reports/language-quality';
 import { getAuthResult, AUTH_STATUS } from '@/lib/auth/current-user';
 
@@ -62,6 +63,7 @@ const requestSchema = z.object({
   totalHours: z.coerce.number().min(2).max(60).multipleOf(0.5),
   lessonCount: z.coerce.number().int().min(1).max(60),
   planningScenario: z.enum(PLANNING_SCENARIO_CODES as [string, ...string[]]),
+  planningFocusAreas: z.array(z.enum(PLANNING_FOCUS_AREA_CODES as [string, ...string[]])).max(3).optional().default([]),
   teacherNotes: z.string().trim().min(20).max(6000),
   subjectCode: z.string().trim().max(40).optional().default('sat_math')
 });
@@ -209,6 +211,7 @@ export async function POST(request: Request) {
     status: number,
     options: { issues?: readonly unknown[]; errorType?: string } = {},
   ) => {
+    const details = getGenerationFailureDetails(errorCode, options.issues);
     diagnostics.record('failed', {
       stage,
       subjectCode,
@@ -221,6 +224,8 @@ export async function POST(request: Request) {
     return NextResponse.json({
       error: errorCode,
       requestId: diagnostics.requestId,
+      reason: details.reason,
+      suggestion: details.suggestion,
       ...(options.issues ? { issues: options.issues } : {}),
     }, {
       status,
@@ -249,6 +254,10 @@ export async function POST(request: Request) {
 
     const subject = resolveSubject(parsed.data.subjectCode);
     subjectCode = subject.code;
+    const planningFocusAreas = normalizePlanningFocusAreas(parsed.data.planningFocusAreas, subject.code);
+    if (planningFocusAreas.length !== parsed.data.planningFocusAreas.length) {
+      return failureResponse('INVALID_PLANNING_FOCUS', 400);
+    }
     const targetScore = parsed.data.targetScore || (subject.code.startsWith('ap_') ? '5' : '');
     const scoreValidation = validateSubjectScores(subject.code, parsed.data.currentScore, targetScore);
     if (!scoreValidation.valid) {
@@ -264,6 +273,7 @@ export async function POST(request: Request) {
     const promptData = {
       ...parsed.data,
       targetScore,
+      planningFocusAreas,
       lessonDurations,
     };
 
@@ -352,6 +362,10 @@ ${JSON.stringify(repair.report)}
     if (finalLanguageIssues.length) {
       return failureResponse('UNEXPECTED_LANGUAGE', 502, { issues: finalLanguageIssues });
     }
+    const finalWordingIssues = getCoursePlanWordingIssues(modelReport);
+    if (finalWordingIssues.length) {
+      return failureResponse('COURSE_PLAN_STYLE_REPETITION', 502, { issues: finalWordingIssues });
+    }
     const finalSyllabusReview = reviewCalculusSyllabusCoverage(
       modelReport,
       subject.code,
@@ -366,7 +380,9 @@ ${JSON.stringify(repair.report)}
     }
     const generatedLessonCount = modelReport.coursePlan.stages.reduce((total, stage) => total + stage.lessons.length, 0);
     if (generatedLessonCount !== lessonDurations.length) {
-      return failureResponse('REPORT_QUALITY_FAILED', 502);
+      return failureResponse('REPORT_QUALITY_FAILED', 502, {
+        issues: [`课程规划应生成 ${lessonDurations.length} 个课时块，实际生成了 ${generatedLessonCount} 个`],
+      });
     }
     if (reviewIssues.length > 0) {
       diagnostics.record('accepted_with_warnings', {
@@ -426,6 +442,7 @@ ${JSON.stringify(repair.report)}
         planningContext: {
           scenario: parsed.data.planningScenario,
           lessonCount: parsed.data.lessonCount,
+          focusAreas: planningFocusAreas,
         },
         qualityReview: {
           reviewCompleted: true,

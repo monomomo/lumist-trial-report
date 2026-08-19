@@ -51,9 +51,18 @@ test('fallback uses the selected scenario and editable lesson count', () => {
     planningScenario: 'intensive',
   });
   const lessons = report.coursePlan.stages.flatMap((stage) => stage.lessons);
-  assert.deepEqual(report.planningContext, { scenario: 'intensive', lessonCount: 20 });
+  assert.deepEqual(report.planningContext, { scenario: 'intensive', lessonCount: 20, focusAreas: [] });
   assert.equal(lessons.length, 20);
   assert.equal(lessons.reduce((sum, lesson) => sum + lesson.duration, 0), 30);
+});
+
+test('fallback preserves valid planning focus areas without inventing others', () => {
+  const report = buildFallbackReport('ap_biology', {
+    ...baseForm,
+    totalHours: '20',
+    planningFocusAreas: ['experimental_inquiry', 'data_analysis'],
+  });
+  assert.deepEqual(report.planningContext.focusAreas, ['experimental_inquiry', 'data_analysis']);
 });
 
 test('fallback uses 30 hours only when the submitted value is invalid', () => {
