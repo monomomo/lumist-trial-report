@@ -1251,6 +1251,7 @@ $('#report-form').addEventListener('submit', async (event) => {
         AI_GENERATION_FAILED: 'AI 服务暂时无响应，请稍后重试。',
         INVALID_SCORE: '当前成绩或目标成绩不符合所选科目的分数范围。',
         INVALID_LESSON_COUNT: '预计课次与总课时不匹配，请返回检查。',
+        SYLLABUS_COVERAGE_VIOLATION: '课程规划遗漏或错误标记了 Calculus 官方 Unit，请重新生成。',
         SUBJECT_SCOPE_VIOLATION: 'AI 内容出现跨科目术语，请重新生成。',
         REPORT_QUALITY_FAILED: 'AI 连续两次未达到报告质量要求，请重新生成。'
       };

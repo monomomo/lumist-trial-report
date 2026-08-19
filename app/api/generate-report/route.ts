@@ -8,6 +8,7 @@ import { hasSubjectScopeViolation } from '@/lib/subjects/scope';
 import { getCoursePlanQualityIssues } from '@/lib/subjects/course-plan-quality';
 import { applyLessonDurationSlots, buildLessonDurationSlots } from '@/lib/subjects/lesson-slots';
 import { PLANNING_SCENARIO_CODES } from '@/lib/reports/planning-context';
+import { reviewCalculusSyllabusCoverage } from '@/lib/subjects/ap-calculus-syllabus.js';
 import { getAuthResult, AUTH_STATUS } from '@/lib/auth/current-user';
 
 export const runtime = 'nodejs';
@@ -20,7 +21,8 @@ const lessonSchema = z.object({
   theme: z.string().min(2).max(36),
   content: z.string().min(8).max(105),
   difficulty: z.string().min(8).max(105),
-  goal: z.string().min(8).max(80)
+  goal: z.string().min(8).max(80),
+  unitCodes: z.array(z.string().min(1).max(20)).max(10)
 });
 
 const reportSchema = z.object({
@@ -280,6 +282,13 @@ ${JSON.stringify(repair.report)}
       }
       issues.push(...getCoursePlanQualityIssues(report, subject.code, lessonDurations.length));
       issues.push(...getParentVoiceIssues(report));
+      const syllabusReview = reviewCalculusSyllabusCoverage(
+        report,
+        subject.code,
+        parsed.data.planningScenario,
+        parsed.data.teacherNotes,
+      );
+      issues.push(...syllabusReview.hardIssues, ...syllabusReview.warnings);
       return issues;
     };
     let reviewIssues = reviewReport(modelReport);
@@ -298,6 +307,18 @@ ${JSON.stringify(repair.report)}
       return NextResponse.json({ error: 'EMPTY_MODEL_OUTPUT' }, { status: 502 });
     }
     reviewIssues = reviewReport(modelReport);
+    const finalSyllabusReview = reviewCalculusSyllabusCoverage(
+      modelReport,
+      subject.code,
+      parsed.data.planningScenario,
+      parsed.data.teacherNotes,
+    );
+    if (finalSyllabusReview.hardIssues.length) {
+      return NextResponse.json({
+        error: 'SYLLABUS_COVERAGE_VIOLATION',
+        issues: finalSyllabusReview.hardIssues,
+      }, { status: 502 });
+    }
     if (hasSubjectScopeViolation(subject.code, modelReport)) {
       return NextResponse.json({ error: 'SUBJECT_SCOPE_VIOLATION' }, { status: 502 });
     }
@@ -339,7 +360,10 @@ ${JSON.stringify(repair.report)}
         totalHours: parsed.data.totalHours
       }
     };
-    const finalModelWarnings = getCoursePlanQualityIssues(finalReport, subject.code, lessonDurations.length);
+    const finalModelWarnings = [
+      ...getCoursePlanQualityIssues(finalReport, subject.code, lessonDurations.length),
+      ...finalSyllabusReview.warnings,
+    ];
     const finalTeacherVoiceIssues = getParentVoiceIssues(finalReport);
 
     return NextResponse.json({

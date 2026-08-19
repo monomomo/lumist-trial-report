@@ -11,6 +11,7 @@ const lessonSchema = z.object({
   content: z.string().trim().min(1).max(300),
   difficulty: z.string().trim().min(1).max(180),
   goal: z.string().trim().min(1).max(180),
+  unitCodes: z.array(z.string().trim().min(1).max(20)).max(10).optional(),
 }).strict();
 
 const coursePlanSchema = z.object({
