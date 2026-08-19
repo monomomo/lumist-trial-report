@@ -1,6 +1,6 @@
 import { ALLOWED_DURATIONS, cloneCoursePlan, calculateTotalHours, validateCoursePlan, moveItem, moveLesson, rebalanceFinalPage, createStage, createLesson } from './course-plan-utils.js';
 import { SUBJECT_CODES, SUBJECT_CATALOG, resolveSubject, validateSubjectScores } from './catalog.js';
-import { createSubjectViewModel, normalizeTeacherProfile, buildPdfFileName, canUseFallback, buildFallbackReport, resolveTargetScore } from './report-domain.js';
+import { createSubjectViewModel, normalizeTeacherProfile, canUseFallback, buildFallbackReport, resolveTargetScore } from './report-domain.js';
 import { SUMMARY_FIELD_RULES, cloneReportSummary, validateReportSummary } from './summary-editor-utils.js';
 import { buildGenerationChecklist, buildReportQualityChecks } from './report-quality-utils.js';
 import { PLANNING_SCENARIOS, resolvePlanningScenario, getLessonCountRange } from './planning-context.js';
@@ -1370,28 +1370,16 @@ async function waitForReportImages() {
 
 $('#print-report').addEventListener('click', async () => {
   const printButton = $('#print-report');
-  const previousOverflow = document.body.style.overflow;
-  const previousTitle = document.title;
   const previousButtonText = printButton.textContent;
-  const subjectName = createSubjectViewModel(currentSubjectCode).displayName;
-  const studentName = $('#student-name').value.trim();
-  let restored = false;
   printButton.disabled = true;
   printButton.textContent = '正在准备 PDF…';
-  document.title = buildPdfFileName(subjectName, studentName);
-  const restorePrintState = () => {
-    if (restored) return;
-    restored = true;
-    document.body.style.overflow = previousOverflow;
-    document.title = previousTitle;
+  try {
+    await waitForReportImages();
+    window.print();
+  } finally {
     printButton.disabled = false;
     printButton.textContent = previousButtonText;
-    window.removeEventListener('afterprint', restorePrintState);
-  };
-  window.addEventListener('afterprint', restorePrintState);
-  await waitForReportImages();
-  window.print();
-  window.setTimeout(restorePrintState, 1000);
+  }
 });
 $('#edit-summary').addEventListener('click', openSummaryEditor);
 $('#summary-editor-content').addEventListener('input', (event) => {

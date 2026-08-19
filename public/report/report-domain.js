@@ -53,19 +53,6 @@ export function normalizeTeacherProfile(apiData) {
   };
 }
 
-export function buildPdfFileName(subjectName, studentName) {
-  const sanitize = (value, fallback) => {
-    const normalized = String(value || '')
-      .replace(/[\\/:*?"<>|]/g, '-')
-      .replace(/\s+/g, ' ')
-      .replace(/-+/g, '-')
-      .trim()
-      .replace(/^[.\s-]+|[.\s-]+$/g, '');
-    return normalized || fallback;
-  };
-  return `${sanitize(studentName, '学生')}+${sanitize(subjectName, '课程')}+学情报告`;
-}
-
 export function resolveTargetScore(subjectCode, targetScore) {
   const provided = String(targetScore || '').trim();
   if (provided) return provided;
