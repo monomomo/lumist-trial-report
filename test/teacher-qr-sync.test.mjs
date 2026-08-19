@@ -37,3 +37,12 @@ test('new teacher sync only creates missing accounts and accepts explicit placeh
   assert.match(packageJson.scripts['teachers:preview-new'], /--new-only$/);
   assert.match(packageJson.scripts['teachers:sync-new'], /--new-only --apply$/);
 });
+
+test('full teacher sync treats incomplete source fields as guarded warnings and refreshes auth metadata', async () => {
+  const source = await readFile(new URL('../scripts/sync-feishu-teachers.mjs', import.meta.url), 'utf8');
+
+  assert.match(source, /warnings\.push\('缺少授课科目，将显示通用导师职称'\)/);
+  assert.match(source, /warnings\.push\('缺少导师简介，将显示待补充提示'\)/);
+  assert.match(source, /warnings\.push\('缺少职业照，将显示姓名占位'\)/);
+  assert.match(source, /\.\.\.user\.user_metadata,[\s\S]*display_name: profile\.publicName,[\s\S]*username: profile\.username/);
+});

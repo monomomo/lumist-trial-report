@@ -2,6 +2,8 @@
 
 第二版技术栈：Next.js、Vercel、OpenAI Responses API、Supabase Auth + Database。
 
+项目接手请先阅读 [`docs/PROJECT_HANDOFF.md`](./docs/PROJECT_HANDOFF.md)，详细部署与技术说明见 [`docs/TECHNICAL_HANDOFF.md`](./docs/TECHNICAL_HANDOFF.md)。
+
 ## 本地运行
 
 ```bash
@@ -71,20 +73,22 @@ npm run teachers:reset-passwords
 ### 第二版（当前）
 
 - 老师账号名密码登录（Supabase Auth，预创建账号、无需注册）
-- 支持 7 个考试科目：SAT 数学、SAT 英语、AP Calculus AB/BC、AP Computer Science A、AP Microeconomics、AP Macroeconomics
+- 支持 31 个科目编码：SAT 数学、SAT 英语，以及 29 个 AP 学科
 - 科目感知的 AI 提示词构建与报告生成
 - AI 异常时本地科目兜底
 - 当前教师公开资料（名称、头像、简介、二维码）
 - 浏览器导出 PDF
 - 教师工作台页面（登录/登出）
-- 报告保存到 Supabase
+- 报告保存、历史列表、重新打开和更新
+- 学生总结与课程规划人工编辑
+- 老师修改密码
 
 ### 下一阶段
 
 - 管理员配置老师信息、品牌素材
 - 服务端 PDF 生成与 Supabase Storage 保存
-- 历史报告列表与再次编辑
-- 公司/品牌配置
+- 管理员跨老师查看、筛选和统计历史报告
+- 公司/品牌配置后台
 
 ## 开发
 

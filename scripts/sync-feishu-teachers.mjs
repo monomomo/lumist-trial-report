@@ -120,9 +120,9 @@ function validate(teacher, profile) {
   const errors = [];
   const warnings = [];
   if (!teacher.englishName) errors.push('缺少英文名');
-  if (!teacher.subjectText) errors.push('缺少授课科目');
-  if (!teacher.intro) errors.push('缺少导师简介');
-  if (teacher.photos.length === 0) errors.push('缺少职业照');
+  if (!teacher.subjectText) warnings.push('缺少授课科目，将显示通用导师职称');
+  if (!teacher.intro) warnings.push('缺少导师简介，将显示待补充提示');
+  if (teacher.photos.length === 0) warnings.push('缺少职业照，将显示姓名占位');
   if (!/^[a-z0-9][a-z0-9._-]{2,31}$/.test(profile.username)) errors.push('无法生成有效账号名');
   const suspiciousYears = [...teacher.intro.matchAll(/(\d{2,})\s*年(?:以上|经验)/g)].map((match) => Number(match[1]));
   if (suspiciousYears.some((years) => years > 30)) warnings.push('简介中的教学年限可能有误');
@@ -302,6 +302,14 @@ async function applyTeachers(teachers) {
       credentials.push([profile.username, INITIAL_PASSWORD, teacher.name, profile.publicName]);
       saveCredentials(credentialsPath, credentials);
     } else {
+      const { error: metadataError } = await supabase.auth.admin.updateUserById(user.id, {
+        user_metadata: {
+          ...user.user_metadata,
+          display_name: profile.publicName,
+          username: profile.username,
+        },
+      });
+      if (metadataError) throw new Error(`${teacher.name} 更新账号展示名失败：${metadataError.message}`);
       const { data: existingConfig, error: existingConfigError } = await supabase
         .from('teacher_configs')
         .select('teacher_id')

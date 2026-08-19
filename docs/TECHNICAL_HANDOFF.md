@@ -1,8 +1,11 @@
 # 路觅教育试听课报告生成器：技术交接与重新部署指南
 
-更新时间：2026-08-03  
-交接基线：`main` 分支，`62fa1ac` 及之后的交接文档提交  
-生产地址：https://lumist-trial-report.vercel.app/  
+更新时间：2026-08-19
+
+交接基线：`main` 分支，以 GitHub 远程最新提交为准
+
+生产地址：https://lumist-trial-report.vercel.app/
+
 代码仓库：https://github.com/monomomo/lumist-trial-report
 
 ## 1. 交接结论
@@ -311,7 +314,7 @@ PDF 不是服务端生成文件，而是调用浏览器打印。建议使用 Chr
 
 ## 9. 老师资料模型
 
-现有 Supabase 已创建 32 位老师账号，其中 31 位对应当前飞书老师表，另有 1 位历史账号仍保留。结构化介绍和已有职业照均已同步；截至 2026 年 8 月 13 日，20 位账号已同步二维码，其余账号没有二维码时页面会自动隐藏空缺区域。飞书老师数据源当前有 31 位老师且均已创建账号。数据源位于[老师信息多维表格](https://vm94j8bzy7.feishu.cn/wiki/HH5FwfbfRiIc30kh9CPcOkMmnyb?table=tblWhRxPsnyr7kVW&view=vewGZWuWr6)，实际访问权限由公司飞书管理员控制。
+现有 Supabase 已创建 32 位老师账号，其中 31 位对应已同步的飞书老师，另有 `Christina Chen` 历史账号仍保留。截至 2026 年 8 月 19 日，飞书已有 34 位老师；最新新增的 Yuki Huang、Stephen Duan 和 Louis Liu 尚未创建账号。已有配置中 20 位已同步二维码，其余账号没有二维码时页面会自动隐藏空缺区域。飞书已为 Tracy Lian、Jeffery Lang 和 Victoria Wang 补充职业照，但这批新素材尚待同步；Victoria Wang 的科目仍为空。数据源位于[老师信息多维表格](https://vm94j8bzy7.feishu.cn/wiki/HH5FwfbfRiIc30kh9CPcOkMmnyb?table=tblWhRxPsnyr7kVW&view=vewGZWuWr6)，实际访问权限由公司飞书管理员控制。
 
 老师相关数据分三部分：
 
@@ -385,6 +388,8 @@ TEACHER_INITIAL_PASSWORD=123456
 当前实现可以创建/更新 Auth 用户、`profiles`、`teacher_configs` 和老师照片。二维码字段为附件类型，可用 `teachers:preview-qr` 只读核对，再用 `teachers:sync-qr` 将已有二维码上传到私有 `teacher-assets` bucket 并更新 `qr_path`。二维码专项同步不会创建老师账号，也不会清空飞书中仍为空的二维码。
 
 新增老师优先使用 `teachers:preview-new` 和 `teachers:sync-new`，只处理飞书中尚无账号的老师，不覆盖已有账号。职业照、科目或简介尚未补齐时，账号仍可创建：页面分别使用姓名占位、通用职称或“导师详细介绍待补充”，不会虚构老师履历。
+
+全量预览会把缺少科目、简介或职业照标记为警告，`teachers:sync` 默认仍会拒绝写入。确认飞书缺口可接受后，可显式执行 `npm run teachers:sync -- --allow-warnings`；此操作会更新所有现有账号的展示名和报告资料，但不会重置密码。
 
 脚本现在仍带有原开发机的 `lark-cli` 路径以及飞书数据源标识默认值。公司接手后的第一项代码清理应当是删除这些机器相关默认值，改为缺少环境变量就明确报错。公司电脑还需要自行安装并授权 `lark-cli`，不能依赖原开发机上的 `lumist-feishu` profile。
 
