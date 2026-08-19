@@ -1257,7 +1257,7 @@ $('#report-form').addEventListener('submit', async (event) => {
         INVALID_LESSON_COUNT: '预计课次与总课时不匹配，请返回检查。',
         SYLLABUS_COVERAGE_VIOLATION: '课程规划遗漏或错误标记了 Calculus 官方 Unit，请重新生成。',
         SUBJECT_SCOPE_VIOLATION: 'AI 内容出现跨科目术语，请重新生成。',
-        UNEXPECTED_LANGUAGE: 'AI 内容出现异常日文，系统已阻止生成，请重新生成。',
+        UNEXPECTED_LANGUAGE: 'AI 内容出现异常语言文字，系统已阻止生成，请重新生成。',
         REPORT_QUALITY_FAILED: 'AI 连续两次未达到报告质量要求，请重新生成。'
       };
       const reference = error.requestId ? ` <span>参考编号：${escapeHtml(error.requestId)}</span>` : '';

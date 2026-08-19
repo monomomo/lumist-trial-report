@@ -177,7 +177,7 @@ test('generation waits for checklist confirmation and renders a non-blocking qua
   assert.match(routeSource, /subjectScopePassed: !hasSubjectScopeViolation/);
 });
 
-test('generation failures expose a safe reference id and reject unexpected Japanese output', async () => {
+test('generation failures expose a safe reference id and reject unexpected language scripts', async () => {
   const appSource = await readFile(new URL('../public/report/app.js', import.meta.url), 'utf8');
   const routeSource = await readFile(new URL('../app/api/generate-report/route.ts', import.meta.url), 'utf8');
   const promptSource = await readFile(new URL('../lib/subjects/prompt.ts', import.meta.url), 'utf8');
@@ -188,9 +188,9 @@ test('generation failures expose a safe reference id and reject unexpected Japan
   assert.match(routeSource, /failureResponse\('UNEXPECTED_LANGUAGE'/);
   assert.match(routeSource, /'x-request-id': diagnostics\.requestId/);
   assert.match(appSource, /error\.requestId = result\.requestId/);
-  assert.match(appSource, /UNEXPECTED_LANGUAGE: 'AI 内容出现异常日文/);
+  assert.match(appSource, /UNEXPECTED_LANGUAGE: 'AI 内容出现异常语言文字/);
   assert.match(appSource, /参考编号/);
-  assert.match(promptSource, /不使用日文假名或日语表达/);
+  assert.match(promptSource, /不使用日文、韩文、俄文或其他语言文字/);
   assert.match(guideSource, /把页面上的参考编号发给管理员/);
 });
 
