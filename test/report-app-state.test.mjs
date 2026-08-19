@@ -24,6 +24,8 @@ test('course plan pagination reserves print safety space', async () => {
   assert.match(source, /\['plan-page-compact', 'plan-page-condensed'\]/);
   assert.match(styles, /\.plan-measurement-host \.plan-page-body \{ overflow:hidden; \}/);
   assert.equal(styles.includes('.plan-measurement-host .plan-page-body { height:100%'), false);
+  assert.match(styles, /contain:layout paint; break-inside:avoid-page;/);
+  assert.match(styles, /height:296mm !important; min-height:296mm !important; max-height:296mm !important;/);
 });
 
 test('summary page compacts and splits by measured A4 content height', async () => {

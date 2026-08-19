@@ -237,6 +237,8 @@ export function buildSystemPrompt(subject: SubjectDefinition): string {
 - 每个 lesson 写 theme、content、difficulty 和 goal。字段要语义完整，不以顿号、逗号、斜杠或未闭合括号结尾。
 - 每个 lesson 同时返回 unitCodes。只有 AP Calculus AB/BC 使用合法 Unit code；其他科目固定返回空数组。
 - coursePlan.rationale 只写后续调整依据，不写总课时数字或另一套方案。
+- 正式课程第 1 课必须承接试听课已取得的结论，不得重复试听课已经完成的课程框架、核心术语导入或同一组基础练习。
+- 阶段检测只能写实际覆盖的 Unit 或模块，不承诺“每完成固定数量 Unit 就测评”等机械频率；检测范围必须与该阶段 lessons 的实际内容一致。
 
 科目事实边界：${subject.promptContext}${planningGuidance}`;
 }

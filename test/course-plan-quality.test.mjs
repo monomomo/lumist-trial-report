@@ -78,3 +78,22 @@ test('quality review requires the server-planned lesson count', () => {
   assert.match(getCoursePlanQualityIssues(report, 'sat_math', 5).join('；'), /必须包含 5 个课时块/);
   assert.deepEqual(getCoursePlanQualityIssues(report, 'sat_math', 4), []);
 });
+
+test('quality review rejects a first formal lesson that repeats the trial introduction', () => {
+  const report = {
+    lessonTitle: '试听：课程框架与核心术语导入',
+    lessonSummary: '试听课已完成核心术语解释与基础练习',
+    coursePlan: {
+      stages: [{
+        title: 'Limits 诊断',
+        lessons: [{
+          theme: '导入与术语适应',
+          content: '再次介绍课程框架和 limit、continuity 等核心术语',
+          difficulty: '英文术语与数学含义未能对应',
+          goal: '能用英文术语解释基础概念',
+        }],
+      }],
+    },
+  };
+  assert.match(getCoursePlanQualityIssues(report, 'ap_calculus_ab').join('；'), /重复试听课/);
+});

@@ -9,6 +9,7 @@ import { getCoursePlanQualityIssues } from '@/lib/subjects/course-plan-quality';
 import { applyLessonDurationSlots, buildLessonDurationSlots } from '@/lib/subjects/lesson-slots';
 import { PLANNING_SCENARIO_CODES } from '@/lib/reports/planning-context';
 import { reviewCalculusSyllabusCoverage } from '@/lib/subjects/ap-calculus-syllabus.js';
+import { hasUnnaturalTeacherPerspective, normalizeTeacherPerspective } from '@/lib/reports/teacher-perspective';
 import { getAuthResult, AUTH_STATUS } from '@/lib/auth/current-user';
 
 export const runtime = 'nodejs';
@@ -120,16 +121,13 @@ function getParentVoiceIssues(report: z.infer<typeof reportSchema>) {
   if (summaryTexts.some((value) => thirdPersonTeacherPattern.test(value))) {
     issues.push('家长可见内容使用“老师、教师”第三者口吻，没有采用任课老师本人视角');
   }
+  if (summaryTexts.some(hasUnnaturalTeacherPerspective)) {
+    issues.push('家长可见内容出现“我是……的我”等不自然的教师自称');
+  }
   if (lessonTitleProcessPattern.test(report.lessonTitle)) {
     issues.push('lessonTitle 写成了学情报告、课程规划或总课时标题，而不是本节试听内容');
   }
   return issues;
-}
-
-function normalizeTeacherPerspective(value: string) {
-  return value
-    .replace(/(?:依据|根据)(?:本次)?(?:任课)?(?:老师|教师)(?:的)?(?:记录|评语|短评)/g, '根据本次课堂情况')
-    .replace(/(?:任课)?老师|教师/g, '我');
 }
 
 function sanitizeParentReport(report: z.infer<typeof reportSchema>, subjectCode: string) {

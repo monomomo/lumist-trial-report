@@ -1,4 +1,6 @@
 interface CoursePlanQualityReport {
+  lessonTitle?: string;
+  lessonSummary?: string;
   coursePlan?: {
     stages?: Array<{
       title?: string;
@@ -17,6 +19,7 @@ const GENERIC_DIFFICULTY_PATTERN = /^(基础|中等|困难|偏难|中等偏上|�
 const GENERIC_GOAL_PATTERN = /^(掌握|提升|建立|巩固|熟悉|强化)(?!.*(?:能识别|能解释|能选择|能写出|能调试|能判断|能完成|能订正|作答|代码|图|步骤|依据))/;
 const SAT_EVIDENCE_PATTERN = /Bluebook|Student Question Bank|Educator Question Bank|My Practice|官方题库/i;
 const AP_EVIDENCE_PATTERN = /AP Classroom|Topic Questions?|Progress Checks?|Question Bank|Practice Exam|MCQ|FRQ|scoring guidelines?|评分标准|真题/i;
+const INTRODUCTION_PATTERN = /导入|课程框架|核心术语|术语适应|课程衔接/;
 
 export function getCoursePlanQualityIssues(report: CoursePlanQualityReport, subjectCode: string, expectedLessonCount?: number) {
   const stages = report.coursePlan?.stages ?? [];
@@ -53,6 +56,12 @@ export function getCoursePlanQualityIssues(report: CoursePlanQualityReport, subj
   }
   if (expectedLessonCount !== undefined && lessons.length !== expectedLessonCount) {
     issues.push(`课程规划必须包含 ${expectedLessonCount} 个课时块，当前生成了 ${lessons.length} 个`);
+  }
+  const trialText = `${report.lessonTitle ?? ''} ${report.lessonSummary ?? ''}`;
+  const firstLesson = lessons[0];
+  const firstLessonText = `${firstLesson?.theme ?? ''} ${firstLesson?.content ?? ''}`;
+  if (INTRODUCTION_PATTERN.test(trialText) && INTRODUCTION_PATTERN.test(firstLessonText)) {
+    issues.push('正式课程第 1 课重复试听课的课程框架或术语导入，应直接承接试听结论进入诊断或具体教学任务');
   }
   return issues;
 }

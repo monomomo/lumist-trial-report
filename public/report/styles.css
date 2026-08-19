@@ -38,7 +38,7 @@ nav { display:grid; gap:9px; }.nav-item { text-align:left; border:0; color:#c6ce
   .view { display:none !important; }
   #report-view { display:block !important; width:210mm; max-width:none !important; margin:0 !important; padding:0 !important; }
   .report-document { display:block !important; width:210mm; gap:0 !important; }
-  .report-page { box-shadow:none !important; width:210mm !important; height:297mm !important; min-height:297mm !important; max-height:297mm !important; margin:0 !important; aspect-ratio:auto !important; overflow:hidden !important; break-inside:avoid; page-break-inside:avoid; page-break-after:always; break-after:page; padding:42px 53px; }
+  .report-page { box-shadow:none !important; width:210mm !important; height:296mm !important; min-height:296mm !important; max-height:296mm !important; margin:0 !important; aspect-ratio:auto !important; overflow:hidden !important; contain:layout paint; break-inside:avoid-page; page-break-inside:avoid; page-break-after:always; break-after:page; padding:42px 53px; }
   .cover-page,.closing-page { padding:0 !important; }
   .report-page:last-child { page-break-after:auto; break-after:auto; }
 }

@@ -64,3 +64,48 @@ test('BC intensive coverage accepts all units and checks exam practice component
   assert.match(incomplete.hardIssues.join('；'), /calc_u9、calc_u10/);
   assert.deepEqual(incomplete.warnings.length, 4);
 });
+
+test('semantic review rejects lessons whose content and unit markers disagree', () => {
+  const report = {
+    coursePlan: {
+      stages: [{
+        title: '积分与微分方程',
+        lessons: [
+          { theme: 'Riemann Sum 与定积分', content: '使用 Riemann sum 解释定积分', unitCodes: ['calc_u1'] },
+          { theme: 'Separable Differential Equations', content: '使用变量分离求解微分方程', unitCodes: ['calc_u3'] },
+        ],
+      }],
+    },
+  };
+  const review = reviewCalculusSyllabusCoverage(report, 'ap_calculus_ab', 'synchronous', '');
+  assert.match(review.hardIssues.join('；'), /calc_u6/);
+  assert.match(review.hardIssues.join('；'), /calc_u7/);
+  assert.match(review.hardIssues.join('；'), /与明确内容不一致/);
+});
+
+test('preview cannot expand beyond required units and stage claims must match actual coverage', () => {
+  const report = {
+    coursePlan: {
+      stages: [{
+        title: '阶段检测（覆盖 Units 1–3）',
+        description: '完成 Units 1–3 的总结与检测',
+        lessons: [
+          { theme: 'Limits', content: '完成 limit 基础练习', unitCodes: ['calc_u1'] },
+          { theme: 'Derivative definition', content: '用 difference quotient 解释导数定义', unitCodes: ['calc_u2'] },
+          { theme: 'Chain Rule', content: '使用 chain rule 求复合函数导数', unitCodes: ['calc_u3'] },
+          { theme: 'Optimization', content: '完成 optimization 建模', unitCodes: ['calc_u5'] },
+        ],
+      }],
+    },
+  };
+  const review = reviewCalculusSyllabusCoverage(report, 'ap_calculus_ab', 'preview', '');
+  assert.match(review.hardIssues.join('；'), /阶段声称覆盖/);
+  assert.match(review.hardIssues.join('；'), /预习规划超出/);
+});
+
+test('fixed unit assessment promises are rejected', () => {
+  const report = createReport([['calc_u1'], ['calc_u2'], ['calc_u3']]);
+  report.coursePlan.stages[0].description = '每完成 2 个 Unit 后安排一次阶段测评';
+  const review = reviewCalculusSyllabusCoverage(report, 'ap_calculus_ab', 'preview', '');
+  assert.match(review.hardIssues.join('；'), /固定 Unit 数量测评/);
+});
