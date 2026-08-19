@@ -3,9 +3,7 @@ import { SUBJECT_CODES, SUBJECT_CATALOG, resolveSubject, validateSubjectScores }
 import { createSubjectViewModel, normalizeTeacherProfile, buildPdfFileName, canUseFallback, buildFallbackReport, resolveTargetScore } from './report-domain.js';
 import { SUMMARY_FIELD_RULES, cloneReportSummary, validateReportSummary } from './summary-editor-utils.js';
 import { buildGenerationChecklist, buildReportQualityChecks } from './report-quality-utils.js';
-
-const sampleOne = '我刚上了一节SAT数学试听课。根据课前沟通，学生已经不记得SAT数学的知识点了。所以我们计划从头开始梳理知识点，同学上课互动很积极，做题的正确率也挺好的，中等难度的题也可以做对，没有她自己说的那么基础差。但是确实是有些知识点有遗忘。所以我计划接下来先从头补知识点，让同学建立SAT数学知识图谱。';
-const sampleTwo = '学生课上挺活泼的，爱互动，愿意思考，做题的准确率其实很不错。因为学生不了解SAT考点，第一节课带学生看了SAT的4章内容。学生现在在学微积分，所以Algebra的内容比较熟练，但因为比较久没有接触概率、几何的东西，这两章相对薄弱。';
+import { PLANNING_SCENARIOS, resolvePlanningScenario, getLessonCountRange } from './planning-context.js';
 
 const $ = (selector) => document.querySelector(selector);
 const setText = (selector, value) => { $(selector).textContent = value; };
@@ -913,6 +911,13 @@ function applyCoursePlan() {
   renderCoursePlan(draftCoursePlan);
   currentReportData.coursePlan = cloneCoursePlan(draftCoursePlan);
   $('#total-hours').value = String(draftCoursePlan.totalHours);
+  const lessonCount = draftCoursePlan.stages.reduce((total, stage) => total + stage.lessons.length, 0);
+  $('#lesson-count').value = String(lessonCount);
+  currentReportData.planningContext = {
+    scenario: resolvePlanningScenario(currentReportData.planningContext?.scenario || $('#planning-scenario').value),
+    lessonCount,
+  };
+  updateLessonCountHint();
   renderReportQualityNotice(currentReportData);
   document.querySelector('#report-view .eyebrow').textContent = '课程规划已编辑 · 未云端保存';
   closePlanEditor();
@@ -924,6 +929,13 @@ function restoreOriginalCoursePlan() {
   if (!window.confirm('确定恢复为本次 AI 生成的原始课程规划吗？当前课程规划修改将被覆盖。')) return;
   currentReportData.coursePlan = cloneCoursePlan(originalAiCoursePlan);
   $('#total-hours').value = String(currentReportData.coursePlan.totalHours);
+  const lessonCount = currentReportData.coursePlan.stages.reduce((total, stage) => total + stage.lessons.length, 0);
+  $('#lesson-count').value = String(lessonCount);
+  currentReportData.planningContext = {
+    scenario: resolvePlanningScenario(currentReportData.planningContext?.scenario || $('#planning-scenario').value),
+    lessonCount,
+  };
+  updateLessonCountHint();
   renderCoursePlan(currentReportData.coursePlan);
   renderReportQualityNotice(currentReportData);
   document.querySelector('#report-view .eyebrow').textContent = '已恢复 AI 原始课程规划 · 未云端保存';
@@ -935,6 +947,11 @@ async function saveReport() {
   if (!currentReportData) return;
   const reportStatus = document.querySelector('#report-view .eyebrow');
   const saveButton = $('#save-report');
+  const lessonCount = currentReportData.coursePlan.stages.reduce((total, stage) => total + stage.lessons.length, 0);
+  currentReportData.planningContext = {
+    scenario: resolvePlanningScenario(currentReportData.planningContext?.scenario || $('#planning-scenario').value),
+    lessonCount,
+  };
   const { coursePlan, salesFollowUp, ...reportData } = currentReportData;
   const payload = {
     id: currentReportId,
@@ -977,8 +994,25 @@ function collectFormData() {
     targetScore: resolveTargetScore(currentSubjectCode, $('#target-score').value),
     examDate: getSelectedExamDate(),
     totalHours: $('#total-hours').value,
+    lessonCount: $('#lesson-count').value,
+    planningScenario: resolvePlanningScenario($('#planning-scenario').value),
     teacherNotes: $('#teacher-notes').value.trim(),
   };
+}
+
+function updateLessonCountHint() {
+  const range = getLessonCountRange($('#total-hours').value);
+  $('#lesson-count-hint').textContent = range
+    ? `当前总课时支持 ${range.minimum}–${range.maximum} 节，每节 0.5–2 小时`
+    : '填写总课时后自动建议，可继续修改';
+}
+
+function suggestLessonCount() {
+  const range = getLessonCountRange($('#total-hours').value);
+  if (range) $('#lesson-count').value = String(range.minimum);
+  else $('#lesson-count').value = '';
+  $('#lesson-count').setCustomValidity('');
+  updateLessonCountHint();
 }
 
 function getSelectedExamDate() {
@@ -995,6 +1029,8 @@ function getGenerationChecklistItems() {
     targetScore: formData.targetScore,
     examDate: formData.examDate,
     totalHours: formData.totalHours,
+    lessonCount: formData.lessonCount,
+    planningScenarioLabel: PLANNING_SCENARIOS[formData.planningScenario].label,
     teacherName: teacher?.displayName || '',
     notesLength: formData.teacherNotes.length,
   });
@@ -1031,8 +1067,21 @@ function validateGenerationInputs() {
   }
   const currentScore = $('#current-score');
   const targetScore = $('#target-score');
+  const lessonCount = $('#lesson-count');
   currentScore.setCustomValidity('');
   targetScore.setCustomValidity('');
+  lessonCount.setCustomValidity('');
+  const lessonCountRange = getLessonCountRange($('#total-hours').value);
+  const requestedLessonCount = Number(lessonCount.value);
+  if (!lessonCountRange || !Number.isInteger(requestedLessonCount)
+    || requestedLessonCount < lessonCountRange.minimum || requestedLessonCount > lessonCountRange.maximum) {
+    const rangeText = lessonCountRange ? `${lessonCountRange.minimum}–${lessonCountRange.maximum}` : '有效';
+    lessonCount.setCustomValidity(`当前总课时下，预计课次应为 ${rangeText} 节`);
+    notice.classList.add('error');
+    notice.innerHTML = `<strong>课次填写有误：</strong>当前总课时下，预计课次应为 ${escapeHtml(rangeText)} 节。`;
+    lessonCount.reportValidity();
+    return false;
+  }
   const validation = validateSubjectScores(
     currentSubjectCode,
     currentScore.value,
@@ -1106,6 +1155,11 @@ async function openHistoricalReport(reportId) {
   $('#target-score').value = record.target_score || '';
   $('#teacher-notes').value = record.original_notes || '';
   $('#total-hours').value = record.course_plan?.totalHours || '';
+  const savedPlanningContext = record.report_data?.planningContext || {};
+  $('#planning-scenario').value = resolvePlanningScenario(savedPlanningContext.scenario);
+  const savedLessons = record.course_plan?.stages?.flatMap((stage) => stage.lessons || []) || [];
+  $('#lesson-count').value = savedPlanningContext.lessonCount || savedLessons.length || Math.ceil(Number(record.course_plan?.totalHours || 0) / 2) || '';
+  updateLessonCountHint();
   if (subjectCode.startsWith('ap_')) {
     const examDate = record.exam_date_text || '';
     if (examDate && !Array.from($('#ap-exam-date').options).some((option) => option.value === examDate)) {
@@ -1196,6 +1250,7 @@ $('#report-form').addEventListener('submit', async (event) => {
       const messages = {
         AI_GENERATION_FAILED: 'AI 服务暂时无响应，请稍后重试。',
         INVALID_SCORE: '当前成绩或目标成绩不符合所选科目的分数范围。',
+        INVALID_LESSON_COUNT: '预计课次与总课时不匹配，请返回检查。',
         SUBJECT_SCOPE_VIOLATION: 'AI 内容出现跨科目术语，请重新生成。',
         REPORT_QUALITY_FAILED: 'AI 连续两次未达到报告质量要求，请重新生成。'
       };
@@ -1206,8 +1261,11 @@ $('#report-form').addEventListener('submit', async (event) => {
     button.innerHTML = 'AI 生成个性化报告 <span>→</span>';
   }
 });
-$('#sample-one').addEventListener('click', () => { $('#teacher-notes').value = sampleOne; });
-$('#sample-two').addEventListener('click', () => { $('#teacher-notes').value = sampleTwo; });
+document.querySelectorAll('[data-scenario-sample]').forEach((button) => button.addEventListener('click', () => {
+  const scenario = resolvePlanningScenario(button.dataset.scenarioSample);
+  $('#planning-scenario').value = scenario;
+  $('#teacher-notes').value = PLANNING_SCENARIOS[scenario].sample;
+}));
 $('#subject-search').addEventListener('focus', (event) => {
   event.target.select();
   renderSubjectOptions('');
@@ -1260,6 +1318,11 @@ document.addEventListener('click', (event) => {
 $('#subject-select').addEventListener('change', onSubjectChange);
 $('#current-score').addEventListener('input', (event) => event.target.setCustomValidity(''));
 $('#target-score').addEventListener('input', (event) => event.target.setCustomValidity(''));
+$('#total-hours').addEventListener('input', suggestLessonCount);
+$('#lesson-count').addEventListener('input', (event) => {
+  event.target.setCustomValidity('');
+  updateLessonCountHint();
+});
 $('#generation-checklist-modal').addEventListener('click', (event) => {
   if (event.target.dataset.checklistAction === 'edit') closeGenerationChecklist(false);
   if (event.target.dataset.checklistAction === 'confirm') closeGenerationChecklist(true);
@@ -1285,21 +1348,41 @@ $('#history-list').addEventListener('click', async (event) => {
 });
 $('#back-edit').addEventListener('click', () => changeView('new'));
 $('#save-report').addEventListener('click', saveReport);
-$('#print-report').addEventListener('click', () => {
+async function waitForReportImages() {
+  const images = [...document.querySelectorAll('#report-document img')];
+  await Promise.all(images.map(async (image) => {
+    if (!image.complete) {
+      await new Promise((resolve) => {
+        image.addEventListener('load', resolve, { once: true });
+        image.addEventListener('error', resolve, { once: true });
+      });
+    }
+    if (image.decode) await image.decode().catch(() => {});
+  }));
+}
+
+$('#print-report').addEventListener('click', async () => {
+  const printButton = $('#print-report');
   const previousOverflow = document.body.style.overflow;
   const previousTitle = document.title;
+  const previousButtonText = printButton.textContent;
   const subjectName = createSubjectViewModel(currentSubjectCode).displayName;
   const studentName = $('#student-name').value.trim();
   let restored = false;
+  printButton.disabled = true;
+  printButton.textContent = '正在准备 PDF…';
   document.title = buildPdfFileName(subjectName, studentName);
   const restorePrintState = () => {
     if (restored) return;
     restored = true;
     document.body.style.overflow = previousOverflow;
     document.title = previousTitle;
+    printButton.disabled = false;
+    printButton.textContent = previousButtonText;
     window.removeEventListener('afterprint', restorePrintState);
   };
   window.addEventListener('afterprint', restorePrintState);
+  await waitForReportImages();
   window.print();
   window.setTimeout(restorePrintState, 1000);
 });

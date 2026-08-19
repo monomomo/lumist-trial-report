@@ -3,6 +3,7 @@
  * 纯函数，不依赖 DOM 或 fetch，方便测试和复用。
  */
 import { SUBJECT_CATALOG, SUBJECT_CODES, resolveSubject } from './catalog.js';
+import { buildLessonDurationSlots, resolvePlanningScenario } from './planning-context.js';
 
 /**
  * 创建科目视图模型，用于 HTML 渲染。
@@ -98,6 +99,8 @@ export function buildFallbackReport(subjectCode, formData) {
   const target = resolveTargetScore(subjectCode, formData.targetScore) || '待老师确认';
   const notes = formData.teacherNotes || '';
   const totalHours = normalizeFallbackTotalHours(formData.totalHours);
+  const planningScenario = resolvePlanningScenario(formData.planningScenario);
+  const lessonDurations = buildLessonDurationSlots(totalHours, formData.lessonCount);
 
   const positive = /活泼|互动积极|爱互动/.test(notes)
     ? '学生课堂互动积极，愿意主动表达与思考'
@@ -116,7 +119,11 @@ export function buildFallbackReport(subjectCode, formData) {
     performance: `${positive}；${accuracy}。`,
     outcomes: [`我已初步了解学生与${vm.displayName}课程的衔接情况`, accuracy, '学生明确了接下来课堂练习的重点', `我会继续细化${vm.displayName}后续训练顺序`],
     priorityAreas: ['建立完整知识框架', ...(vm.modules.length > 2 ? vm.modules.slice(0, 2) : vm.modules)],
-    coursePlan: resizeFallbackCoursePlan(buildGenericCoursePlan(vm), totalHours),
+    planningContext: {
+      scenario: planningScenario,
+      lessonCount: lessonDurations.length,
+    },
+    coursePlan: resizeFallbackCoursePlan(buildGenericCoursePlan(vm), totalHours, lessonDurations),
     salesFollowUp: {
       positive: `${positive}，${accuracy}。`,
       urgent: `最需要优先解决的是建立${vm.displayName}知识框架以及对题型体系的熟悉度。如果缺少系统框架，学生即使有基础，也容易在陌生模块和限时作答中产生不必要失分。`,
@@ -134,20 +141,7 @@ function normalizeFallbackTotalHours(value) {
     : 30;
 }
 
-function buildFallbackDurations(totalHours) {
-  const lessonCount = Math.ceil(totalHours / 2);
-  const totalUnits = totalHours * 2;
-  const baseUnits = Math.floor(totalUnits / lessonCount);
-  let remainder = totalUnits - baseUnits * lessonCount;
-  return Array.from({ length: lessonCount }, () => {
-    const units = baseUnits + (remainder > 0 ? 1 : 0);
-    if (remainder > 0) remainder -= 1;
-    return units / 2;
-  });
-}
-
-function resizeFallbackCoursePlan(coursePlan, totalHours) {
-  const durations = buildFallbackDurations(totalHours);
+function resizeFallbackCoursePlan(coursePlan, totalHours, durations) {
   const templates = coursePlan.stages.flatMap((stage) => stage.lessons);
   const lessons = durations.map((duration, index) => {
     const templateIndex = durations.length <= templates.length

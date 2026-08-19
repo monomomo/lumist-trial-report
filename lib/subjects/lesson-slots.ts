@@ -1,17 +1,4 @@
-export function buildLessonDurationSlots(totalHours: number) {
-  const totalUnits = totalHours * 2;
-  if (!Number.isInteger(totalUnits) || totalHours < 0.5) {
-    throw new RangeError('INVALID_TOTAL_HOURS');
-  }
-  const lessonCount = Math.ceil(totalHours / 2);
-  const baseUnits = Math.floor(totalUnits / lessonCount);
-  let remainder = totalUnits - baseUnits * lessonCount;
-  return Array.from({ length: lessonCount }, () => {
-    const units = baseUnits + (remainder > 0 ? 1 : 0);
-    if (remainder > 0) remainder -= 1;
-    return units / 2;
-  });
-}
+export { buildLessonDurationSlots } from '../reports/planning-context.js';
 
 export function applyLessonDurationSlots<
   T extends { lessons: Array<Record<string, unknown>> }

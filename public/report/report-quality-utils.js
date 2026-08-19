@@ -1,14 +1,17 @@
-function buildGenerationChecklist({ studentName, subjectName, currentScore, targetScore, examDate, totalHours, teacherName, notesLength }) {
+function buildGenerationChecklist({ studentName, subjectName, currentScore, targetScore, examDate, totalHours, lessonCount, planningScenarioLabel, teacherName, notesLength }) {
   const hours = Number(totalHours);
   const hasHours = String(totalHours ?? '').trim() !== '' && Number.isFinite(hours) && hours > 0;
+  const lessons = Number(lessonCount);
+  const hasLessonCount = String(lessonCount ?? '').trim() !== '' && Number.isInteger(lessons) && lessons > 0;
   return [
     { label: '学生', value: studentName || '未填写', status: studentName ? 'ready' : 'warning' },
     { label: '科目', value: subjectName || '未选择', status: subjectName ? 'ready' : 'warning' },
     { label: '当前成绩', value: currentScore || '未填写（可继续）', status: currentScore ? 'ready' : 'optional' },
     { label: '目标成绩', value: targetScore || '未填写（建议确认）', status: targetScore ? 'ready' : 'warning' },
     { label: '考试时间', value: examDate || '未填写（可继续）', status: examDate ? 'ready' : 'optional' },
+    { label: '辅导场景', value: planningScenarioLabel || '未选择', status: planningScenarioLabel ? 'ready' : 'warning' },
     { label: '总课时', value: hasHours ? `${hours}h` : '未填写', status: hasHours ? 'ready' : 'warning' },
-    { label: '预计课次', value: hasHours ? `${Math.ceil(hours / 2)} 节` : '无法计算', status: hasHours ? 'ready' : 'warning' },
+    { label: '预计课次', value: hasLessonCount ? `${lessons} 节` : '未填写', status: hasLessonCount ? 'ready' : 'warning' },
     { label: '授课老师', value: teacherName || '当前登录老师', status: 'ready' },
     { label: '试听记录', value: `${Number(notesLength) || 0} 字`, status: Number(notesLength) >= 20 ? 'ready' : 'warning' },
   ];

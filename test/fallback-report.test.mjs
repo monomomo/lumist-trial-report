@@ -43,6 +43,19 @@ test('fallback parent-facing copy uses the teacher voice', () => {
   assert.doesNotMatch(parentFacingText, /本报告|原始记录|任课老师|教师/);
 });
 
+test('fallback uses the selected scenario and editable lesson count', () => {
+  const report = buildFallbackReport('ap_calculus_bc', {
+    ...baseForm,
+    totalHours: '30',
+    lessonCount: '20',
+    planningScenario: 'intensive',
+  });
+  const lessons = report.coursePlan.stages.flatMap((stage) => stage.lessons);
+  assert.deepEqual(report.planningContext, { scenario: 'intensive', lessonCount: 20 });
+  assert.equal(lessons.length, 20);
+  assert.equal(lessons.reduce((sum, lesson) => sum + lesson.duration, 0), 30);
+});
+
 test('fallback uses 30 hours only when the submitted value is invalid', () => {
   for (const totalHours of ['', '1', '60.5', 'abc']) {
     const report = buildFallbackReport('sat_math', { ...baseForm, totalHours });

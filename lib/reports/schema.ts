@@ -1,5 +1,6 @@
 import { z } from 'zod';
 import { SUBJECT_CODES, SUBJECT_CATALOG, validateSubjectScores } from '../subjects/catalog.js';
+import { PLANNING_SCENARIO_CODES } from './planning-context.js';
 
 const subjectNames = SUBJECT_CODES.map((code) => SUBJECT_CATALOG[code].displayName) as [string, ...string[]];
 const subjectSchema = z.enum(subjectNames);
@@ -44,6 +45,10 @@ const reportDataSchema = z.object({
   performance: z.string().trim().min(1).max(300),
   outcomes: z.array(z.string().trim().min(1).max(120)).min(1).max(5),
   priorityAreas: z.array(z.string().trim().min(1).max(80)).min(1).max(6),
+  planningContext: z.object({
+    scenario: z.enum(PLANNING_SCENARIO_CODES as [string, ...string[]]),
+    lessonCount: z.number().int().min(1).max(60),
+  }).strict().optional(),
   teacherNotice: z.string().trim().max(500).optional(),
   qualityReview: z.object({
     reviewCompleted: z.boolean(),
@@ -73,27 +78,47 @@ const reportSaveShape = {
   salesFollowUp: salesFollowUpSchema,
 };
 
-function validateReportScores(data: { subject: string; currentScore: string; targetScore: string }, context: z.RefinementCtx) {
+type ReportValidationInput = {
+  subject: string;
+  currentScore: string;
+  targetScore: string;
+  reportData: { planningContext?: { lessonCount: number } };
+  coursePlan: { stages: Array<{ lessons: unknown[] }> };
+};
+
+function validateReport(data: ReportValidationInput, context: z.RefinementCtx) {
   const subjectCode = SUBJECT_CODES.find((code) => SUBJECT_CATALOG[code].displayName === data.subject);
-  if (!subjectCode) return;
-  const targetScore = data.targetScore || (subjectCode.startsWith('ap_') ? '5' : '');
-  const validation = validateSubjectScores(subjectCode, data.currentScore, targetScore);
-  validation.errors.forEach((error) => context.addIssue({
-    code: 'custom',
-    path: [error.path],
-    message: error.message,
-  }));
+  if (subjectCode) {
+    const targetScore = data.targetScore || (subjectCode.startsWith('ap_') ? '5' : '');
+    const validation = validateSubjectScores(subjectCode, data.currentScore, targetScore);
+    validation.errors.forEach((error) => context.addIssue({
+      code: 'custom',
+      path: [error.path],
+      message: error.message,
+    }));
+  }
+  const savedLessonCount = data.reportData?.planningContext?.lessonCount;
+  if (savedLessonCount !== undefined) {
+    const actualLessonCount = data.coursePlan.stages.reduce((total, stage) => total + stage.lessons.length, 0);
+    if (savedLessonCount !== actualLessonCount) {
+      context.addIssue({
+        code: 'custom',
+        path: ['reportData', 'planningContext', 'lessonCount'],
+        message: `预计课次 ${savedLessonCount} 与课程规划 ${actualLessonCount} 节不一致`,
+      });
+    }
+  }
 }
 
 export const reportCreateSchema = z.object({
   ...reportSaveShape,
   id: z.null().optional(),
-}).strict().superRefine(validateReportScores);
+}).strict().superRefine(validateReport);
 
 export const reportUpdateSchema = z.object({
   ...reportSaveShape,
   id: z.string().uuid(),
-}).strict().superRefine(validateReportScores);
+}).strict().superRefine(validateReport);
 
 export type ReportCreateInput = z.infer<typeof reportCreateSchema>;
 export type ReportUpdateInput = z.infer<typeof reportUpdateSchema>;

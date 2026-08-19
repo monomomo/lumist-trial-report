@@ -37,12 +37,15 @@ test('generation checklist presents every decision before calling AI', () => {
     targetScore: '5',
     examDate: '2027年5月',
     totalHours: '20',
+    lessonCount: '12',
+    planningScenarioLabel: '预习',
     teacherName: 'Amber',
     notesLength: 128,
   });
 
-  assert.deepEqual(items.map((item) => item.label), ['学生', '科目', '当前成绩', '目标成绩', '考试时间', '总课时', '预计课次', '授课老师', '试听记录']);
-  assert.equal(items.find((item) => item.label === '预计课次').value, '10 节');
+  assert.deepEqual(items.map((item) => item.label), ['学生', '科目', '当前成绩', '目标成绩', '考试时间', '辅导场景', '总课时', '预计课次', '授课老师', '试听记录']);
+  assert.equal(items.find((item) => item.label === '预计课次').value, '12 节');
+  assert.equal(items.find((item) => item.label === '辅导场景').value, '预习');
   assert.equal(items.every((item) => item.status === 'ready'), true);
 });
 
@@ -54,6 +57,8 @@ test('generation checklist marks optional and recommended missing fields without
     targetScore: '',
     examDate: '',
     totalHours: '10',
+    lessonCount: '5',
+    planningScenarioLabel: '同步',
     teacherName: 'Amber',
     notesLength: 80,
   });

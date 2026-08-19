@@ -101,6 +101,13 @@ test('course introduction appears after company introduction as a full-page mate
   assert.match(styles, /\.course-introduction-page > img \{[^}]*width:100%;[^}]*height:100%;[^}]*object-fit:cover;/);
 });
 
+test('company introduction uses an optimized image with a JPEG fallback', async () => {
+  const htmlSource = await readFile(new URL('../public/report/index.html', import.meta.url), 'utf8');
+  assert.match(htmlSource, /lumist-company-introduction\.webp/);
+  assert.match(htmlSource, /lumist-company-introduction\.jpeg/);
+  assert.match(htmlSource, /width="2380"[\s\S]*height="3368"/);
+});
+
 test('new report form starts with empty teacher inputs', async () => {
   const source = await readFile(new URL('../public/report/index.html', import.meta.url), 'utf8');
   for (const id of ['student-name', 'target-score', 'total-hours']) {
@@ -108,8 +115,9 @@ test('new report form starts with empty teacher inputs', async () => {
     assert.equal(input.includes('value='), false);
   }
   assert.match(source, /<textarea id="teacher-notes"[^>]*><\/textarea>/);
-  assert.match(source, /id="sample-one"/);
-  assert.match(source, /id="sample-two"/);
+  assert.match(source, /id="planning-scenario"/);
+  assert.match(source, /id="lesson-count"/);
+  assert.equal(source.match(/data-scenario-sample=/g)?.length, 3);
 });
 
 test('AP subjects use upcoming May exam options', async () => {
@@ -188,7 +196,7 @@ test('parent copy protection applies teacher voice rules to every subject', asyn
 
 test('lesson durations are computed before generation and attached after validation', async () => {
   const source = await readFile(new URL('../app/api/generate-report/route.ts', import.meta.url), 'utf8');
-  assert.match(source, /buildLessonDurationSlots\(parsed\.data\.totalHours\)/);
+  assert.match(source, /buildLessonDurationSlots\(parsed\.data\.totalHours, parsed\.data\.lessonCount\)/);
   assert.match(source, /buildUserInput\(subject, promptData\)/);
   assert.match(source, /getCoursePlanQualityIssues\(report, subject\.code, lessonDurations\.length\)/);
   assert.match(source, /applyLessonDurationSlots\(normalizedStages, lessonDurations\)/);

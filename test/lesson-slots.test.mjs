@@ -28,3 +28,10 @@ test('lesson slots attach across stage boundaries without changing content', () 
   assert.equal('duration' in stages[0].lessons[0], false);
   assert.throws(() => applyLessonDurationSlots(stages, [1, 1]), /COURSE_PLAN_LESSON_COUNT_MISMATCH/);
 });
+
+test('lesson slots honor an editable lesson count without changing total hours', () => {
+  assert.deepEqual(buildLessonDurationSlots(30, 20), Array(20).fill(1.5));
+  assert.deepEqual(buildLessonDurationSlots(5, 4), [1.5, 1.5, 1, 1]);
+  assert.throws(() => buildLessonDurationSlots(30, 10), /INVALID_LESSON_COUNT_FOR_TOTAL_HOURS/);
+  assert.throws(() => buildLessonDurationSlots(30, 61), /INVALID_LESSON_COUNT/);
+});

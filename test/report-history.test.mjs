@@ -22,6 +22,7 @@ function createValidReportPayload() {
       performance: '学生能够跟随讲解完成思考。',
       outcomes: ['完成初步诊断'],
       priorityAreas: ['知识框架'],
+      planningContext: { scenario: 'preview', lessonCount: 1 },
     },
     coursePlan: {
       totalHours: 2,
@@ -76,11 +77,14 @@ test('report save schema rejects malformed data and inconsistent total hours', (
   const unknownField = { ...createValidReportPayload(), teacherId: 'forged-id' };
   const badDuration = createValidReportPayload();
   badDuration.coursePlan.stages[0].lessons[0].duration = 3;
+  const badLessonCount = createValidReportPayload();
+  badLessonCount.reportData.planningContext.lessonCount = 2;
 
   assert.equal(reportCreateSchema.safeParse(mismatch).success, false);
   assert.equal(reportCreateSchema.safeParse(badSubject).success, false);
   assert.equal(reportCreateSchema.safeParse(unknownField).success, false);
   assert.equal(reportCreateSchema.safeParse(badDuration).success, false);
+  assert.equal(reportCreateSchema.safeParse(badLessonCount).success, false);
 });
 
 test('report save schema rejects scores outside the selected subject range', () => {

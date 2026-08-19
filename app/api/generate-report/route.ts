@@ -7,6 +7,7 @@ import { buildSystemPrompt, buildUserInput } from '@/lib/subjects/prompt';
 import { hasSubjectScopeViolation } from '@/lib/subjects/scope';
 import { getCoursePlanQualityIssues } from '@/lib/subjects/course-plan-quality';
 import { applyLessonDurationSlots, buildLessonDurationSlots } from '@/lib/subjects/lesson-slots';
+import { PLANNING_SCENARIO_CODES } from '@/lib/reports/planning-context';
 import { getAuthResult, AUTH_STATUS } from '@/lib/auth/current-user';
 
 export const runtime = 'nodejs';
@@ -54,6 +55,8 @@ const requestSchema = z.object({
   targetScore: z.string().trim().max(30).optional().default(''),
   examDate: z.string().trim().max(50).optional().default(''),
   totalHours: z.coerce.number().min(2).max(60).multipleOf(0.5),
+  lessonCount: z.coerce.number().int().min(1).max(60),
+  planningScenario: z.enum(PLANNING_SCENARIO_CODES as [string, ...string[]]),
   teacherNotes: z.string().trim().min(20).max(6000),
   subjectCode: z.string().trim().max(40).optional().default('sat_math')
 });
@@ -217,7 +220,12 @@ export async function POST(request: Request) {
     if (!scoreValidation.valid) {
       return NextResponse.json({ error: 'INVALID_SCORE', issues: scoreValidation.errors }, { status: 400 });
     }
-    const lessonDurations = buildLessonDurationSlots(parsed.data.totalHours);
+    let lessonDurations;
+    try {
+      lessonDurations = buildLessonDurationSlots(parsed.data.totalHours, parsed.data.lessonCount);
+    } catch {
+      return NextResponse.json({ error: 'INVALID_LESSON_COUNT' }, { status: 400 });
+    }
     const promptData = {
       ...parsed.data,
       targetScore,
@@ -339,6 +347,10 @@ ${JSON.stringify(repair.report)}
       model: process.env.OPENAI_MODEL || 'gpt-5-mini',
       report: {
         ...finalReport,
+        planningContext: {
+          scenario: parsed.data.planningScenario,
+          lessonCount: parsed.data.lessonCount,
+        },
         qualityReview: {
           reviewCompleted: true,
           subjectScopePassed: !hasSubjectScopeViolation(subject.code, finalReport),
