@@ -10,6 +10,8 @@ import { applyLessonDurationSlots, buildLessonDurationSlots } from '@/lib/subjec
 import { PLANNING_SCENARIO_CODES } from '@/lib/reports/planning-context';
 import { reviewCalculusSyllabusCoverage } from '@/lib/subjects/ap-calculus-syllabus.js';
 import { hasUnnaturalTeacherPerspective, normalizeTeacherPerspective } from '@/lib/reports/teacher-perspective';
+import { createGenerationDiagnostics, type GenerationStage } from '@/lib/reports/generation-diagnostics';
+import { getUnexpectedLanguageIssues } from '@/lib/reports/language-quality';
 import { getAuthResult, AUTH_STATUS } from '@/lib/auth/current-user';
 
 export const runtime = 'nodejs';
@@ -197,35 +199,68 @@ function buildTeacherNotice(notes: string) {
 }
 
 export async function POST(request: Request) {
-  const apiKey = process.env.OPENAI_API_KEY;
-  if (!apiKey) {
-    return NextResponse.json({ error: 'AI_SERVICE_NOT_CONFIGURED' }, { status: 503 });
-  }
-
-  const auth = await getAuthResult();
-  // Supabase 未配置时进入 demo 模式，跳过认证检查
-  if (auth.status === AUTH_STATUS.NOT_AUTHENTICATED) {
-    return NextResponse.json({ error: 'UNAUTHORIZED' }, { status: 401 });
-  }
+  const diagnostics = createGenerationDiagnostics();
+  let stage: GenerationStage = 'configuration';
+  let subjectCode: string | undefined;
+  let lessonCount: number | undefined;
+  let repairAttempted = false;
+  const failureResponse = (
+    errorCode: string,
+    status: number,
+    options: { issues?: readonly unknown[]; errorType?: string } = {},
+  ) => {
+    diagnostics.record('failed', {
+      stage,
+      subjectCode,
+      lessonCount,
+      errorCode,
+      errorType: options.errorType,
+      repairAttempted,
+      issueCount: options.issues?.length,
+    });
+    return NextResponse.json({
+      error: errorCode,
+      requestId: diagnostics.requestId,
+      ...(options.issues ? { issues: options.issues } : {}),
+    }, {
+      status,
+      headers: { 'x-request-id': diagnostics.requestId },
+    });
+  };
 
   try {
+    diagnostics.record('started', { stage });
+    const apiKey = process.env.OPENAI_API_KEY;
+    if (!apiKey) {
+      return failureResponse('AI_SERVICE_NOT_CONFIGURED', 503);
+    }
+
+    stage = 'authentication';
+    const auth = await getAuthResult();
+    if (auth.status === AUTH_STATUS.NOT_AUTHENTICATED) {
+      return failureResponse('UNAUTHORIZED', 401);
+    }
+
+    stage = 'request_validation';
     const parsed = requestSchema.safeParse(await request.json());
     if (!parsed.success) {
-      return NextResponse.json({ error: 'INVALID_INPUT' }, { status: 400 });
+      return failureResponse('INVALID_INPUT', 400);
     }
 
     const subject = resolveSubject(parsed.data.subjectCode);
+    subjectCode = subject.code;
     const targetScore = parsed.data.targetScore || (subject.code.startsWith('ap_') ? '5' : '');
     const scoreValidation = validateSubjectScores(subject.code, parsed.data.currentScore, targetScore);
     if (!scoreValidation.valid) {
-      return NextResponse.json({ error: 'INVALID_SCORE', issues: scoreValidation.errors }, { status: 400 });
+      return failureResponse('INVALID_SCORE', 400, { issues: scoreValidation.errors });
     }
     let lessonDurations;
     try {
       lessonDurations = buildLessonDurationSlots(parsed.data.totalHours, parsed.data.lessonCount);
     } catch {
-      return NextResponse.json({ error: 'INVALID_LESSON_COUNT' }, { status: 400 });
+      return failureResponse('INVALID_LESSON_COUNT', 400);
     }
+    lessonCount = lessonDurations.length;
     const promptData = {
       ...parsed.data,
       targetScore,
@@ -269,9 +304,10 @@ ${JSON.stringify(repair.report)}
       return response.output_parsed;
     };
 
+    stage = 'model_generation';
     let modelReport = await generateModelReport();
     if (!modelReport) {
-      return NextResponse.json({ error: 'EMPTY_MODEL_OUTPUT' }, { status: 502 });
+      return failureResponse('EMPTY_MODEL_OUTPUT', 502);
     }
     const reviewReport = (report: z.infer<typeof reportSchema>) => {
       const issues = [];
@@ -287,14 +323,20 @@ ${JSON.stringify(repair.report)}
         parsed.data.teacherNotes,
       );
       issues.push(...syllabusReview.hardIssues, ...syllabusReview.warnings);
+      issues.push(...getUnexpectedLanguageIssues(report));
       return issues;
     };
+    stage = 'quality_validation';
     let reviewIssues = reviewReport(modelReport);
     if (reviewIssues.length > 0) {
-      console.warn('Report quality repair requested', {
-        subjectCode: subject.code,
-        lessonCount: lessonDurations.length,
-        issues: reviewIssues,
+      repairAttempted = true;
+      stage = 'quality_repair';
+      diagnostics.record('repair_requested', {
+        stage,
+        subjectCode,
+        lessonCount,
+        issueCount: reviewIssues.length,
+        repairAttempted,
       });
       modelReport = await generateModelReport({
         report: modelReport,
@@ -302,9 +344,14 @@ ${JSON.stringify(repair.report)}
       });
     }
     if (!modelReport) {
-      return NextResponse.json({ error: 'EMPTY_MODEL_OUTPUT' }, { status: 502 });
+      return failureResponse('EMPTY_MODEL_OUTPUT', 502);
     }
+    stage = 'quality_validation';
     reviewIssues = reviewReport(modelReport);
+    const finalLanguageIssues = getUnexpectedLanguageIssues(modelReport);
+    if (finalLanguageIssues.length) {
+      return failureResponse('UNEXPECTED_LANGUAGE', 502, { issues: finalLanguageIssues });
+    }
     const finalSyllabusReview = reviewCalculusSyllabusCoverage(
       modelReport,
       subject.code,
@@ -312,26 +359,26 @@ ${JSON.stringify(repair.report)}
       parsed.data.teacherNotes,
     );
     if (finalSyllabusReview.hardIssues.length) {
-      return NextResponse.json({
-        error: 'SYLLABUS_COVERAGE_VIOLATION',
-        issues: finalSyllabusReview.hardIssues,
-      }, { status: 502 });
+      return failureResponse('SYLLABUS_COVERAGE_VIOLATION', 502, { issues: finalSyllabusReview.hardIssues });
     }
     if (hasSubjectScopeViolation(subject.code, modelReport)) {
-      return NextResponse.json({ error: 'SUBJECT_SCOPE_VIOLATION' }, { status: 502 });
+      return failureResponse('SUBJECT_SCOPE_VIOLATION', 502);
     }
     const generatedLessonCount = modelReport.coursePlan.stages.reduce((total, stage) => total + stage.lessons.length, 0);
     if (generatedLessonCount !== lessonDurations.length) {
-      return NextResponse.json({ error: 'REPORT_QUALITY_FAILED' }, { status: 502 });
+      return failureResponse('REPORT_QUALITY_FAILED', 502);
     }
     if (reviewIssues.length > 0) {
-      console.warn('Report accepted after quality repair with non-structural issues', {
-        subjectCode: subject.code,
-        lessonCount: lessonDurations.length,
-        issues: reviewIssues,
+      diagnostics.record('accepted_with_warnings', {
+        stage,
+        subjectCode,
+        lessonCount,
+        issueCount: reviewIssues.length,
+        repairAttempted,
       });
     }
 
+    stage = 'response_assembly';
     const parentReport = sanitizeParentReport(modelReport, subject.code);
     const normalizedPriorityAreas = [...new Set(parentReport.priorityAreas.map(normalizePlanTitle))].slice(0, 6);
     const normalizedStages = parentReport.coursePlan.stages.map((stage) => ({
@@ -364,8 +411,15 @@ ${JSON.stringify(repair.report)}
     ];
     const finalTeacherVoiceIssues = getParentVoiceIssues(finalReport);
 
+    diagnostics.record('succeeded', {
+      stage,
+      subjectCode,
+      lessonCount,
+      repairAttempted,
+    });
     return NextResponse.json({
       generated: true,
+      requestId: diagnostics.requestId,
       model: process.env.OPENAI_MODEL || 'gpt-5-mini',
       report: {
         ...finalReport,
@@ -380,10 +434,12 @@ ${JSON.stringify(repair.report)}
           modelWarnings: [...finalModelWarnings, ...finalTeacherVoiceIssues]
         }
       }
+    }, {
+      headers: { 'x-request-id': diagnostics.requestId },
     });
   } catch (error) {
-    const message = error instanceof Error ? error.message : 'UNKNOWN_ERROR';
-    console.error('Report generation failed', message);
-    return NextResponse.json({ error: 'AI_GENERATION_FAILED' }, { status: 502 });
+    return failureResponse('AI_GENERATION_FAILED', 502, {
+      errorType: error instanceof Error ? error.name : 'UnknownError',
+    });
   }
 }

@@ -227,6 +227,7 @@ export function buildSystemPrompt(subject: SubjectDefinition): string {
 
 写作要求
 - 使用自然、克制、具体的中文。删除套话、宣传语、空泛评价和同义反复。
+- 除通行英文名称和必要的学科术语外，所有内容使用简体中文，不使用日文假名或日语表达。
 - 学科术语第一次出现时可写成“English Term（简明中文解释）”，后续直接使用英文。只给真正的专业术语配英文，不要求每个字段都中英对照。
 - Digital SAT、Bluebook、Desmos、Module、Domain、FRQ、MCQ、Java、AP 等通行名称保留英文。
 - 家长内容不得出现“原始记录、老师短评、信息有限、未提供、报告依据、报告整理、需老师确认、需后续诊断确认”等生成过程说明。

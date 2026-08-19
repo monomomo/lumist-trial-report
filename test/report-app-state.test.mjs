@@ -152,7 +152,7 @@ test('generation requires a confirmed subject and valid subject scores', async (
   assert.match(appSource, /validateSubjectScores\(/);
   assert.match(appSource, /if \(!validateGenerationInputs\(\)\) return/);
   assert.match(routeSource, /validateSubjectScores\(subject\.code, parsed\.data\.currentScore, targetScore\)/);
-  assert.match(routeSource, /error: 'INVALID_SCORE'/);
+  assert.match(routeSource, /failureResponse\('INVALID_SCORE'/);
 });
 
 test('course plan hour changes require confirmation and update the form total', async () => {
@@ -177,6 +177,23 @@ test('generation waits for checklist confirmation and renders a non-blocking qua
   assert.match(routeSource, /subjectScopePassed: !hasSubjectScopeViolation/);
 });
 
+test('generation failures expose a safe reference id and reject unexpected Japanese output', async () => {
+  const appSource = await readFile(new URL('../public/report/app.js', import.meta.url), 'utf8');
+  const routeSource = await readFile(new URL('../app/api/generate-report/route.ts', import.meta.url), 'utf8');
+  const promptSource = await readFile(new URL('../lib/subjects/prompt.ts', import.meta.url), 'utf8');
+  const guideSource = await readFile(new URL('../docs/老师使用指南.md', import.meta.url), 'utf8');
+
+  assert.match(routeSource, /createGenerationDiagnostics\(\)/);
+  assert.match(routeSource, /getUnexpectedLanguageIssues\(report\)/);
+  assert.match(routeSource, /failureResponse\('UNEXPECTED_LANGUAGE'/);
+  assert.match(routeSource, /'x-request-id': diagnostics\.requestId/);
+  assert.match(appSource, /error\.requestId = result\.requestId/);
+  assert.match(appSource, /UNEXPECTED_LANGUAGE: 'AI 内容出现异常日文/);
+  assert.match(appSource, /参考编号/);
+  assert.match(promptSource, /不使用日文假名或日语表达/);
+  assert.match(guideSource, /把页面上的参考编号发给管理员/);
+});
+
 test('parent copy protection applies teacher voice rules to every subject', async () => {
   const source = await readFile(new URL('../app/api/generate-report/route.ts', import.meta.url), 'utf8');
   assert.equal(source.includes("if (subjectCode !== 'sat_math') return report;"), false);
@@ -187,7 +204,7 @@ test('parent copy protection applies teacher voice rules to every subject', asyn
   assert.match(source, /reviewIssues = reviewReport\(modelReport\)/);
   assert.match(source, /REPORT_QUALITY_FAILED/);
   assert.match(source, /generatedLessonCount !== lessonDurations\.length/);
-  assert.match(source, /accepted after quality repair with non-structural issues/);
+  assert.match(source, /diagnostics\.record\('accepted_with_warnings'/);
   assert.match(source, /原始课堂记录/);
   assert.match(source, /已知事实/);
   assert.match(source, /无可用/);

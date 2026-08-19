@@ -1200,7 +1200,9 @@ async function generateAiReport() {
   });
   const result = await response.json();
   if (!response.ok) {
-    throw new Error(result.error || 'AI_GENERATION_FAILED');
+    const error = new Error(result.error || 'AI_GENERATION_FAILED');
+    error.requestId = result.requestId || response.headers.get('x-request-id') || '';
+    throw error;
   }
   return result.report;
 }
@@ -1243,7 +1245,9 @@ $('#report-form').addEventListener('submit', async (event) => {
       originalAiCoursePlan = cloneCoursePlan(currentReportData.coursePlan);
       renderReport(currentReportData);
       changeView('report');
-      document.querySelector('#report-view .eyebrow').textContent = '本地兜底版 · AI 暂不可用';
+      document.querySelector('#report-view .eyebrow').textContent = error.requestId
+        ? `本地兜底版 · AI 暂不可用 · 参考编号 ${error.requestId}`
+        : '本地兜底版 · AI 暂不可用';
       $('#save-report').textContent = '保存报告';
     } else {
       notice.classList.add('error');
@@ -1253,9 +1257,11 @@ $('#report-form').addEventListener('submit', async (event) => {
         INVALID_LESSON_COUNT: '预计课次与总课时不匹配，请返回检查。',
         SYLLABUS_COVERAGE_VIOLATION: '课程规划遗漏或错误标记了 Calculus 官方 Unit，请重新生成。',
         SUBJECT_SCOPE_VIOLATION: 'AI 内容出现跨科目术语，请重新生成。',
+        UNEXPECTED_LANGUAGE: 'AI 内容出现异常日文，系统已阻止生成，请重新生成。',
         REPORT_QUALITY_FAILED: 'AI 连续两次未达到报告质量要求，请重新生成。'
       };
-      notice.innerHTML = `<strong>生成失败：</strong>${messages[error.message] || `报告渲染异常（${escapeHtml(error.message || 'UNKNOWN_ERROR')}），请重试。`}`;
+      const reference = error.requestId ? ` <span>参考编号：${escapeHtml(error.requestId)}</span>` : '';
+      notice.innerHTML = `<strong>生成失败：</strong>${messages[error.message] || `报告渲染异常（${escapeHtml(error.message || 'UNKNOWN_ERROR')}），请重试。`}${reference}`;
     }
   } finally {
     button.disabled = false;
