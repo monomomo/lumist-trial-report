@@ -162,11 +162,15 @@ function applyReportBrandAssets(subjectCode) {
   const cover = $('#report-cover-image');
   const closing = $('#report-closing-image');
   const highScore = $('#report-high-score-image');
-  cover.src = `assets/lumist-${track}-cover.png`;
+  cover.dataset.screenSrc = `assets/lumist-${track}-cover.png`;
+  cover.dataset.printSrc = `assets/lumist-${track}-cover-print.jpg`;
+  cover.src = cover.dataset.screenSrc;
   cover.alt = `路觅 ${trackLabel} 学员学情报告封面`;
   closing.src = `assets/lumist-${track}-back.png`;
   closing.alt = `路觅 ${trackLabel} 学员学情报告封底`;
-  highScore.src = `assets/lumist-${track}-high-score-cases.jpg`;
+  highScore.dataset.screenSrc = `assets/lumist-${track}-high-score-cases.jpg`;
+  highScore.dataset.printSrc = `assets/lumist-${track}-high-score-cases-print.jpg`;
+  highScore.src = highScore.dataset.screenSrc;
   highScore.alt = `路觅 2026 ${trackLabel} 学员高分案例`;
 }
 
@@ -1410,7 +1414,7 @@ $('#history-list').addEventListener('click', async (event) => {
 $('#back-edit').addEventListener('click', () => changeView('new'));
 $('#save-report').addEventListener('click', saveReport);
 async function waitForReportImages() {
-  const images = [...document.querySelectorAll('#report-document img')];
+  const images = [...document.querySelectorAll('#parent-report img')];
   await Promise.all(images.map(async (image) => {
     if (!image.complete) {
       await new Promise((resolve) => {
@@ -1422,15 +1426,31 @@ async function waitForReportImages() {
   }));
 }
 
+function switchReportImageSources(mode) {
+  const sourceKey = mode === 'print' ? 'printSrc' : 'screenSrc';
+  document.querySelectorAll('#parent-report [data-print-src]').forEach((element) => {
+    const source = element.dataset[sourceKey];
+    if (!source) return;
+    if (element.tagName === 'SOURCE') {
+      element.srcset = source;
+      element.type = element.dataset[mode === 'print' ? 'printType' : 'screenType'];
+    } else {
+      element.src = source;
+    }
+  });
+}
+
 $('#print-report').addEventListener('click', async () => {
   const printButton = $('#print-report');
   const previousButtonText = printButton.textContent;
   printButton.disabled = true;
   printButton.textContent = '正在准备 PDF…';
   try {
+    switchReportImageSources('print');
     await waitForReportImages();
     window.print();
   } finally {
+    switchReportImageSources('screen');
     printButton.disabled = false;
     printButton.textContent = previousButtonText;
   }
