@@ -33,6 +33,18 @@ function flattenReportText(report) {
   });
 }
 
+function humanizeReportWarning(value) {
+  return String(value || '')
+    .replace(/第 (\d+) 节课的内容属于 ([^，]+)，但 unitCodes 未如实标记/g, '系统识别到第 $1 节课的内容涉及$2，但生成结果没有将本节归入该单元，请核对本节主题和内容')
+    .replace(/第 (\d+) 节课标记了与明确内容不一致的 Unit：(.+)/g, '第 $1 节课被归入$2，但本节明确内容与该单元不一致，请核对本节主题和内容')
+    .replace(/\bcalc_u(10|[1-9])\b/gi, '第 $1 单元')
+    .replace(/\bunitCodes\b/gi, '课程单元归属')
+    .replace(/Calculus Unit 标记/g, 'AP Calculus 单元归属')
+    .replace(/不允许的 Unit：/g, '当前课程不包含的单元：')
+    .replace(/必须覆盖的 Unit：/g, '本次必须安排的课程单元：')
+    .replace(/额外安排了 Unit：/g, '额外安排了课程单元：');
+}
+
 function buildReportQualityChecks({ subjectCode, report, targetScore, requestedTotalHours, layoutWarnings = [], qualityReview = {} }) {
   const lessons = report?.coursePlan?.stages?.flatMap((stage) => stage.lessons || []) || [];
   const plannedHours = lessons.reduce((total, lesson) => total + Number(lesson.duration || 0), 0);
@@ -85,4 +97,4 @@ function buildReportQualityChecks({ subjectCode, report, targetScore, requestedT
   return checks;
 }
 
-export { buildGenerationChecklist, buildReportQualityChecks };
+export { buildGenerationChecklist, buildReportQualityChecks, humanizeReportWarning };

@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { buildGenerationChecklist, buildReportQualityChecks } from '../public/report/report-quality-utils.js';
+import { buildGenerationChecklist, buildReportQualityChecks, humanizeReportWarning } from '../public/report/report-quality-utils.js';
 
 function createReport() {
   return {
@@ -121,4 +121,13 @@ test('critical content warnings make AI quality require teacher review', () => {
 
   assert.equal(aiQuality.status, 'warning');
   assert.equal(aiQuality.message, '有 1 项问题需要老师重点核对');
+});
+
+test('saved technical calculus warnings are converted for teachers', () => {
+  const unmarked = humanizeReportWarning('第 1 节课的内容属于 calc_u5，但 unitCodes 未如实标记');
+  const mismatched = humanizeReportWarning('第 3 节课标记了与明确内容不一致的 Unit：calc_u1');
+
+  assert.equal(unmarked, '系统识别到第 1 节课的内容涉及第 5 单元，但生成结果没有将本节归入该单元，请核对本节主题和内容');
+  assert.equal(mismatched, '第 3 节课被归入第 1 单元，但本节明确内容与该单元不一致，请核对本节主题和内容');
+  assert.doesNotMatch(`${unmarked}${mismatched}`, /calc_u|unitCodes|Unit/);
 });

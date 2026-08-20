@@ -2,7 +2,7 @@ import { ALLOWED_DURATIONS, cloneCoursePlan, calculateTotalHours, validateCourse
 import { SUBJECT_CODES, SUBJECT_CATALOG, resolveSubject, validateSubjectScores } from './catalog.js';
 import { createSubjectViewModel, normalizeTeacherProfile, canUseFallback, buildFallbackReport, resolveTargetScore } from './report-domain.js';
 import { SUMMARY_FIELD_RULES, cloneReportSummary, validateReportSummary } from './summary-editor-utils.js';
-import { buildGenerationChecklist, buildReportQualityChecks } from './report-quality-utils.js';
+import { buildGenerationChecklist, buildReportQualityChecks, humanizeReportWarning } from './report-quality-utils.js';
 import { PLANNING_SCENARIOS, MAX_PLANNING_FOCUS_AREAS, getPlanningFocusOptions, normalizePlanningFocusAreas, resolvePlanningScenario, getLessonCountRange } from './planning-context.js';
 
 const $ = (selector) => document.querySelector(selector);
@@ -578,7 +578,9 @@ function renderReport(data) {
 function renderReportCriticalWarning(data) {
   const warning = $('#report-critical-warning');
   const issues = Array.isArray(data.qualityReview?.criticalWarnings)
-    ? data.qualityReview.criticalWarnings.filter((issue) => typeof issue === 'string' && issue.trim())
+    ? data.qualityReview.criticalWarnings
+      .filter((issue) => typeof issue === 'string' && issue.trim())
+      .map(humanizeReportWarning)
     : [];
   warning.classList.toggle('hidden', issues.length === 0);
   warning.innerHTML = issues.length
