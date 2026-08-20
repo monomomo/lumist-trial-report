@@ -1021,10 +1021,11 @@ function renderPlanningFocusOptions(selectedValues = []) {
 }
 
 function buildCurrentPlanningContext(lessonCount) {
+  const reportContext = currentReportData?.planningContext;
   return {
-    scenario: resolvePlanningScenario(currentReportData?.planningContext?.scenario || $('#planning-scenario').value),
+    scenario: resolvePlanningScenario(reportContext?.scenario || $('#planning-scenario').value),
     lessonCount,
-    focusAreas: getSelectedPlanningFocusAreas(),
+    focusAreas: normalizePlanningFocusAreas(reportContext?.focusAreas ?? getSelectedPlanningFocusAreas(), currentSubjectCode),
   };
 }
 

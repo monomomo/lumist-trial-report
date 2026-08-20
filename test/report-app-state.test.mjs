@@ -157,6 +157,17 @@ test('generation requires a confirmed subject and valid subject scores', async (
   assert.match(routeSource, /failureResponse\('INVALID_SCORE'/);
 });
 
+test('generation rejects missing authentication configuration and malformed subjects before AI execution', async () => {
+  const routeSource = await readFile(new URL('../app/api/generate-report/route.ts', import.meta.url), 'utf8');
+  const authIndex = routeSource.indexOf("stage = 'authentication'");
+  const apiKeyIndex = routeSource.indexOf('const apiKey = process.env.OPENAI_API_KEY');
+  assert.ok(authIndex >= 0 && authIndex < apiKeyIndex);
+  assert.match(routeSource, /auth\.status === AUTH_STATUS\.SUPABASE_NOT_CONFIGURED/);
+  assert.match(routeSource, /failureResponse\('SYSTEM_NOT_CONFIGURED'/);
+  assert.match(routeSource, /subjectCode: z\.enum\(SUBJECT_CODES/);
+  assert.match(routeSource, /safeParse\(await readRequestBody\(request\)\)/);
+});
+
 test('course plan hour changes require confirmation and update the form total', async () => {
   const appSource = await readFile(new URL('../public/report/app.js', import.meta.url), 'utf8');
 
@@ -213,7 +224,7 @@ test('planning focus is collected, persisted and restored through planning conte
   const appSource = await readFile(new URL('../public/report/app.js', import.meta.url), 'utf8');
   const routeSource = await readFile(new URL('../app/api/generate-report/route.ts', import.meta.url), 'utf8');
   assert.match(appSource, /planningFocusAreas: getSelectedPlanningFocusAreas\(\)/);
-  assert.match(appSource, /focusAreas: getSelectedPlanningFocusAreas\(\)/);
+  assert.match(appSource, /focusAreas: normalizePlanningFocusAreas\(reportContext\?\.focusAreas \?\? getSelectedPlanningFocusAreas\(\), currentSubjectCode\)/);
   assert.match(appSource, /renderPlanningFocusOptions\(savedPlanningContext\.focusAreas \|\| \[\]\)/);
   assert.match(routeSource, /planningFocusAreas: z\.array/);
   assert.match(routeSource, /focusAreas: planningFocusAreas/);

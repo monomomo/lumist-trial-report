@@ -2,10 +2,14 @@
   "name": "lumist-trial-report",
   "version": "0.1.0",
   "private": true,
+  "type": "module",
   "scripts": {
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
+    "test": "node --test test/*.test.mjs",
+    "typecheck": "tsc --noEmit --incremental false",
+    "check": "npm test && npm run typecheck && npm run build",
     "teachers:preview": "node --env-file-if-exists=.env.local scripts/sync-feishu-teachers.mjs",
     "teachers:sync": "node --env-file-if-exists=.env.local scripts/sync-feishu-teachers.mjs --apply",
     "teachers:preview-new": "node --env-file-if-exists=.env.local scripts/sync-feishu-teachers.mjs --new-only",
@@ -30,7 +34,8 @@
     "typescript": "^5.9.2"
   },
   "overrides": {
-    "postcss": "8.5.10",
+    "nanoid": "3.3.18",
+    "postcss": "8.5.23",
     "sharp": "0.35.0"
   }
 }

@@ -2,7 +2,7 @@ import OpenAI from 'openai';
 import { zodTextFormat } from 'openai/helpers/zod';
 import { NextResponse } from 'next/server';
 import { z } from 'zod';
-import { resolveSubject, validateSubjectScores } from '@/lib/subjects/catalog';
+import { SUBJECT_CODES, resolveSubject, validateSubjectScores } from '@/lib/subjects/catalog';
 import { buildSystemPrompt, buildUserInput } from '@/lib/subjects/prompt';
 import { hasSubjectScopeViolation } from '@/lib/subjects/scope';
 import { getCoursePlanQualityIssues, getCoursePlanWordingIssues } from '@/lib/subjects/course-plan-quality';
@@ -65,8 +65,16 @@ const requestSchema = z.object({
   planningScenario: z.enum(PLANNING_SCENARIO_CODES as [string, ...string[]]),
   planningFocusAreas: z.array(z.enum(PLANNING_FOCUS_AREA_CODES as [string, ...string[]])).max(3).optional().default([]),
   teacherNotes: z.string().trim().min(20).max(6000),
-  subjectCode: z.string().trim().max(40).optional().default('sat_math')
+  subjectCode: z.enum(SUBJECT_CODES as [string, ...string[]]).optional().default('sat_math')
 });
+
+async function readRequestBody(request: Request) {
+  try {
+    return await request.json();
+  } catch {
+    return null;
+  }
+}
 
 function normalizePlanTitle(value: string) {
   let normalized = value.trim().replace(/[、，,/]+$/g, '').trim();
@@ -235,19 +243,23 @@ export async function POST(request: Request) {
 
   try {
     diagnostics.record('started', { stage });
+    stage = 'authentication';
+    const auth = await getAuthResult();
+    if (auth.status === AUTH_STATUS.SUPABASE_NOT_CONFIGURED) {
+      return failureResponse('SYSTEM_NOT_CONFIGURED', 503);
+    }
+    if (auth.status === AUTH_STATUS.NOT_AUTHENTICATED) {
+      return failureResponse('UNAUTHORIZED', 401);
+    }
+
+    stage = 'configuration';
     const apiKey = process.env.OPENAI_API_KEY;
     if (!apiKey) {
       return failureResponse('AI_SERVICE_NOT_CONFIGURED', 503);
     }
 
-    stage = 'authentication';
-    const auth = await getAuthResult();
-    if (auth.status === AUTH_STATUS.NOT_AUTHENTICATED) {
-      return failureResponse('UNAUTHORIZED', 401);
-    }
-
     stage = 'request_validation';
-    const parsed = requestSchema.safeParse(await request.json());
+    const parsed = requestSchema.safeParse(await readRequestBody(request));
     if (!parsed.success) {
       return failureResponse('INVALID_INPUT', 400);
     }

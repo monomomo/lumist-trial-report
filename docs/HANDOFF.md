@@ -261,7 +261,7 @@ Workspace 通过 iframe 加载：
 ```text
 老师自然语言反馈
 → POST /api/generate-report
-→ 校验 Supabase 登录状态（Demo 模式除外）
+→ 校验 Supabase 登录与系统配置状态
 → OpenAI Structured Output
 → 服务端专业规则与家长版语言清理
 → currentReportData
@@ -331,8 +331,8 @@ Migration 已定义：
 - `components/LoginForm.tsx` 使用 Supabase 邮箱密码登录
 - `app/api/me/route.ts` 提供当前教师公开资料
 - `app/api/reports/route.ts` 支持报告列表查询和新增保存
-- `app/api/generate-report/route.ts` 在 Supabase 已配置时校验登录状态
-- 未配置 Supabase 时，工作台和生成接口进入 Demo 模式，reports API 不执行真实保存
+- `app/api/generate-report/route.ts` 必须通过 Supabase 登录校验才能调用 AI
+- 未配置 Supabase 时，工作台进入 Demo 模式，生成接口返回系统未配置并由前端使用本地兜底报告，reports API 不执行真实保存
 - 前端已有保存当前报告的能力
 - 历史报告列表、详情读取和再次编辑尚未形成完整产品闭环
 
@@ -418,7 +418,7 @@ curl -X POST http://localhost:3000/api/generate-report \
   }'
 ```
 
-Supabase 已配置时，这个接口要求请求携带有效的登录 Cookie；未配置 Supabase 的本地 Demo 环境可以直接调用。
+这个接口始终要求请求携带有效的登录 Cookie；未配置 Supabase 的本地 Demo 环境会返回系统未配置，由前端生成本地兜底报告。
 
 ## 11. 部署流程
 

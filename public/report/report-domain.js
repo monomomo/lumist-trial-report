@@ -3,7 +3,7 @@
  * 纯函数，不依赖 DOM 或 fetch，方便测试和复用。
  */
 import { SUBJECT_CATALOG, SUBJECT_CODES, resolveSubject } from './catalog.js';
-import { buildLessonDurationSlots, normalizePlanningFocusAreas, resolvePlanningScenario } from './planning-context.js';
+import { PLANNING_FOCUS_AREAS, buildLessonDurationSlots, normalizePlanningFocusAreas, resolvePlanningScenario } from './planning-context.js';
 
 /**
  * 创建科目视图模型，用于 HTML 渲染。
@@ -89,6 +89,10 @@ export function buildFallbackReport(subjectCode, formData) {
   const planningScenario = resolvePlanningScenario(formData.planningScenario);
   const planningFocusAreas = normalizePlanningFocusAreas(formData.planningFocusAreas, subjectCode);
   const lessonDurations = buildLessonDurationSlots(totalHours, formData.lessonCount);
+  const coursePlan = applyFallbackPlanningFocus(
+    resizeFallbackCoursePlan(buildGenericCoursePlan(vm), totalHours, lessonDurations),
+    planningFocusAreas,
+  );
 
   const positive = /活泼|互动积极|爱互动/.test(notes)
     ? '学生课堂互动积极，愿意主动表达与思考'
@@ -112,7 +116,7 @@ export function buildFallbackReport(subjectCode, formData) {
       lessonCount: lessonDurations.length,
       focusAreas: planningFocusAreas,
     },
-    coursePlan: resizeFallbackCoursePlan(buildGenericCoursePlan(vm), totalHours, lessonDurations),
+    coursePlan,
     salesFollowUp: {
       positive: `${positive}，${accuracy}。`,
       urgent: `最需要优先解决的是建立${vm.displayName}知识框架以及对题型体系的熟悉度。如果缺少系统框架，学生即使有基础，也容易在陌生模块和限时作答中产生不必要失分。`,
@@ -120,6 +124,29 @@ export function buildFallbackReport(subjectCode, formData) {
       script: `今天老师反馈，${name}课堂上的状态很好，互动和思考都比较主动。\n\n当前最需要尽快解决的是建立完整的${vm.displayName}知识框架。老师建议先完成整体知识框架梳理，再针对薄弱模块做专项训练和题型适应，这样才能把已有基础更稳定地转化为考试表现。\n\n后续课程会结合每次诊断题的错题和用时动态调整，不会重复占用已经掌握模块的课时。`,
     },
     target,
+  };
+}
+
+function applyFallbackPlanningFocus(coursePlan, focusAreas) {
+  if (!focusAreas.length) return coursePlan;
+  const focuses = focusAreas.map((code) => PLANNING_FOCUS_AREAS[code]).filter(Boolean);
+  let lessonIndex = 0;
+  const stages = coursePlan.stages.map((stage) => ({
+    ...stage,
+    lessons: stage.lessons.map((lesson) => {
+      const focus = focuses[lessonIndex];
+      lessonIndex += 1;
+      if (!focus) return lesson;
+      return {
+        ...lesson,
+        content: `${lesson.content}；${focus.guidance}`,
+      };
+    }),
+  }));
+  return {
+    ...coursePlan,
+    rationale: `${coursePlan.rationale} 本地兜底规划优先体现：${focuses.map((focus) => focus.label).join('、')}。`,
+    stages,
   };
 }
 

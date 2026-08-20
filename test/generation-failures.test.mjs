@@ -16,3 +16,9 @@ test('generation failure details fall back to a stable public message', () => {
   assert.match(details.reason, /没有完成报告生成/);
   assert.match(details.suggestion, /参考编号/);
 });
+
+test('generation failure details explain missing login infrastructure', () => {
+  const details = getGenerationFailureDetails('SYSTEM_NOT_CONFIGURED');
+  assert.match(details.reason, /登录与数据服务/);
+  assert.match(details.suggestion, /本地兜底/);
+});

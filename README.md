@@ -12,6 +12,12 @@ cp .env.example .env.local
 npm run dev
 ```
 
+完整检查：
+
+```bash
+npm run check
+```
+
 老师使用账号名和密码登录，无需注册。系统会在后台将账号名映射为 Supabase Authentication 使用的内部认证地址，老师端不展示邮箱。
 
 ## 前置依赖

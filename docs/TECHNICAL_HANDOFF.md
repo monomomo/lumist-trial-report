@@ -159,6 +159,7 @@ docs/
 | --- | --- |
 | `INVALID_INPUT` | 输入字段、课时或长度不合法 |
 | `UNAUTHORIZED` | 未登录或会话过期 |
+| `SYSTEM_NOT_CONFIGURED` | Supabase 登录与数据服务未配置 |
 | `AI_SERVICE_NOT_CONFIGURED` | 未配置 OpenAI API Key |
 | `INVALID_PLANNING_FOCUS` | 课程侧重点不适用于当前科目 |
 | `SUBJECT_SCOPE_VIOLATION` | AI 输出混入其他学科内容 |
@@ -391,6 +392,7 @@ TEACHER_INITIAL_PASSWORD=123456
 ```text
 supabase/migrations/202607230001_initial_schema.sql
 supabase/migrations/202607270001_multi_teacher_profiles.sql
+supabase/migrations/202608200001_tighten_teacher_asset_rls.sql
 ```
 
 主要表：
@@ -475,8 +477,7 @@ http://localhost:3000
 测试与构建：
 
 ```bash
-node --test test/*.test.mjs
-npm run build
+npm run check
 ```
 
 当前测试覆盖：

@@ -63,6 +63,10 @@ test('fallback preserves valid planning focus areas without inventing others', (
     planningFocusAreas: ['experimental_inquiry', 'data_analysis'],
   });
   assert.deepEqual(report.planningContext.focusAreas, ['experimental_inquiry', 'data_analysis']);
+  assert.match(report.coursePlan.rationale, /实验探究、数据分析/);
+  const planText = report.coursePlan.stages.flatMap((stage) => stage.lessons).map((lesson) => lesson.content).join('\n');
+  assert.match(planText, /实验设计、变量控制/);
+  assert.match(planText, /图表、数据、变量关系/);
 });
 
 test('fallback uses 30 hours only when the submitted value is invalid', () => {
