@@ -162,12 +162,10 @@ docs/
 | `SYSTEM_NOT_CONFIGURED` | Supabase 登录与数据服务未配置 |
 | `AI_SERVICE_NOT_CONFIGURED` | 未配置 OpenAI API Key |
 | `INVALID_PLANNING_FOCUS` | 课程侧重点不适用于当前科目 |
-| `SUBJECT_SCOPE_VIOLATION` | AI 输出混入其他学科内容 |
-| `COURSE_PLAN_STYLE_REPETITION` | 自动修复后仍有连续大纲式句型 |
 | `REPORT_QUALITY_FAILED` | 连续两次未达到质量规则 |
 | `AI_GENERATION_FAILED` | AI 请求或响应处理失败 |
 
-失败响应会提供老师可读的 `reason`、`suggestion` 和 `requestId`。部分可恢复错误会触发本地兜底报告，但不能假设所有 AI 错误都会自动兜底。排障时应先根据 `requestId` 查看 Vercel Function 的失败阶段、耗时、错误码和修复状态。
+失败响应会提供老师可读的 `reason`、`suggestion` 和 `requestId`。没有完整模型输出、输入不合法或课程规划课时结构无法组装时仍会阻止生成。异常语言、跨科目内容、Calculus 考纲冲突、家长版语气和连续句式等可展示的内容风险，会写入 `reportData.qualityReview.criticalWarnings`，报告继续生成，并在老师端显示红色警示。红色警示不会进入导出的 PDF。排障时应先根据 `requestId` 查看 Vercel Function 的失败阶段、耗时、错误码和修复状态。
 
 ### 5.3 报告保存与历史记录
 

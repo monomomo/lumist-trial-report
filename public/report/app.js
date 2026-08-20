@@ -571,7 +571,19 @@ function renderReport(data) {
   renderTeacherProfile();
   layoutSummaryPages();
   renderCoursePlan(data.coursePlan);
+  renderReportCriticalWarning(data);
   renderReportQualityNotice(data);
+}
+
+function renderReportCriticalWarning(data) {
+  const warning = $('#report-critical-warning');
+  const issues = Array.isArray(data.qualityReview?.criticalWarnings)
+    ? data.qualityReview.criticalWarnings.filter((issue) => typeof issue === 'string' && issue.trim())
+    : [];
+  warning.classList.toggle('hidden', issues.length === 0);
+  warning.innerHTML = issues.length
+    ? `<strong>报告存在需要老师重点核对的内容</strong><p>系统已保留并生成报告，请在交付家长前检查以下问题：</p><ul>${issues.map((issue) => `<li>${escapeHtml(issue)}</li>`).join('')}</ul><p class="report-critical-warning-footer">可使用上方“编辑试听总结”或“编辑课程规划”完成修正。</p>`
+    : '';
 }
 
 function renderReportQualityNotice(data) {

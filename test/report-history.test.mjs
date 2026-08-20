@@ -23,6 +23,13 @@ function createValidReportPayload() {
       outcomes: ['完成初步诊断'],
       priorityAreas: ['知识框架'],
       planningContext: { scenario: 'preview', lessonCount: 1, focusAreas: ['knowledge_foundation'] },
+      qualityReview: {
+        reviewCompleted: true,
+        subjectScopePassed: true,
+        teacherVoicePassed: true,
+        criticalWarnings: ['第 1 节课需要核对 Unit 标记'],
+        modelWarnings: [],
+      },
     },
     coursePlan: {
       totalHours: 2,

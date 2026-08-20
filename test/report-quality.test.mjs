@@ -103,3 +103,22 @@ test('post-generation quality review exposes hour, wording, evidence, layout and
     ['总课时一致性', '目标成绩', '待确认话术', '科目范围', '课堂依据', '页面排版', 'AI 内容质量'],
   );
 });
+
+test('critical content warnings make AI quality require teacher review', () => {
+  const checks = buildReportQualityChecks({
+    subjectCode: 'ap_calculus_bc',
+    report: createReport(),
+    targetScore: '5',
+    requestedTotalHours: 4,
+    qualityReview: {
+      reviewCompleted: true,
+      subjectScopePassed: true,
+      criticalWarnings: ['第 8 节课标记了与明确内容不一致的 Unit：calc_u6'],
+      modelWarnings: [],
+    },
+  });
+  const aiQuality = checks.find((check) => check.label === 'AI 内容质量');
+
+  assert.equal(aiQuality.status, 'warning');
+  assert.equal(aiQuality.message, '有 1 项问题需要老师重点核对');
+});

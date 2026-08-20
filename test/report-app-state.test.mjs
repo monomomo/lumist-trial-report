@@ -190,7 +190,7 @@ test('generation waits for checklist confirmation and renders a non-blocking qua
   assert.match(routeSource, /subjectScopePassed: !hasSubjectScopeViolation/);
 });
 
-test('generation failures expose a safe reference id and reject unexpected language scripts', async () => {
+test('generation failures expose a safe reference id and unexpected language becomes a report warning', async () => {
   const appSource = await readFile(new URL('../public/report/app.js', import.meta.url), 'utf8');
   const routeSource = await readFile(new URL('../app/api/generate-report/route.ts', import.meta.url), 'utf8');
   const promptSource = await readFile(new URL('../lib/subjects/prompt.ts', import.meta.url), 'utf8');
@@ -198,7 +198,9 @@ test('generation failures expose a safe reference id and reject unexpected langu
 
   assert.match(routeSource, /createGenerationDiagnostics\(\)/);
   assert.match(routeSource, /getUnexpectedLanguageIssues\(report\)/);
-  assert.match(routeSource, /failureResponse\('UNEXPECTED_LANGUAGE'/);
+  assert.match(routeSource, /\.\.\.finalLanguageIssues/);
+  assert.match(routeSource, /criticalWarnings,/);
+  assert.doesNotMatch(routeSource, /failureResponse\('UNEXPECTED_LANGUAGE'/);
   assert.match(routeSource, /'x-request-id': diagnostics\.requestId/);
   assert.match(appSource, /error\.requestId = result\.requestId/);
   assert.match(appSource, /error\.reason = result\.reason/);
@@ -206,18 +208,35 @@ test('generation failures expose a safe reference id and reject unexpected langu
   assert.match(appSource, /UNEXPECTED_LANGUAGE: 'AI 内容出现异常语言文字/);
   assert.match(appSource, /参考编号/);
   assert.match(promptSource, /不使用日文、韩文、俄文或其他语言文字/);
-  assert.match(guideSource, /把页面上的参考编号发给管理员/);
+  assert.match(guideSource, /报告仍会生成，但页面顶部会显示红色警示/);
 });
 
-test('generation repairs repeated course wording and returns an actionable failure reason', async () => {
+test('generation repairs repeated course wording and preserves remaining issues as warnings', async () => {
   const appSource = await readFile(new URL('../public/report/app.js', import.meta.url), 'utf8');
   const routeSource = await readFile(new URL('../app/api/generate-report/route.ts', import.meta.url), 'utf8');
   assert.match(routeSource, /getCoursePlanWordingIssues\(modelReport\)/);
-  assert.match(routeSource, /failureResponse\('COURSE_PLAN_STYLE_REPETITION'/);
+  assert.match(routeSource, /\.\.\.finalWordingIssues/);
+  assert.doesNotMatch(routeSource, /failureResponse\('COURSE_PLAN_STYLE_REPETITION'/);
   assert.match(routeSource, /reason: details\.reason/);
   assert.match(routeSource, /suggestion: details\.suggestion/);
   assert.match(appSource, /COURSE_PLAN_STYLE_REPETITION/);
   assert.match(appSource, /建议：\$\{escapeHtml\(error\.suggestion\)\}/);
+});
+
+test('displayable content risks do not block generation and render a prominent teacher warning', async () => {
+  const htmlSource = await readFile(new URL('../public/report/index.html', import.meta.url), 'utf8');
+  const appSource = await readFile(new URL('../public/report/app.js', import.meta.url), 'utf8');
+  const routeSource = await readFile(new URL('../app/api/generate-report/route.ts', import.meta.url), 'utf8');
+  const stylesSource = await readFile(new URL('../public/report/styles.css', import.meta.url), 'utf8');
+
+  assert.match(htmlSource, /id="report-critical-warning"/);
+  assert.match(appSource, /renderReportCriticalWarning\(data\)/);
+  assert.match(appSource, /报告存在需要老师重点核对的内容/);
+  assert.match(routeSource, /\.\.\.finalSyllabusReview\.hardIssues/);
+  assert.doesNotMatch(routeSource, /failureResponse\('SYLLABUS_COVERAGE_VIOLATION'/);
+  assert.doesNotMatch(routeSource, /failureResponse\('SUBJECT_SCOPE_VIOLATION'/);
+  assert.match(stylesSource, /\.report-critical-warning/);
+  assert.match(stylesSource, /\.report-critical-warning,\.quality-notice/);
 });
 
 test('planning focus is collected, persisted and restored through planning context', async () => {

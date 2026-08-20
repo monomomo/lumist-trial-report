@@ -95,6 +95,15 @@ function limitText(value: string, maximum: number) {
   return `${normalized.slice(0, maximum - 1).replace(/[，。；、,:：\s]+$/g, '')}。`;
 }
 
+function limitQualityWarnings(values: string[], maximum = 20) {
+  const warnings = [...new Set(values.map((value) => value.trim()).filter(Boolean))];
+  if (warnings.length <= maximum) return warnings;
+  return [
+    ...warnings.slice(0, maximum - 1),
+    `另有 ${warnings.length - maximum + 1} 项同类问题，请逐课核对课程内容与 Unit 标记。`,
+  ];
+}
+
 const parentFacingForbiddenPattern = /老师原始记录|原始课堂记录|原始记录|老师短评|老师评语|老师记录|教师记录|课堂观察（老师记录）|课堂记录信息|输入中没有|已知事实|信息不足|信息有限|无法判断|未能获得|没有完整|缺少数据|缺乏.{0,8}数据|记录较少|未记录|未提供|暂无数据|尚无数据|无可用.{0,8}数据|不构成正式|可量化|本报告|报告严格依据|报告依据|报告整理|本次.{0,12}记录整理|本次记录显示|依据老师|根据老师|需.{0,8}老师确认|需.{0,8}诊断确认|需要.{0,8}诊断确认/;
 const thirdPersonTeacherPattern = /(?:任课)?老师|教师/;
 const lessonTitleProcessPattern = /学情报告|课程规划|初版|\d+(?:\.\d+)?\s*(?:小时|h)/i;
@@ -371,25 +380,22 @@ ${JSON.stringify(repair.report)}
     stage = 'quality_validation';
     reviewIssues = reviewReport(modelReport);
     const finalLanguageIssues = getUnexpectedLanguageIssues(modelReport);
-    if (finalLanguageIssues.length) {
-      return failureResponse('UNEXPECTED_LANGUAGE', 502, { issues: finalLanguageIssues });
-    }
     const finalWordingIssues = getCoursePlanWordingIssues(modelReport);
-    if (finalWordingIssues.length) {
-      return failureResponse('COURSE_PLAN_STYLE_REPETITION', 502, { issues: finalWordingIssues });
-    }
     const finalSyllabusReview = reviewCalculusSyllabusCoverage(
       modelReport,
       subject.code,
       parsed.data.planningScenario,
       parsed.data.teacherNotes,
     );
-    if (finalSyllabusReview.hardIssues.length) {
-      return failureResponse('SYLLABUS_COVERAGE_VIOLATION', 502, { issues: finalSyllabusReview.hardIssues });
-    }
-    if (hasSubjectScopeViolation(subject.code, modelReport)) {
-      return failureResponse('SUBJECT_SCOPE_VIOLATION', 502);
-    }
+    const finalScopeIssues = hasSubjectScopeViolation(subject.code, modelReport)
+      ? [`内容可能混入不属于 ${subject.displayName} 的模块或术语`]
+      : [];
+    const contentCriticalWarnings = limitQualityWarnings([
+      ...finalLanguageIssues,
+      ...finalWordingIssues,
+      ...finalSyllabusReview.hardIssues,
+      ...finalScopeIssues,
+    ]);
     const generatedLessonCount = modelReport.coursePlan.stages.reduce((total, stage) => total + stage.lessons.length, 0);
     if (generatedLessonCount !== lessonDurations.length) {
       return failureResponse('REPORT_QUALITY_FAILED', 502, {
@@ -438,6 +444,13 @@ ${JSON.stringify(repair.report)}
       ...finalSyllabusReview.warnings,
     ];
     const finalTeacherVoiceIssues = getParentVoiceIssues(finalReport);
+    const criticalWarnings = limitQualityWarnings([
+      ...contentCriticalWarnings,
+      ...finalTeacherVoiceIssues,
+    ]);
+    const criticalWarningSet = new Set(criticalWarnings);
+    const modelWarnings = limitQualityWarnings(finalModelWarnings)
+      .filter((warning) => !criticalWarningSet.has(warning));
 
     diagnostics.record('succeeded', {
       stage,
@@ -460,7 +473,8 @@ ${JSON.stringify(repair.report)}
           reviewCompleted: true,
           subjectScopePassed: !hasSubjectScopeViolation(subject.code, finalReport),
           teacherVoicePassed: finalTeacherVoiceIssues.length === 0,
-          modelWarnings: [...finalModelWarnings, ...finalTeacherVoiceIssues]
+          criticalWarnings,
+          modelWarnings
         }
       }
     }, {

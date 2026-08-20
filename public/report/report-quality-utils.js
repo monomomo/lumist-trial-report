@@ -43,6 +43,7 @@ function buildReportQualityChecks({ subjectCode, report, targetScore, requestedT
   const reviewCompleted = qualityReview.reviewCompleted === true;
   const subjectScopePassed = reviewCompleted && qualityReview.subjectScopePassed === true;
   const modelWarnings = Array.isArray(qualityReview.modelWarnings) ? qualityReview.modelWarnings : [];
+  const criticalWarnings = Array.isArray(qualityReview.criticalWarnings) ? qualityReview.criticalWarnings : [];
   const apSubject = String(subjectCode || '').startsWith('ap_');
   const checks = [
     {
@@ -77,8 +78,8 @@ function buildReportQualityChecks({ subjectCode, report, targetScore, requestedT
     },
     {
       label: 'AI 内容质量',
-      status: reviewCompleted && !modelWarnings.length ? 'passed' : 'warning',
-      message: modelWarnings.length ? `仍有 ${modelWarnings.length} 项内容建议老师复核` : reviewCompleted ? 'AI 内容已通过质量复核' : '本地兜底内容未经过 AI 质量复核',
+      status: reviewCompleted && !modelWarnings.length && !criticalWarnings.length ? 'passed' : 'warning',
+      message: criticalWarnings.length ? `有 ${criticalWarnings.length} 项问题需要老师重点核对` : modelWarnings.length ? `仍有 ${modelWarnings.length} 项内容建议老师复核` : reviewCompleted ? 'AI 内容已通过质量复核' : '本地兜底内容未经过 AI 质量复核',
     },
   ];
   return checks;
