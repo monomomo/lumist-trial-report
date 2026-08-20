@@ -52,8 +52,8 @@ test('calculus syllabus prompt lists only units allowed by the selected course',
 test('AB rejects BC-only unit markers and preview requires foundational units', () => {
   const report = createReport([['calc_u1'], ['calc_u2'], ['calc_u9']]);
   const review = reviewCalculusSyllabusCoverage(report, 'ap_calculus_ab', 'preview', '');
-  assert.match(review.hardIssues.join('；'), /不允许的 Unit：calc_u9/);
-  assert.match(review.hardIssues.join('；'), /calc_u3/);
+  assert.match(review.hardIssues.join('；'), /当前课程不包含的第 9 单元（参数方程、极坐标与向量值函数）/);
+  assert.match(review.hardIssues.join('；'), /第 3 单元（复合函数、隐函数与反函数求导）/);
 });
 
 test('BC intensive coverage accepts all units and checks exam practice components', () => {
@@ -61,7 +61,7 @@ test('BC intensive coverage accepts all units and checks exam practice component
   const complete = reviewCalculusSyllabusCoverage(createReport(allUnits), 'ap_calculus_bc', 'intensive', '');
   assert.deepEqual(complete, { hardIssues: [], warnings: [] });
   const incomplete = reviewCalculusSyllabusCoverage(createReport(allUnits.slice(0, 8), '完成概念练习'), 'ap_calculus_bc', 'intensive', '');
-  assert.match(incomplete.hardIssues.join('；'), /calc_u9、calc_u10/);
+  assert.match(incomplete.hardIssues.join('；'), /第 9 单元（参数方程、极坐标与向量值函数）、第 10 单元（无穷数列与级数）/);
   assert.deepEqual(incomplete.warnings.length, 4);
 });
 
@@ -78,9 +78,11 @@ test('semantic review rejects lessons whose content and unit markers disagree', 
     },
   };
   const review = reviewCalculusSyllabusCoverage(report, 'ap_calculus_ab', 'synchronous', '');
-  assert.match(review.hardIssues.join('；'), /calc_u6/);
-  assert.match(review.hardIssues.join('；'), /calc_u7/);
-  assert.match(review.hardIssues.join('；'), /与明确内容不一致/);
+  const issues = review.hardIssues.join('；');
+  assert.match(issues, /第 6 单元（积分与变化的累积）/);
+  assert.match(issues, /第 7 单元（微分方程）/);
+  assert.match(issues, /明确内容与该单元不一致/);
+  assert.doesNotMatch(issues, /calc_u|unitCodes|Unit/);
 });
 
 test('preview cannot expand beyond required units and stage claims must match actual coverage', () => {
@@ -99,7 +101,7 @@ test('preview cannot expand beyond required units and stage claims must match ac
     },
   };
   const review = reviewCalculusSyllabusCoverage(report, 'ap_calculus_ab', 'preview', '');
-  assert.match(review.hardIssues.join('；'), /阶段声称覆盖/);
+  assert.match(review.hardIssues.join('；'), /阶段写明覆盖/);
   assert.match(review.hardIssues.join('；'), /预习规划超出/);
 });
 
@@ -107,5 +109,5 @@ test('fixed unit assessment promises are rejected', () => {
   const report = createReport([['calc_u1'], ['calc_u2'], ['calc_u3']]);
   report.coursePlan.stages[0].description = '每完成 2 个 Unit 后安排一次阶段测评';
   const review = reviewCalculusSyllabusCoverage(report, 'ap_calculus_ab', 'preview', '');
-  assert.match(review.hardIssues.join('；'), /固定 Unit 数量测评/);
+  assert.match(review.hardIssues.join('；'), /每学完固定数量的单元就测评/);
 });

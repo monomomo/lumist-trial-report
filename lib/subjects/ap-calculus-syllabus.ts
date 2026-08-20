@@ -4,6 +4,7 @@ interface CalculusUnit {
   code: string;
   number: number;
   title: string;
+  titleZh: string;
   examWeight: { minimum: number; maximum: number };
   courses: CalculusSubjectCode[];
 }
@@ -51,19 +52,19 @@ function inferCalculusUnitCodes(value: string) {
 }
 
 const SHARED_UNITS: CalculusUnit[] = [
-  { code: 'calc_u1', number: 1, title: 'Limits and Continuity', examWeight: { minimum: 10, maximum: 15 }, courses: ['ap_calculus_ab', 'ap_calculus_bc'] },
-  { code: 'calc_u2', number: 2, title: 'Differentiation: Definition and Fundamental Properties', examWeight: { minimum: 10, maximum: 15 }, courses: ['ap_calculus_ab', 'ap_calculus_bc'] },
-  { code: 'calc_u3', number: 3, title: 'Differentiation: Composite, Implicit, and Inverse Functions', examWeight: { minimum: 5, maximum: 10 }, courses: ['ap_calculus_ab', 'ap_calculus_bc'] },
-  { code: 'calc_u4', number: 4, title: 'Contextual Applications of Differentiation', examWeight: { minimum: 10, maximum: 15 }, courses: ['ap_calculus_ab', 'ap_calculus_bc'] },
-  { code: 'calc_u5', number: 5, title: 'Analytical Applications of Differentiation', examWeight: { minimum: 15, maximum: 20 }, courses: ['ap_calculus_ab', 'ap_calculus_bc'] },
-  { code: 'calc_u6', number: 6, title: 'Integration and Accumulation of Change', examWeight: { minimum: 15, maximum: 20 }, courses: ['ap_calculus_ab', 'ap_calculus_bc'] },
-  { code: 'calc_u7', number: 7, title: 'Differential Equations', examWeight: { minimum: 5, maximum: 10 }, courses: ['ap_calculus_ab', 'ap_calculus_bc'] },
-  { code: 'calc_u8', number: 8, title: 'Applications of Integration', examWeight: { minimum: 10, maximum: 15 }, courses: ['ap_calculus_ab', 'ap_calculus_bc'] },
+  { code: 'calc_u1', number: 1, title: 'Limits and Continuity', titleZh: '极限与连续性', examWeight: { minimum: 10, maximum: 15 }, courses: ['ap_calculus_ab', 'ap_calculus_bc'] },
+  { code: 'calc_u2', number: 2, title: 'Differentiation: Definition and Fundamental Properties', titleZh: '导数的定义与基本性质', examWeight: { minimum: 10, maximum: 15 }, courses: ['ap_calculus_ab', 'ap_calculus_bc'] },
+  { code: 'calc_u3', number: 3, title: 'Differentiation: Composite, Implicit, and Inverse Functions', titleZh: '复合函数、隐函数与反函数求导', examWeight: { minimum: 5, maximum: 10 }, courses: ['ap_calculus_ab', 'ap_calculus_bc'] },
+  { code: 'calc_u4', number: 4, title: 'Contextual Applications of Differentiation', titleZh: '导数的情境应用', examWeight: { minimum: 10, maximum: 15 }, courses: ['ap_calculus_ab', 'ap_calculus_bc'] },
+  { code: 'calc_u5', number: 5, title: 'Analytical Applications of Differentiation', titleZh: '导数的分析应用', examWeight: { minimum: 15, maximum: 20 }, courses: ['ap_calculus_ab', 'ap_calculus_bc'] },
+  { code: 'calc_u6', number: 6, title: 'Integration and Accumulation of Change', titleZh: '积分与变化的累积', examWeight: { minimum: 15, maximum: 20 }, courses: ['ap_calculus_ab', 'ap_calculus_bc'] },
+  { code: 'calc_u7', number: 7, title: 'Differential Equations', titleZh: '微分方程', examWeight: { minimum: 5, maximum: 10 }, courses: ['ap_calculus_ab', 'ap_calculus_bc'] },
+  { code: 'calc_u8', number: 8, title: 'Applications of Integration', titleZh: '积分的应用', examWeight: { minimum: 10, maximum: 15 }, courses: ['ap_calculus_ab', 'ap_calculus_bc'] },
 ];
 
 const BC_UNITS: CalculusUnit[] = [
-  { code: 'calc_u9', number: 9, title: 'Parametric Equations, Polar Coordinates, and Vector-Valued Functions', examWeight: { minimum: 11, maximum: 12 }, courses: ['ap_calculus_bc'] },
-  { code: 'calc_u10', number: 10, title: 'Infinite Sequences and Series', examWeight: { minimum: 17, maximum: 18 }, courses: ['ap_calculus_bc'] },
+  { code: 'calc_u9', number: 9, title: 'Parametric Equations, Polar Coordinates, and Vector-Valued Functions', titleZh: '参数方程、极坐标与向量值函数', examWeight: { minimum: 11, maximum: 12 }, courses: ['ap_calculus_bc'] },
+  { code: 'calc_u10', number: 10, title: 'Infinite Sequences and Series', titleZh: '无穷数列与级数', examWeight: { minimum: 17, maximum: 18 }, courses: ['ap_calculus_bc'] },
 ];
 
 const BC_WEIGHTS = new Map<number, CalculusUnit['examWeight']>([
@@ -92,6 +93,15 @@ export function getCalculusUnits(subjectCode: string): CalculusUnit[] {
   }));
 }
 
+function formatUnitCodes(codes: string[]) {
+  if (!codes.length) return '尚未识别到对应单元';
+  const unitMap = new Map([...SHARED_UNITS, ...BC_UNITS].map((unit) => [unit.code, unit]));
+  return codes.map((code) => {
+    const unit = unitMap.get(code);
+    return unit ? `第 ${unit.number} 单元（${unit.titleZh}）` : '无法识别的课程单元';
+  }).join('、');
+}
+
 export function extractExplicitCalculusUnits(notes: string, subjectCode: string): string[] {
   const validCodes = new Set(getCalculusUnits(subjectCode).map((unit) => unit.code));
   return extractMentionedUnitCodes(notes).filter((code) => validCodes.has(code));
@@ -115,6 +125,7 @@ export function buildCalculusSyllabusPrompt(subjectCode: string, scenario: strin
       code: unit.code,
       number: unit.number,
       title: unit.title,
+      titleZh: unit.titleZh,
       examWeight: `${unit.examWeight.minimum}%–${unit.examWeight.maximum}%`,
       topicSignals: CALCULUS_TOPIC_RULES.find((rule) => rule.code === unit.code)?.topics,
     })),
@@ -141,18 +152,18 @@ export function reviewCalculusSyllabusCoverage(report: CalculusReport, subjectCo
   const coveredCodes = new Set<string>();
   lessons.forEach((lesson, index) => {
     const unitCodes = Array.isArray(lesson.unitCodes) ? lesson.unitCodes : [];
-    if (!unitCodes.length) hardIssues.push(`第 ${index + 1} 节课缺少 Calculus Unit 标记`);
+    if (!unitCodes.length) hardIssues.push(`第 ${index + 1} 节课尚未归入对应的 AP Calculus 单元，请核对本节主题和内容`);
     unitCodes.forEach((code) => {
-      if (!allowedCodes.has(code)) hardIssues.push(`第 ${index + 1} 节课包含当前科目不允许的 Unit：${code}`);
+      if (!allowedCodes.has(code)) hardIssues.push(`第 ${index + 1} 节课被归入当前课程不包含的${formatUnitCodes([code])}，请核对本节主题和内容`);
       else coveredCodes.add(code);
     });
     const lessonText = `${lesson.theme} ${lesson.content} ${lesson.difficulty ?? ''} ${lesson.goal ?? ''}`;
     const semanticCodes = inferCalculusUnitCodes(lessonText);
     const explicitCodes = extractMentionedUnitCodes(lessonText);
     const unmarkedCodes = [...new Set([...semanticCodes, ...explicitCodes])].filter((code) => allowedCodes.has(code) && !unitCodes.includes(code));
-    if (unmarkedCodes.length) hardIssues.push(`第 ${index + 1} 节课的内容属于 ${unmarkedCodes.join('、')}，但 unitCodes 未如实标记`);
+    if (unmarkedCodes.length) hardIssues.push(`系统识别到第 ${index + 1} 节课的内容涉及${formatUnitCodes(unmarkedCodes)}，但生成结果没有将本节归入该单元，请核对本节主题和内容`);
     const unsupportedCodes = unitCodes.filter((code) => allowedCodes.has(code) && semanticCodes.length > 0 && !semanticCodes.includes(code));
-    if (unsupportedCodes.length) hardIssues.push(`第 ${index + 1} 节课标记了与明确内容不一致的 Unit：${unsupportedCodes.join('、')}`);
+    if (unsupportedCodes.length) hardIssues.push(`第 ${index + 1} 节课被归入${formatUnitCodes(unsupportedCodes)}，但本节明确内容与该单元不一致，请核对本节主题和内容`);
   });
   report.coursePlan.stages.forEach((stage, stageIndex) => {
     const stageText = `${stage.title ?? ''} ${stage.description ?? ''}`;
@@ -162,18 +173,18 @@ export function reviewCalculusSyllabusCoverage(report: CalculusReport, subjectCo
     const missingClaims = claimedCodes.filter((code) => !actualCodes.includes(code));
     const omittedActual = actualCodes.filter((code) => !claimedCodes.includes(code));
     if (missingClaims.length || omittedActual.length) {
-      hardIssues.push(`第 ${stageIndex + 1} 阶段声称覆盖 ${claimedCodes.join('、')}，与实际课时标记 ${actualCodes.join('、')} 不一致`);
+      hardIssues.push(`第 ${stageIndex + 1} 阶段写明覆盖${formatUnitCodes(claimedCodes)}，但阶段内课时实际归属为${formatUnitCodes(actualCodes)}，请核对阶段说明`);
     }
   });
   const requiredCodes = getRequiredCalculusUnits(subjectCode, scenario, notes);
   const missingCodes = requiredCodes.filter((code) => !coveredCodes.has(code));
-  if (missingCodes.length) hardIssues.push(`课程规划缺少必须覆盖的 Unit：${missingCodes.join('、')}`);
+  if (missingCodes.length) hardIssues.push(`课程规划尚未覆盖本次必须安排的${formatUnitCodes(missingCodes)}`);
   if (scenario === 'preview') {
     const extraCodes = [...coveredCodes].filter((code) => !requiredCodes.includes(code));
-    if (extraCodes.length) hardIssues.push(`预习规划超出本次要求，额外安排了 Unit：${extraCodes.join('、')}`);
+    if (extraCodes.length) hardIssues.push(`预习规划超出本次范围，额外安排了${formatUnitCodes(extraCodes)}`);
   }
   if (/每(?:完成|学完)\s*\d+\s*个?\s*Units?.{0,16}(?:检测|测评|考试)/i.test(JSON.stringify(report))) {
-    hardIssues.push('课程规划承诺了按固定 Unit 数量测评，应改为根据关键概念作答证据安排检测与订正');
+    hardIssues.push('课程规划承诺了每学完固定数量的单元就测评，应改为根据关键概念的作答情况安排检测与订正');
   }
   const planText = lessons.map((lesson) => `${lesson.theme} ${lesson.content}`).join(' ');
   if (scenario === 'intensive' && !/MCQ/i.test(planText)) warnings.push('冲刺规划没有明确安排 MCQ 训练');

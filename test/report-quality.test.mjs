@@ -113,7 +113,7 @@ test('critical content warnings make AI quality require teacher review', () => {
     qualityReview: {
       reviewCompleted: true,
       subjectScopePassed: true,
-      criticalWarnings: ['第 8 节课标记了与明确内容不一致的 Unit：calc_u6'],
+      criticalWarnings: ['第 8 节课被归入第 6 单元（积分与变化的累积），但本节明确内容与该单元不一致'],
       modelWarnings: [],
     },
   });
