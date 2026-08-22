@@ -257,8 +257,8 @@ test('parent copy protection applies teacher voice rules to every subject', asyn
   assert.match(source, /上一版报告未通过校验/);
   assert.match(source, /上一版报告：/);
   assert.match(source, /reviewIssues = reviewReport\(modelReport\)/);
-  assert.match(source, /REPORT_QUALITY_FAILED/);
-  assert.match(source, /generatedLessonCount !== lessonDurations\.length/);
+  assert.match(source, /reconcileCoursePlanLessonCount/);
+  assert.doesNotMatch(source, /generatedLessonCount !== lessonDurations\.length/);
   assert.match(source, /diagnostics\.record\('accepted_with_warnings'/);
   assert.match(source, /原始课堂记录/);
   assert.match(source, /已知事实/);
@@ -274,6 +274,7 @@ test('lesson durations are computed before generation and attached after validat
   assert.match(source, /buildUserInput\(subject, promptData\)/);
   assert.match(source, /getCoursePlanQualityIssues\(report, subject\.code, lessonDurations\.length\)/);
   assert.match(source, /applyLessonDurationSlots\(normalizedStages, lessonDurations\)/);
+  assert.match(source, /lessonCountAdjustment\.warning/);
   assert.equal(source.includes('distributeLessonDurations'), false);
   assert.equal(source.includes('duration: z.number()'), false);
   assert.match(source, /content: z\.string\(\)\.min\(8\)\.max\(105\)/);

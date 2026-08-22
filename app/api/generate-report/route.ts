@@ -6,7 +6,7 @@ import { SUBJECT_CODES, resolveSubject, validateSubjectScores } from '@/lib/subj
 import { buildSystemPrompt, buildUserInput } from '@/lib/subjects/prompt';
 import { hasSubjectScopeViolation } from '@/lib/subjects/scope';
 import { getCoursePlanQualityIssues, getCoursePlanWordingIssues } from '@/lib/subjects/course-plan-quality';
-import { applyLessonDurationSlots, buildLessonDurationSlots } from '@/lib/subjects/lesson-slots';
+import { applyLessonDurationSlots, buildLessonDurationSlots, reconcileCoursePlanLessonCount } from '@/lib/subjects/lesson-slots';
 import { PLANNING_FOCUS_AREA_CODES, PLANNING_SCENARIO_CODES, normalizePlanningFocusAreas } from '@/lib/reports/planning-context';
 import { reviewCalculusSyllabusCoverage } from '@/lib/subjects/ap-calculus-syllabus.js';
 import { hasUnnaturalTeacherPerspective, normalizeTeacherPerspective } from '@/lib/reports/teacher-perspective';
@@ -390,18 +390,24 @@ ${JSON.stringify(repair.report)}
     const finalScopeIssues = hasSubjectScopeViolation(subject.code, modelReport)
       ? [`内容可能混入不属于 ${subject.displayName} 的模块或术语`]
       : [];
+    const lessonCountAdjustment = reconcileCoursePlanLessonCount(
+      modelReport.coursePlan.stages,
+      lessonDurations.length,
+    );
+    modelReport = {
+      ...modelReport,
+      coursePlan: {
+        ...modelReport.coursePlan,
+        stages: lessonCountAdjustment.stages,
+      },
+    };
     const contentCriticalWarnings = limitQualityWarnings([
       ...finalLanguageIssues,
       ...finalWordingIssues,
       ...finalSyllabusReview.hardIssues,
       ...finalScopeIssues,
+      ...(lessonCountAdjustment.warning ? [lessonCountAdjustment.warning] : []),
     ]);
-    const generatedLessonCount = modelReport.coursePlan.stages.reduce((total, stage) => total + stage.lessons.length, 0);
-    if (generatedLessonCount !== lessonDurations.length) {
-      return failureResponse('REPORT_QUALITY_FAILED', 502, {
-        issues: [`课程规划应生成 ${lessonDurations.length} 个课时块，实际生成了 ${generatedLessonCount} 个`],
-      });
-    }
     if (reviewIssues.length > 0) {
       diagnostics.record('accepted_with_warnings', {
         stage,
