@@ -685,6 +685,10 @@ function setSummaryDraftValue(path, value) {
   const counter = input?.closest('.summary-editor-field')?.querySelector('small');
   if (counter) counter.textContent = `${value.length} / ${SUMMARY_FIELD_RULES[field].maximum}`;
   setSummaryEditorMessage('');
+  if ($('#summary-editor-modal').classList.contains('workspace-inline-editor')) {
+    currentReportData = { ...currentReportData, ...cloneReportSummary(draftSummary) };
+    document.querySelector('#report-view .eyebrow').textContent = '试听反馈已编辑 · 未云端保存';
+  }
 }
 
 function openSummaryEditor() {
@@ -770,6 +774,19 @@ function updateEditorSummary() {
 function markEditorDirty() {
   updateEditorSummary();
   setPlanEditorMessage('');
+  if ($('#course-plan-modal').classList.contains('workspace-inline-editor')) syncWorkspaceCoursePlan();
+}
+
+function syncWorkspaceCoursePlan() {
+  draftCoursePlan.totalHours = calculateTotalHours(draftCoursePlan);
+  currentReportData.coursePlan = cloneCoursePlan(draftCoursePlan);
+  $('#total-hours').value = String(draftCoursePlan.totalHours);
+  const lessonCount = draftCoursePlan.stages.reduce((total, stage) => total + stage.lessons.length, 0);
+  $('#lesson-count').value = String(lessonCount);
+  currentReportData.planningContext = buildCurrentPlanningContext(lessonCount);
+  updateLessonCountHint();
+  renderReportQualityNotice(currentReportData);
+  document.querySelector('#report-view .eyebrow').textContent = '课程规划已编辑 · 未云端保存';
 }
 
 function clearValidationErrors() {
@@ -866,6 +883,27 @@ function setDraftValue(path, value) {
     $(`[data-stage-editor="${stageIndex}"] .plan-stage-editor-header b`).textContent = title;
     document.querySelectorAll('[data-move-lesson]').forEach((select) => { select.options[stageIndex].textContent = title; });
   }
+}
+
+function mountTeacherWorkspaceEditors() {
+  const workspace = $('#teacher-workspace-editor');
+  const summaryModal = $('#summary-editor-modal');
+  const courseModal = $('#course-plan-modal');
+  workspace.append(summaryModal, courseModal);
+  summaryModal.classList.remove('plan-editor-modal', 'hidden');
+  summaryModal.classList.add('workspace-inline-editor');
+  courseModal.classList.remove('plan-editor-modal', 'hidden');
+  courseModal.classList.add('workspace-inline-editor');
+}
+
+function initializeWorkspaceEditors() {
+  draftSummary = cloneReportSummary(currentReportData);
+  summaryEditorBaseline = JSON.stringify(draftSummary);
+  draftCoursePlan = cloneCoursePlan(currentReportData.coursePlan);
+  editorBaseline = JSON.stringify(draftCoursePlan);
+  collapsedStages = new WeakSet();
+  renderSummaryEditor();
+  renderPlanEditor();
 }
 
 function openPlanEditor() {
@@ -1453,6 +1491,8 @@ function setReportDisplayMode(mode) {
   const isPreview = mode === 'preview';
   $('#parent-report').classList.toggle('teacher-workspace-mode', !isPreview);
   $('#parent-report').classList.toggle('parent-preview-mode', isPreview);
+  $('#parent-report').classList.toggle('hidden', !isPreview);
+  $('#teacher-workspace-editor').classList.toggle('hidden', isPreview);
   $('#report-mode-banner').classList.toggle('preview-mode', isPreview);
   $('#report-mode-banner').innerHTML = isPreview
     ? '<div><strong>家长版预览</strong><span>当前展示完整交付版内容，导出的 PDF 将采用相同页面顺序。</span></div><span class="report-mode-status">完整报告</span>'
@@ -1602,5 +1642,7 @@ loadTeacherProfile();
 const initialData = collectFormData();
 currentReportData = buildFallbackReport(currentSubjectCode, initialData);
 originalAiCoursePlan = cloneCoursePlan(currentReportData.coursePlan);
+mountTeacherWorkspaceEditors();
 renderReport(currentReportData);
+initializeWorkspaceEditors();
 setReportDisplayMode('workspace');

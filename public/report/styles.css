@@ -25,6 +25,16 @@ nav { display:grid; gap:9px; }.nav-item { text-align:left; border:0; color:#c6ce
 .report-mode-banner.preview-mode { border-color:#d9deeb; background:#f7f9ff; color:#4b5670; }
 .report-mode-banner.preview-mode .report-mode-status { background:#e6edff; color:#28499c; }
 .report-document.teacher-workspace-mode .delivery-only { display:none; }
+.teacher-workspace-editor { max-width:920px; margin:0 auto 24px; display:grid; gap:18px; }
+.teacher-workspace-editor.hidden { display:none; }
+.workspace-inline-editor { position:static; inset:auto; z-index:auto; background:transparent; padding:0; display:block; }
+.workspace-inline-editor .plan-editor-shell { width:100%; height:auto; max-height:none; border:1px solid #eadfbd; border-radius:14px; box-shadow:0 8px 25px rgba(90,71,18,.06); overflow:visible; display:grid; }
+.workspace-inline-editor .plan-editor-header { padding:22px 24px; }
+.workspace-inline-editor .summary-editor-content { height:auto; max-height:none; overflow:visible; padding:22px 24px 26px; }
+.workspace-inline-editor .plan-editor-content { max-height:none; overflow:visible; }
+.workspace-inline-editor .plan-editor-footer { display:none; }
+.workspace-inline-editor .plan-editor-message { margin:0 24px 20px; }
+#edit-summary,#edit-course-plan { display:none !important; }
 @media screen {
   .report-document.teacher-workspace-mode .report-page { min-height:0; aspect-ratio:auto; overflow:visible; padding:38px 48px; }
   .report-document.teacher-workspace-mode .report-brand-header,.report-document.teacher-workspace-mode .page-kicker { display:none; }
