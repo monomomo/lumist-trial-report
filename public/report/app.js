@@ -1335,7 +1335,13 @@ document.querySelectorAll('[data-scenario-sample]').forEach((button) => button.a
 }));
 $('#subject-search').addEventListener('focus', (event) => {
   event.target.select();
-  renderSubjectOptions('');
+  renderSubjectOptions(subjectSelectionConfirmed ? '' : event.target.value);
+  openSubjectOptions();
+});
+$('#subject-combobox').addEventListener('click', (event) => {
+  if (event.target.closest('[data-subject-code]')) return;
+  if (event.target.closest('#subject-toggle')) return;
+  renderSubjectOptions(subjectSelectionConfirmed ? '' : $('#subject-search').value);
   openSubjectOptions();
 });
 $('#subject-search').addEventListener('input', (event) => {
@@ -1367,7 +1373,7 @@ $('#subject-search').addEventListener('keydown', (event) => {
 });
 $('#subject-toggle').addEventListener('click', () => {
   if ($('#subject-options').classList.contains('hidden')) {
-    renderSubjectOptions('');
+    renderSubjectOptions(subjectSelectionConfirmed ? '' : $('#subject-search').value);
     openSubjectOptions();
     $('#subject-search').focus();
   } else {

@@ -38,3 +38,16 @@ test('subject search supports text filtering and keyboard selection', async () =
   assert.match(source, /role="option"/);
   assert.match(source, /aria-activedescendant/);
 });
+
+test('subject combobox opens from the whole field and keeps active search text', async () => {
+  const appSource = await readFile(new URL('../public/report/app.js', import.meta.url), 'utf8');
+  const stylesSource = await readFile(new URL('../public/report/styles.css', import.meta.url), 'utf8');
+
+  assert.match(appSource, /\$\(\'#subject-combobox\'\)\.addEventListener\('click'/);
+  assert.match(appSource, /renderSubjectOptions\(subjectSelectionConfirmed \? '' : event\.target\.value\)/);
+  assert.match(appSource, /renderSubjectOptions\(subjectSelectionConfirmed \? '' : \$\('#subject-search'\)\.value\)/);
+  assert.match(stylesSource, /\.subject-field:focus-within \{ z-index:80; \}/);
+  assert.match(stylesSource, /\.subject-options \{[^}]*width:100%;/);
+  assert.match(stylesSource, /\.subject-options \{[^}]*z-index:80;/);
+  assert.match(stylesSource, /\.subject-options \{[^}]*box-sizing:border-box;/);
+});
