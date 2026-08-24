@@ -685,10 +685,13 @@ function setSummaryDraftValue(path, value) {
   const counter = input?.closest('.summary-editor-field')?.querySelector('small');
   if (counter) counter.textContent = `${value.length} / ${SUMMARY_FIELD_RULES[field].maximum}`;
   setSummaryEditorMessage('');
-  if ($('#summary-editor-modal').classList.contains('workspace-inline-editor')) {
-    currentReportData = { ...currentReportData, ...cloneReportSummary(draftSummary) };
-    document.querySelector('#report-view .eyebrow').textContent = '试听反馈已编辑 · 未云端保存';
-  }
+  syncWorkspaceSummary();
+}
+
+function syncWorkspaceSummary() {
+  if (!$('#summary-editor-modal').classList.contains('workspace-inline-editor')) return;
+  currentReportData = { ...currentReportData, ...cloneReportSummary(draftSummary) };
+  document.querySelector('#report-view .eyebrow').textContent = '试听反馈已编辑 · 未云端保存';
 }
 
 function openSummaryEditor() {
@@ -1489,6 +1492,7 @@ function switchReportImageSources(mode) {
 
 function setReportDisplayMode(mode) {
   const isPreview = mode === 'preview';
+  if (!isPreview && currentReportData) initializeWorkspaceEditors();
   $('#parent-report').classList.toggle('teacher-workspace-mode', !isPreview);
   $('#parent-report').classList.toggle('parent-preview-mode', isPreview);
   $('#parent-report').classList.toggle('hidden', !isPreview);
@@ -1534,11 +1538,13 @@ $('#summary-editor-modal').addEventListener('click', (event) => {
   const field = event.target.dataset.summaryField;
   if (action === 'add') {
     draftSummary[field].push('');
+    syncWorkspaceSummary();
     renderSummaryEditor();
     $(`[data-summary-path="${field}.${draftSummary[field].length - 1}"]`)?.focus();
   }
   if (action === 'delete') {
     draftSummary[field].splice(Number(event.target.dataset.summaryIndex), 1);
+    syncWorkspaceSummary();
     renderSummaryEditor();
   }
   if (action === 'cancel') cancelSummaryEditor();
