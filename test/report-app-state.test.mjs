@@ -110,6 +110,21 @@ test('company introduction uses an optimized image with a JPEG fallback', async 
   assert.match(htmlSource, /width="2380"[\s\S]*height="3368"/);
 });
 
+test('teacher workspace hides delivery packaging until preview or print', async () => {
+  const htmlSource = await readFile(new URL('../public/report/index.html', import.meta.url), 'utf8');
+  const appSource = await readFile(new URL('../public/report/app.js', import.meta.url), 'utf8');
+  const stylesSource = await readFile(new URL('../public/report/styles.css', import.meta.url), 'utf8');
+  assert.match(htmlSource, /id="preview-report">预览家长版/);
+  assert.match(htmlSource, /id="parent-report" class="report-document teacher-workspace-mode"/);
+  assert.match(htmlSource, /cover-page delivery-only/);
+  assert.match(htmlSource, /company-page data-impact-page delivery-only/);
+  assert.match(appSource, /function setReportDisplayMode\(mode\)/);
+  assert.match(appSource, /setReportDisplayMode\('preview'\)/);
+  assert.match(appSource, /setReportDisplayMode\(previousMode\)/);
+  assert.match(stylesSource, /\.report-document\.teacher-workspace-mode \.delivery-only \{ display:none; \}/);
+  assert.match(stylesSource, /\.report-page\.delivery-only \{ display:block !important; \}/);
+});
+
 test('new report form starts with empty teacher inputs', async () => {
   const source = await readFile(new URL('../public/report/index.html', import.meta.url), 'utf8');
   for (const id of ['student-name', 'target-score', 'total-hours']) {

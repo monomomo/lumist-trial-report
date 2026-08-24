@@ -1235,6 +1235,7 @@ async function openHistoricalReport(reportId) {
   historicalTeacherProfile = buildHistoricalTeacherProfile(record.teacher_snapshot);
   originalAiCoursePlan = cloneCoursePlan(currentReportData.coursePlan);
   renderReport(currentReportData);
+  setReportDisplayMode('workspace');
   changeView('report');
   document.querySelector('#report-view .eyebrow').textContent = '历史报告 · 已保存';
   $('#save-report').textContent = '更新历史报告';
@@ -1277,6 +1278,7 @@ $('#report-form').addEventListener('submit', async (event) => {
     historicalTeacherProfile = null;
     originalAiCoursePlan = cloneCoursePlan(currentReportData.coursePlan);
     renderReport(currentReportData);
+    setReportDisplayMode('workspace');
     changeView('report');
     document.querySelector('#report-view .eyebrow').textContent = 'AI 报告已生成 · 未云端保存';
     $('#save-report').textContent = '保存报告';
@@ -1298,6 +1300,7 @@ $('#report-form').addEventListener('submit', async (event) => {
       historicalTeacherProfile = null;
       originalAiCoursePlan = cloneCoursePlan(currentReportData.coursePlan);
       renderReport(currentReportData);
+      setReportDisplayMode('workspace');
       changeView('report');
       document.querySelector('#report-view .eyebrow').textContent = error.requestId
         ? `本地兜底版 · AI 暂不可用 · 参考编号 ${error.requestId}`
@@ -1440,17 +1443,38 @@ function switchReportImageSources(mode) {
   });
 }
 
+function setReportDisplayMode(mode) {
+  const isPreview = mode === 'preview';
+  $('#parent-report').classList.toggle('teacher-workspace-mode', !isPreview);
+  $('#parent-report').classList.toggle('parent-preview-mode', isPreview);
+  $('#report-mode-banner').classList.toggle('preview-mode', isPreview);
+  $('#report-mode-banner').innerHTML = isPreview
+    ? '<div><strong>家长版预览</strong><span>当前展示完整交付版内容，导出的 PDF 将采用相同页面顺序。</span></div><span class="report-mode-status">完整报告</span>'
+    : '<div><strong>老师工作台</strong><span>请重点核对试听反馈与课程规划，品牌包装页将在家长预览和 PDF 中显示。</span></div><span class="report-mode-status">待老师核对</span>';
+  $('#preview-report').textContent = isPreview ? '返回老师工作台' : '预览家长版';
+  $('#preview-report').setAttribute('aria-pressed', String(isPreview));
+}
+
+$('#preview-report').addEventListener('click', () => {
+  const isPreview = $('#parent-report').classList.contains('parent-preview-mode');
+  setReportDisplayMode(isPreview ? 'workspace' : 'preview');
+  $('#report-mode-banner').scrollIntoView({ behavior: 'smooth', block: 'start' });
+});
+
 $('#print-report').addEventListener('click', async () => {
   const printButton = $('#print-report');
   const previousButtonText = printButton.textContent;
+  const previousMode = $('#parent-report').classList.contains('parent-preview-mode') ? 'preview' : 'workspace';
   printButton.disabled = true;
   printButton.textContent = '正在准备 PDF…';
   try {
+    setReportDisplayMode('preview');
     switchReportImageSources('print');
     await waitForReportImages();
     window.print();
   } finally {
     switchReportImageSources('screen');
+    setReportDisplayMode(previousMode);
     printButton.disabled = false;
     printButton.textContent = previousButtonText;
   }
@@ -1559,6 +1583,9 @@ document.querySelectorAll('.tab').forEach((tab) => tab.addEventListener('click',
   document.querySelectorAll('.tab').forEach((item) => item.classList.toggle('active', item === tab));
   $('#parent-report').classList.toggle('hidden', !isParent);
   $('#sales-card').classList.toggle('hidden', isParent);
+  $('#report-mode-banner').classList.toggle('hidden', !isParent);
+  $('#preview-report').classList.toggle('hidden', !isParent);
+  $('#print-report').classList.toggle('hidden', !isParent);
 }));
 $('#copy-script').addEventListener('click', async () => { await navigator.clipboard.writeText($('#sales-script').textContent); $('#copy-script').textContent = '已复制'; setTimeout(() => { $('#copy-script').textContent = '复制话术'; }, 1200); });
 const defaultCoursePlan = getDefaultCoursePlan();
@@ -1570,3 +1597,4 @@ const initialData = collectFormData();
 currentReportData = buildFallbackReport(currentSubjectCode, initialData);
 originalAiCoursePlan = cloneCoursePlan(currentReportData.coursePlan);
 renderReport(currentReportData);
+setReportDisplayMode('workspace');

@@ -183,21 +183,26 @@
               ><button class="secondary-btn" id="edit-course-plan">
                 编辑课程规划</button
               ><button class="secondary-btn" id="back-edit">返回编辑</button
+              ><button class="secondary-btn" id="preview-report">预览家长版</button
               ><button class="secondary-btn" id="print-report">导出 PDF</button>
             </div>
           </header>
           <div class="tabs">
             <button class="tab active" data-report-tab="parent">
-              家长版报告</button
+              报告内容</button
             ><button class="tab" data-report-tab="sales">
               销售跟进卡 <span>内部</span>
             </button>
           </div>
           <div id="report-critical-warning" class="report-critical-warning hidden" role="alert"></div>
           <div id="report-quality-notice" class="quality-notice hidden"></div>
+          <div id="report-mode-banner" class="report-mode-banner">
+            <div><strong>老师工作台</strong><span>请重点核对试听反馈与课程规划，品牌包装页将在家长预览和 PDF 中显示。</span></div>
+            <span class="report-mode-status">待老师核对</span>
+          </div>
 
-          <div id="parent-report" class="report-document">
-            <article class="report-page cover-page">
+          <div id="parent-report" class="report-document teacher-workspace-mode">
+            <article class="report-page cover-page delivery-only">
               <img
                 id="report-cover-image"
                 src="assets/lumist-sat-cover.png"
@@ -513,7 +518,7 @@
               </div>
             </article>
 
-            <article class="report-page teacher-page">
+            <article class="report-page teacher-page delivery-only">
               <img
                 class="report-brand-header"
                 src="assets/lumist-report-header-black.png"
@@ -523,7 +528,7 @@
               <div id="teacher-profile-container"></div>
             </article>
 
-            <article class="report-page sat-results-page">
+            <article class="report-page sat-results-page delivery-only">
               <img
                 id="report-high-score-image"
                 src="assets/lumist-sat-high-score-cases.jpg"
@@ -533,7 +538,7 @@
               />
             </article>
 
-            <article class="report-page company-page data-impact-page">
+            <article class="report-page company-page data-impact-page delivery-only">
               <picture>
                 <source
                   srcset="assets/lumist-company-introduction.webp"
@@ -555,7 +560,7 @@
               </picture>
             </article>
 
-            <article class="report-page course-introduction-page">
+            <article class="report-page course-introduction-page delivery-only">
               <img
                 src="assets/lumist-course-introduction.jpg"
                 data-screen-src="assets/lumist-course-introduction.jpg"
@@ -564,7 +569,7 @@
               />
             </article>
 
-            <article class="report-page closing-page">
+            <article class="report-page closing-page delivery-only">
               <img
                 id="report-closing-image"
                 src="assets/lumist-sat-back.png"
