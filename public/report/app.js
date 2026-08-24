@@ -1492,6 +1492,7 @@ function switchReportImageSources(mode) {
 
 function setReportDisplayMode(mode) {
   const isPreview = mode === 'preview';
+  if (isPreview && currentReportData) renderReport(currentReportData);
   if (!isPreview && currentReportData) initializeWorkspaceEditors();
   $('#parent-report').classList.toggle('teacher-workspace-mode', !isPreview);
   $('#parent-report').classList.toggle('parent-preview-mode', isPreview);
