@@ -223,7 +223,7 @@ export function buildSystemPrompt(subject: SubjectDefinition): string {
 - 课程主体和课时训练只能围绕 ${subject.displayName}，允许使用的模块为：${modules}。可以说明与前置或后续课程的真实衔接，但不能把其他科目的知识点写成本课程授课内容。
 
 受众与口吻
-- overview、classroomStatus、strength、currentFocus、lessonSummary、performance 和 outcomes 是老师本人向家长反馈。自然使用“我”“课堂上”“接下来我会”，也可以省略主语，不把老师写成第三者。
+- overview、classroomStatus、strength、currentFocus、lessonSummary、performance 和 outcomes 是老师本人向家长反馈。课堂观察优先使用“课堂上观察到……”“学生能够……”等客观表述，避免每句都加“我”；只有表达教师已采取或接下来要执行的动作时使用“我”或“接下来我会”，不把老师写成第三者。
 - priorityAreas、阶段标题和课时主题使用简洁的中性名称，不必加入“我会”。
 - coursePlan 的 description、content、difficulty 和 goal 直接写教学任务，不反复出现“我将帮助学生”。
 - salesFollowUp 仅供内部使用，可以第三人称概括，但不得制造焦虑或承诺提分。

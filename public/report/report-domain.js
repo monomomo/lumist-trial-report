@@ -98,16 +98,16 @@ export function buildFallbackReport(subjectCode, formData) {
     ? '学生课堂互动积极，愿意主动表达与思考'
     : '学生能够跟随课堂讲解完成思考';
   const accuracy = /正确率|准确率|做对|中等难度/.test(notes)
-    ? '我观察到学生能够完成部分中等难度题目'
+    ? '课堂上观察到学生能够完成部分中等难度题目'
     : '我会通过后续具体练习继续确认学生的实际掌握情况';
 
   return {
-    overview: `本次试听课中，我先了解了${name}与${vm.displayName}课程的衔接情况。${positive}；${accuracy}。接下来我会结合具体作答过程定位易错点，并据此调整后续课程重点。`,
+    overview: `本次试听课中，先了解了${name}与${vm.displayName}课程的衔接情况。${positive}；${accuracy}。接下来我会结合具体作答过程定位易错点，并据此调整后续课程重点。`,
     classroomStatus: `课堂上，${positive}`,
-    strength: /正确率|准确率|做对|中等难度/.test(notes) ? '我观察到学生具备继续提升的作答基础' : '我会在后续练习中确认学生已经稳定掌握的内容',
+    strength: /正确率|准确率|做对|中等难度/.test(notes) ? '课堂上观察到学生具备继续提升的作答基础' : '学生表现出继续提升的作答基础，后续通过练习确认稳定性',
     currentFocus: `接下来我会先完成${vm.displayName}基础诊断，再按具体错因安排训练`,
     lessonTitle: `${vm.displayName}试听诊断与学习规划`,
-    lessonSummary: `本节课中，我先从${vm.displayName}知识框架切入，了解学生目前的课程衔接与作答习惯。后续我会通过可复核的课堂任务继续确认各模块掌握情况。`,
+    lessonSummary: `本节课中，从${vm.displayName}知识框架切入，了解学生目前的课程衔接与作答习惯。后续我会通过可复核的课堂任务继续确认各模块掌握情况。`,
     performance: `${positive}；${accuracy}。`,
     outcomes: [`我已初步了解学生与${vm.displayName}课程的衔接情况`, accuracy, '学生明确了接下来课堂练习的重点', `我会继续细化${vm.displayName}后续训练顺序`],
     priorityAreas: ['建立完整知识框架', ...(vm.modules.length > 2 ? vm.modules.slice(0, 2) : vm.modules)],
