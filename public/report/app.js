@@ -817,7 +817,7 @@ function renderPlanEditor() {
     const navButton = document.createElement('button');
     navButton.type = 'button';
     navButton.dataset.scrollStage = String(stageIndex);
-    navButton.textContent = `${stageIndex + 1}. ${stage.title || '未命名阶段'}`;
+    navButton.textContent = `${stageIndex + 1}. ${stage.title || '未命名阶段'} · ${stage.lessons.length}课`;
     nav.appendChild(navButton);
 
     const section = document.createElement('section');
@@ -904,7 +904,7 @@ function initializeWorkspaceEditors() {
   summaryEditorBaseline = JSON.stringify(draftSummary);
   draftCoursePlan = cloneCoursePlan(currentReportData.coursePlan);
   editorBaseline = JSON.stringify(draftCoursePlan);
-  collapsedStages = new WeakSet();
+  collapsedStages = new WeakSet(draftCoursePlan.stages.slice(1));
   renderSummaryEditor();
   renderPlanEditor();
 }
@@ -912,7 +912,7 @@ function initializeWorkspaceEditors() {
 function openPlanEditor() {
   draftCoursePlan = cloneCoursePlan(currentReportData.coursePlan);
   editorBaseline = JSON.stringify(draftCoursePlan);
-  collapsedStages = new WeakSet();
+  collapsedStages = new WeakSet(draftCoursePlan.stages.slice(1));
   renderPlanEditor();
   $('#course-plan-modal').classList.remove('hidden');
   document.body.classList.add('modal-open');
