@@ -64,16 +64,6 @@ export function resolveTargetScore(subjectCode, targetScore) {
  */
 
 /**
- * 判断某个 API 错误码是否可以走本地兜底生成。
- * @param {string} errorCode
- * @returns {boolean}
- */
-export function canUseFallback(errorCode) {
-  return ['AI_GENERATION_FAILED', 'EMPTY_MODEL_OUTPUT', 'AI_SERVICE_NOT_CONFIGURED', 'SYSTEM_NOT_CONFIGURED']
-    .includes(errorCode);
-}
-
-/**
  * 构建科目感知的兜底学情报告，在 AI 不可用时使用本地规则生成。
  *
  * @param {string} subjectCode 科目编码。

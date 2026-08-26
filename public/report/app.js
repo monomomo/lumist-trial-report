@@ -1,6 +1,6 @@
 import { ALLOWED_DURATIONS, cloneCoursePlan, calculateTotalHours, validateCoursePlan, moveItem, moveLesson, rebalanceFinalPage, createStage, createLesson } from './course-plan-utils.js';
 import { SUBJECT_CODES, SUBJECT_CATALOG, resolveSubject, validateSubjectScores } from './catalog.js';
-import { createSubjectViewModel, normalizeTeacherProfile, canUseFallback, buildFallbackReport, resolveTargetScore } from './report-domain.js';
+import { createSubjectViewModel, normalizeTeacherProfile, buildFallbackReport, resolveTargetScore } from './report-domain.js';
 import { SUMMARY_FIELD_RULES, cloneReportSummary, validateReportSummary } from './summary-editor-utils.js';
 import { buildGenerationChecklist, buildReportQualityChecks, humanizeReportWarning } from './report-quality-utils.js';
 import { PLANNING_SCENARIOS, MAX_PLANNING_FOCUS_AREAS, getPlanningFocusOptions, normalizePlanningFocusAreas, resolvePlanningScenario, getLessonCountRange } from './planning-context.js';
@@ -658,22 +658,14 @@ function createSummaryListEditor(field, title, maximum) {
 function renderSummaryEditor() {
   const content = $('#summary-editor-content');
   content.innerHTML = '';
-  const diagnosis = document.createElement('section');
-  diagnosis.className = 'summary-editor-section';
-  diagnosis.innerHTML = '<header><span>01</span><div><b>学习背景与课堂诊断</b><p>调整试听结论、课堂状态、优势和当前重点</p></div></header>';
-  const diagnosisFields = document.createElement('div');
-  diagnosisFields.className = 'summary-editor-fields';
-  ['overview', 'classroomStatus', 'strength', 'currentFocus'].forEach((field) => diagnosisFields.appendChild(createSummaryEditorField(field, SUMMARY_FIELD_RULES[field])));
-  diagnosis.appendChild(diagnosisFields);
-
-  const outcomes = document.createElement('section');
-  outcomes.className = 'summary-editor-section';
-  outcomes.innerHTML = '<header><span>02</span><div><b>试听课反馈与本节课学习成果</b><p>调整试听内容、学生表现、收获和后续提升项</p></div></header>';
-  const outcomeFields = document.createElement('div');
-  outcomeFields.className = 'summary-editor-fields';
-  ['lessonTitle', 'lessonSummary', 'performance'].forEach((field) => outcomeFields.appendChild(createSummaryEditorField(field, SUMMARY_FIELD_RULES[field])));
-  outcomes.append(outcomeFields, createSummaryListEditor('outcomes', '本节课收获', 5), createSummaryListEditor('priorityAreas', '后续需要优先提升的内容', 6));
-  content.append(diagnosis, outcomes);
+  const summary = document.createElement('section');
+  summary.className = 'summary-editor-section';
+  summary.innerHTML = '<header><span>01</span><div><b>试听课堂观察与学习建议</b><p>集中核对课堂表现、本节课内容、学习收获和后续安排</p></div></header>';
+  const observationFields = document.createElement('div');
+  observationFields.className = 'summary-editor-fields';
+  ['overview', 'classroomStatus', 'strength', 'currentFocus', 'lessonTitle', 'lessonSummary', 'performance'].forEach((field) => observationFields.appendChild(createSummaryEditorField(field, SUMMARY_FIELD_RULES[field])));
+  summary.append(observationFields, createSummaryListEditor('outcomes', '本节课收获', 5), createSummaryListEditor('priorityAreas', '后续需要优先提升的内容', 6));
+  content.append(summary);
   $('#summary-editor-student-name').textContent = $('#student-name').value.trim() || '学生';
 }
 
@@ -1335,35 +1327,21 @@ $('#report-form').addEventListener('submit', async (event) => {
       notice.innerHTML = '<strong>登录已过期：</strong>请刷新页面后重新登录。';
       return;
     }
-    if (canUseFallback(error.message)) {
-      currentReportData = buildFallbackReport(currentSubjectCode, collectFormData());
-      currentReportId = null;
-      historicalTeacherProfile = null;
-      originalAiCoursePlan = cloneCoursePlan(currentReportData.coursePlan);
-      renderReport(currentReportData);
-      setReportDisplayMode('workspace');
-      changeView('report');
-      document.querySelector('#report-view .eyebrow').textContent = error.requestId
-        ? `本地兜底版 · AI 暂不可用 · 参考编号 ${error.requestId}`
-        : '本地兜底版 · AI 暂不可用';
-      $('#save-report').textContent = '保存报告';
-    } else {
-      notice.classList.add('error');
-      const messages = {
-        AI_GENERATION_FAILED: 'AI 服务暂时无响应，请稍后重试。',
-        INVALID_SCORE: '当前成绩或目标成绩不符合所选科目的分数范围。',
-        INVALID_LESSON_COUNT: '预计课次与总课时不匹配，请返回检查。',
-        SYLLABUS_COVERAGE_VIOLATION: '课程规划遗漏或错误标记了 Calculus 官方 Unit，请重新生成。',
-        SUBJECT_SCOPE_VIOLATION: 'AI 内容出现跨科目术语，请重新生成。',
-        UNEXPECTED_LANGUAGE: 'AI 内容出现异常语言文字，系统已阻止生成，请重新生成。',
-        COURSE_PLAN_STYLE_REPETITION: '连续课时使用了重复的大纲式句型，请重新生成。',
-        REPORT_QUALITY_FAILED: 'AI 连续两次未达到报告质量要求，请重新生成。'
-      };
-      const reason = error.reason || messages[error.message] || `报告渲染异常（${error.message || 'UNKNOWN_ERROR'}），请重试。`;
-      const suggestion = error.suggestion ? `<br><span>建议：${escapeHtml(error.suggestion)}</span>` : '';
-      const reference = error.requestId ? ` <span>参考编号：${escapeHtml(error.requestId)}</span>` : '';
-      notice.innerHTML = `<strong>生成失败：</strong>${escapeHtml(reason)}${suggestion}${reference}`;
-    }
+    notice.classList.add('error');
+    const messages = {
+      AI_GENERATION_FAILED: 'AI 服务暂时无响应，请稍后重试。',
+      INVALID_SCORE: '当前成绩或目标成绩不符合所选科目的分数范围。',
+      INVALID_LESSON_COUNT: '预计课次与总课时不匹配，请返回检查。',
+      SYLLABUS_COVERAGE_VIOLATION: '课程规划遗漏或错误标记了 Calculus 官方 Unit，请重新生成。',
+      SUBJECT_SCOPE_VIOLATION: 'AI 内容出现跨科目术语，请重新生成。',
+      UNEXPECTED_LANGUAGE: 'AI 内容出现异常语言文字，系统已阻止生成，请重新生成。',
+      COURSE_PLAN_STYLE_REPETITION: '连续课时使用了重复的大纲式句型，请重新生成。',
+      REPORT_QUALITY_FAILED: 'AI 连续两次未达到报告质量要求，请重新生成。'
+    };
+    const reason = error.reason || messages[error.message] || `报告渲染异常（${error.message || 'UNKNOWN_ERROR'}），请重试。`;
+    const suggestion = error.suggestion ? `<br><span>建议：${escapeHtml(error.suggestion)}</span>` : '';
+    const reference = error.requestId ? ` <span>参考编号：${escapeHtml(error.requestId)}</span>` : '';
+    notice.innerHTML = `<strong>生成失败：</strong>${escapeHtml(reason)}${suggestion}${reference}`;
   } finally {
     button.disabled = false;
     button.innerHTML = 'AI 生成个性化报告 <span>→</span>';

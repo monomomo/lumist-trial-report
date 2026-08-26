@@ -24,11 +24,11 @@ export function getGenerationFailureDetails(errorCode: string, issues: readonly 
     case 'REPORT_QUALITY_FAILED':
       return { reason: issue || '报告结构连续两次未达到质量要求。', suggestion: '请重新生成；如果反复出现，请把参考编号发给管理员。' };
     case 'EMPTY_MODEL_OUTPUT':
-      return { reason: 'AI 本次没有返回可用报告。', suggestion: '系统已切换到本地兜底内容，可以稍后重新生成。' };
+      return { reason: 'AI 本次没有返回可用报告。', suggestion: '请稍后重新生成；如果反复出现，请把参考编号发给管理员。' };
     case 'AI_SERVICE_NOT_CONFIGURED':
-      return { reason: 'AI 服务当前不可用。', suggestion: '系统已切换到本地兜底内容，请联系管理员检查服务配置。' };
+      return { reason: 'AI 服务当前不可用。', suggestion: '请联系管理员检查服务配置后重新生成。' };
     case 'SYSTEM_NOT_CONFIGURED':
-      return { reason: '登录与数据服务当前不可用。', suggestion: '系统已切换到本地兜底内容，请联系管理员检查服务配置。' };
+      return { reason: '登录与数据服务当前不可用。', suggestion: '请联系管理员检查服务配置后重新生成。' };
     case 'UNAUTHORIZED':
       return { reason: '登录状态已失效。', suggestion: '请刷新页面并重新登录。' };
     default:
