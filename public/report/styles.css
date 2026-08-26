@@ -27,6 +27,10 @@ nav { display:grid; gap:9px; }.nav-item { text-align:left; border:0; color:#c6ce
 .report-document.teacher-workspace-mode .delivery-only { display:none; }
 .teacher-workspace-editor { max-width:920px; margin:0 auto 24px; display:grid; gap:18px; }
 .teacher-workspace-editor.hidden { display:none; }
+.workspace-stage-shortcuts { position:sticky; top:64px; z-index:15; display:flex; align-items:center; gap:8px; overflow:auto; padding:10px 12px; border:1px solid #eadfbd; border-radius:10px; background:rgba(255,252,244,.97); box-shadow:0 5px 16px rgba(90,71,18,.06); }
+.workspace-stage-shortcuts>span { flex:none; color:#65552a; font-size:12px; font-weight:800; }
+.workspace-stage-shortcuts button { flex:none; border:1px solid #e2d5aa; border-radius:7px; background:#fff; color:#665a3a; padding:7px 10px; font-size:11px; font-weight:700; white-space:nowrap; }
+.workspace-stage-shortcuts button:hover { border-color:#cda12b; background:#fff7dc; color:#5f4700; }
 .workspace-inline-editor { position:static; inset:auto; z-index:auto; background:transparent; padding:0; display:block; }
 .workspace-inline-editor .plan-editor-shell { width:100%; height:auto; max-height:none; border:1px solid #eadfbd; border-radius:14px; box-shadow:0 8px 25px rgba(90,71,18,.06); overflow:visible; display:grid; }
 .workspace-inline-editor .plan-editor-header { padding:22px 24px; }
@@ -40,6 +44,7 @@ nav { display:grid; gap:9px; }.nav-item { text-align:left; border:0; color:#c6ce
 .workspace-inline-editor .summary-editor-content>.summary-editor-section { grid-column:1 / -1; }
 .workspace-inline-editor .summary-editor-section>header { padding:13px 16px; }
 .workspace-inline-editor .summary-editor-fields { gap:12px; padding:15px 16px; }
+.workspace-inline-editor .summary-editor-field:first-child { grid-column:1 / -1; }
 .workspace-inline-editor .summary-editor-field textarea { min-height:92px; }
 .workspace-inline-editor .summary-list-editor { margin:0 16px 16px; }
 .workspace-inline-editor .plan-editor-layout { grid-template-columns:220px minmax(0,1fr); align-items:start; }

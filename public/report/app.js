@@ -664,7 +664,7 @@ function renderSummaryEditor() {
   summary.innerHTML = '<header><span>01</span><div><b>试听课堂观察与学习建议</b><p>集中核对课堂表现、本节课内容、学习收获和后续安排</p></div></header>';
   const observationFields = document.createElement('div');
   observationFields.className = 'summary-editor-fields';
-  ['overview', 'classroomStatus', 'strength', 'currentFocus', 'lessonTitle', 'lessonSummary', 'performance'].forEach((field) => observationFields.appendChild(createSummaryEditorField(field, SUMMARY_FIELD_RULES[field])));
+  ['lessonTitle', 'overview', 'classroomStatus', 'strength', 'currentFocus', 'lessonSummary', 'performance'].forEach((field) => observationFields.appendChild(createSummaryEditorField(field, SUMMARY_FIELD_RULES[field])));
   summary.append(observationFields, createSummaryListEditor('outcomes', '本节课收获', 5), createSummaryListEditor('priorityAreas', '后续需要优先提升的内容', 6));
   content.append(summary);
   $('#summary-editor-student-name').textContent = $('#student-name').value.trim() || '学生';
@@ -842,6 +842,13 @@ function renderPlanEditor() {
     content.appendChild(section);
   });
   updateEditorSummary();
+  renderWorkspaceStageShortcuts();
+}
+
+function renderWorkspaceStageShortcuts() {
+  const shortcuts = $('#workspace-stage-shortcuts');
+  if (!shortcuts || !draftCoursePlan?.stages?.length) return;
+  shortcuts.innerHTML = `<span>课程阶段</span>${draftCoursePlan.stages.map((stage, index) => `<button type="button" data-workspace-stage="${index}">阶段 ${index + 1} · ${escapeHtml(stage.title || '未命名阶段')}</button>`).join('')}`;
 }
 
 function createLessonEditor(lesson, stageIndex, lessonIndex) {
@@ -1603,6 +1610,13 @@ $('#plan-editor-content').addEventListener('click', (event) => {
 });
 $('#plan-stage-nav-list').addEventListener('click', (event) => {
   if (event.target.dataset.scrollStage !== undefined) $(`[data-stage-editor="${event.target.dataset.scrollStage}"]`)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+});
+$('#workspace-stage-shortcuts').addEventListener('click', (event) => {
+  const stageIndex = Number(event.target.dataset.workspaceStage);
+  if (!Number.isInteger(stageIndex) || !draftCoursePlan?.stages?.[stageIndex]) return;
+  collapsedStages.delete(draftCoursePlan.stages[stageIndex]);
+  renderPlanEditor();
+  $(`[data-stage-editor="${stageIndex}"]`)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
 });
 window.addEventListener('beforeunload', (event) => {
   if (!isCoursePlanDirty() && !isSummaryEditorDirty()) return;
