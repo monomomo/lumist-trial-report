@@ -71,6 +71,7 @@ const SUBJECT_SEARCH_ALIASES = {
 let currentSubjectCode = 'sat_math';
 let currentReportData = null;
 let currentReportId = null;
+let reportAutoSaveTimer = null;
 let historicalTeacherProfile = null;
 let summaryPageCount = 1;
 let visibleSubjectCodes = [];
@@ -684,6 +685,7 @@ function syncWorkspaceSummary() {
   if (!$('#summary-editor-modal').classList.contains('workspace-inline-editor')) return;
   currentReportData = { ...currentReportData, ...cloneReportSummary(draftSummary) };
   document.querySelector('#report-view .eyebrow').textContent = '试听反馈已编辑 · 未云端保存';
+  scheduleReportAutoSave();
 }
 
 function openSummaryEditor() {
@@ -782,6 +784,7 @@ function syncWorkspaceCoursePlan() {
   updateLessonCountHint();
   renderReportQualityNotice(currentReportData);
   document.querySelector('#report-view .eyebrow').textContent = '课程规划已编辑 · 未云端保存';
+  scheduleReportAutoSave();
 }
 
 function clearValidationErrors() {
@@ -991,8 +994,14 @@ function restoreOriginalCoursePlan() {
   document.querySelector('.reference-plan-page')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
 }
 
-async function saveReport() {
-  if (!currentReportData) return;
+function scheduleReportAutoSave() {
+  if (!currentReportId) return;
+  clearTimeout(reportAutoSaveTimer);
+  reportAutoSaveTimer = setTimeout(() => { saveReport({ automatic: true }); }, 900);
+}
+
+async function saveReport({ automatic = false } = {}) {
+  if (!currentReportData) return false;
   const reportStatus = document.querySelector('#report-view .eyebrow');
   const saveButton = $('#save-report');
   const lessonCount = currentReportData.coursePlan.stages.reduce((total, stage) => total + stage.lessons.length, 0);
@@ -1010,7 +1019,7 @@ async function saveReport() {
     coursePlan,
     salesFollowUp,
   };
-  reportStatus.textContent = '正在保存报告';
+  reportStatus.textContent = automatic ? '正在自动保存报告' : '正在保存报告';
   saveButton.disabled = true;
   saveButton.textContent = '保存中…';
   try {
@@ -1022,11 +1031,13 @@ async function saveReport() {
     const result = await response.json();
     if (!response.ok) throw new Error(result.error || 'REPORT_SAVE_FAILED');
     if (result.id) currentReportId = result.id;
-    reportStatus.textContent = result.saved ? '报告已生成 · 已保存' : '报告已生成 · 本地演示';
+    reportStatus.textContent = result.saved ? (automatic ? '报告已自动保存' : '报告已生成 · 已保存') : '报告未保存 · 当前为本地演示';
     saveButton.textContent = currentReportId ? '更新历史报告' : '保存报告';
+    return Boolean(result.saved);
   } catch {
-    reportStatus.textContent = '报告保存失败 · 请稍后重试';
+    reportStatus.textContent = automatic ? '自动保存失败 · 请手动保存' : '报告保存失败 · 请稍后重试';
     saveButton.textContent = '重新保存';
+    return false;
   } finally {
     saveButton.disabled = false;
   }
@@ -1315,6 +1326,7 @@ $('#report-form').addEventListener('submit', async (event) => {
     changeView('report');
     document.querySelector('#report-view .eyebrow').textContent = 'AI 报告已生成 · 未云端保存';
     $('#save-report').textContent = '保存报告';
+    await saveReport({ automatic: true });
     notice.innerHTML = '<strong>生成原则：</strong>总课时由老师决定，AI 仅负责规划内容与课时分配。';
   } catch (error) {
     if (error.message === 'INVALID_INPUT') {
@@ -1439,7 +1451,10 @@ $('#history-list').addEventListener('click', async (event) => {
     button.textContent = '重试打开';
   }
 });
-$('#back-edit').addEventListener('click', () => changeView('new'));
+$('#back-edit').addEventListener('click', () => {
+  setReportDisplayMode('workspace');
+  $('#report-mode-banner').scrollIntoView({ behavior: 'smooth', block: 'start' });
+});
 $('#save-report').addEventListener('click', saveReport);
 async function waitForReportImages() {
   const images = [...document.querySelectorAll('#parent-report img')];
