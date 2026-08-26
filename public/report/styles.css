@@ -74,7 +74,7 @@ nav { display:grid; gap:9px; }.nav-item { text-align:left; border:0; color:#c6ce
   @page { size:A4; margin:0; }
   html,body { width:210mm; margin:0 !important; padding:0 !important; background:#fff; }
   body { -webkit-print-color-adjust:exact; print-color-adjust:exact; }
-  .sidebar,.topbar,.tabs,.sales-card,.report-critical-warning,.quality-notice,#new-view,#history-view { display:none !important; }
+  .sidebar,.topbar,.tabs,.sales-card,.report-critical-warning,.quality-notice,#report-mode-banner,#new-view,#history-view { display:none !important; }
   .app-shell,.main { display:block !important; width:210mm; min-height:0 !important; margin:0 !important; padding:0 !important; }
   .view { display:none !important; }
   #report-view { display:block !important; width:210mm; max-width:none !important; margin:0 !important; padding:0 !important; }
