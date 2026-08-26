@@ -804,17 +804,9 @@ function createEditorField(labelText, value, path, multiline = false) {
 }
 
 function renderPlanEditor() {
-  const nav = $('#plan-stage-nav-list');
   const content = $('#plan-editor-content');
-  nav.innerHTML = '';
   content.innerHTML = '';
   draftCoursePlan.stages.forEach((stage, stageIndex) => {
-    const navButton = document.createElement('button');
-    navButton.type = 'button';
-    navButton.dataset.scrollStage = String(stageIndex);
-    navButton.textContent = `${stageIndex + 1}. ${stage.title || '未命名阶段'} · ${stage.lessons.length}课`;
-    nav.appendChild(navButton);
-
     const section = document.createElement('section');
     section.className = 'plan-stage-editor';
     section.tabIndex = -1;
@@ -1607,9 +1599,6 @@ $('#plan-editor-content').addEventListener('click', (event) => {
     theme?.scrollIntoView({ behavior: 'smooth', block: 'center' });
     theme?.focus();
   }
-});
-$('#plan-stage-nav-list').addEventListener('click', (event) => {
-  if (event.target.dataset.scrollStage !== undefined) $(`[data-stage-editor="${event.target.dataset.scrollStage}"]`)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
 });
 $('#workspace-stage-shortcuts').addEventListener('click', (event) => {
   const stageIndex = Number(event.target.dataset.workspaceStage);
