@@ -89,8 +89,7 @@ function parseSections(intro, englishName) {
   return sectionNames.flatMap((title) => {
     const content = initial[title];
     if (content.length === 0) return [];
-    const limit = title === '教学经历' || title === '过往成就' ? 210 : 160;
-    return [{ title, content: [compactCompleteText(content.join('；'), limit)] }];
+    return [{ title, content: [content.join('；')] }];
   }).slice(0, 4);
 }
 
