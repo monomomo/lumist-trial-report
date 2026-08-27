@@ -74,6 +74,7 @@ let currentReportId = null;
 let reportAutoSaveTimer = null;
 let historicalTeacherProfile = null;
 let summaryPageCount = 1;
+let isQuickPreview = false;
 let visibleSubjectCodes = [];
 let activeSubjectOptionIndex = -1;
 let subjectSelectionConfirmed = true;
@@ -643,6 +644,26 @@ function renderReportQualityNotice(data) {
   qualityNotice.classList.remove('hidden');
   qualityNotice.classList.toggle('has-warnings', warnings.length > 0);
   qualityNotice.innerHTML = `<div class="quality-notice-header"><strong>报告质量检查</strong><span class="quality-notice-summary">${checks.length - warnings.length} 项通过${warnings.length ? ` · ${warnings.length} 项建议检查` : ''}</span></div><ul class="quality-check-list">${checks.map((check) => `<li class="${check.status}"><span class="quality-check-icon">${check.status === 'passed' ? '✓' : '!'}</span><span class="quality-check-label">${escapeHtml(check.label)}</span><span class="quality-check-message">${escapeHtml(check.message)}</span></li>`).join('')}</ul>`;
+}
+
+function setQuickPreviewActions(enabled) {
+  ['#save-report', '#edit-summary', '#edit-course-plan', '#print-report'].forEach((selector) => $(selector).classList.toggle('hidden', enabled));
+  $('#back-edit').textContent = enabled ? '返回继续填写' : '返回老师工作台';
+}
+
+function openQuickPreview() {
+  const formData = collectFormData();
+  currentReportData = buildFallbackReport(currentSubjectCode, formData);
+  currentReportId = null;
+  historicalTeacherProfile = null;
+  originalAiCoursePlan = cloneCoursePlan(currentReportData.coursePlan);
+  isQuickPreview = true;
+  renderReport(currentReportData);
+  setQuickPreviewActions(true);
+  setReportDisplayMode('preview');
+  changeView('report');
+  document.querySelector('#report-view .eyebrow').textContent = '快速预览 · 未生成、未保存';
+  $('#report-mode-banner').innerHTML = '<div><strong>报告样式预览</strong><span>当前内容为即时示例，不会发送给 AI、不会保存，也不能导出。正式生成后可逐段编辑并导出 PDF。</span></div><span class="report-mode-status">仅预览</span>';
 }
 
 function changeView(id) {
@@ -1311,8 +1332,10 @@ async function openHistoricalReport(reportId) {
   };
   currentReportId = record.id;
   historicalTeacherProfile = buildHistoricalTeacherProfile(record.teacher_snapshot);
+  isQuickPreview = false;
   originalAiCoursePlan = cloneCoursePlan(currentReportData.coursePlan);
   renderReport(currentReportData);
+  setQuickPreviewActions(false);
   setReportDisplayMode('workspace');
   changeView('report');
   document.querySelector('#report-view .eyebrow').textContent = '历史报告 · 已保存';
@@ -1354,8 +1377,10 @@ $('#report-form').addEventListener('submit', async (event) => {
     currentReportData = await generateAiReport();
     currentReportId = null;
     historicalTeacherProfile = null;
+    isQuickPreview = false;
     originalAiCoursePlan = cloneCoursePlan(currentReportData.coursePlan);
     renderReport(currentReportData);
+    setQuickPreviewActions(false);
     setReportDisplayMode('workspace');
     changeView('report');
     document.querySelector('#report-view .eyebrow').textContent = 'AI 报告已生成 · 未云端保存';
@@ -1486,10 +1511,16 @@ $('#history-list').addEventListener('click', async (event) => {
   }
 });
 $('#back-edit').addEventListener('click', () => {
+  if (isQuickPreview) {
+    isQuickPreview = false;
+    changeView('new');
+    return;
+  }
   setReportDisplayMode('workspace');
   $('#report-mode-banner').scrollIntoView({ behavior: 'smooth', block: 'start' });
 });
 $('#save-report').addEventListener('click', saveReport);
+$('#quick-preview-report').addEventListener('click', openQuickPreview);
 async function waitForReportImages() {
   const images = [...document.querySelectorAll('#parent-report img')];
   await Promise.all(images.map(async (image) => {
