@@ -1543,18 +1543,26 @@ $('#print-report').addEventListener('click', async () => {
   const printButton = $('#print-report');
   const previousButtonText = printButton.textContent;
   const previousMode = $('#parent-report').classList.contains('parent-preview-mode') ? 'preview' : 'workspace';
+  let restored = false;
+  const restorePrintState = () => {
+    if (restored) return;
+    restored = true;
+    switchReportImageSources('screen');
+    setReportDisplayMode(previousMode);
+    printButton.disabled = false;
+    printButton.textContent = previousButtonText;
+  };
   printButton.disabled = true;
   printButton.textContent = '正在准备 PDF…';
   try {
     setReportDisplayMode('preview');
     switchReportImageSources('print');
     await waitForReportImages();
+    window.addEventListener('afterprint', restorePrintState, { once: true });
     window.print();
-  } finally {
-    switchReportImageSources('screen');
-    setReportDisplayMode(previousMode);
-    printButton.disabled = false;
-    printButton.textContent = previousButtonText;
+  } catch (error) {
+    restorePrintState();
+    throw error;
   }
 });
 $('#edit-summary').addEventListener('click', openSummaryEditor);

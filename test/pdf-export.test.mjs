@@ -8,9 +8,10 @@ test('print flow waits for report images before opening the browser dialog', asy
   assert.match(source, /querySelectorAll\('#parent-report img'\)/);
   assert.match(source, /querySelectorAll\('#parent-report \[data-print-src\]'\)/);
   assert.doesNotMatch(source, /#report-document/);
-  assert.match(source, /switchReportImageSources\('print'\);\s*await waitForReportImages\(\);\s*window\.print\(\)/);
-  assert.match(source, /finally \{\s*switchReportImageSources\('screen'\)/);
-  assert.match(source, /await waitForReportImages\(\);\s*window\.print\(\)/);
+  assert.match(source, /switchReportImageSources\('print'\);\s*await waitForReportImages\(\);[\s\S]*window\.print\(\)/);
+  assert.match(source, /window\.addEventListener\('afterprint', restorePrintState/);
+  assert.match(source, /const restorePrintState = \(\) =>/);
+  assert.match(source, /await waitForReportImages\(\);[\s\S]*window\.print\(\)/);
 });
 
 test('large full-page images have dedicated print sources', async () => {
