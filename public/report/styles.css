@@ -461,6 +461,13 @@ body.modal-open { overflow:hidden; }
   .generation-checklist-shell>main,.quality-check-list { grid-template-columns:1fr; }
 }
 @media print { body.modal-open { overflow:visible !important; }.report-page.delivery-only { display:block !important; }.reference-plan-page { padding:42px 53px !important; }.reference-plan-page tr { break-inside:avoid !important; page-break-inside:avoid !important; }.plan-editor-modal,#edit-course-plan,#edit-summary { display:none !important; } }
+.ap-only { display:none; }
+.report-document.ap-report .ap-only { display:block; }
+.ap-subject-results-page { padding:0; overflow:hidden; }
+.ap-subject-results-page>img { display:block; width:100%; height:100%; object-fit:cover; }
+.report-document.ap-report .report-page { position:relative; }
+.report-document.ap-report .report-page::before { content:""; position:absolute; top:20px; right:24px; z-index:30; width:190px; aspect-ratio:1280 / 365; background:url("assets/lumist-ap-slogan.png") center / contain no-repeat; pointer-events:none; }
+@media print { .report-document:not(.ap-report) .ap-only { display:none !important; }.report-document.ap-report .report-page::before { top:16px; right:20px; width:170px; } }
 
 /* 科目选择器在 field-grid 中保持与其他输入一致 */
 .field-grid select { height:40px;border:1px solid #dfe3ed;border-radius:8px;padding:0 11px;color:var(--ink);outline:none;background:#fff;font-size:14px;cursor:pointer; }

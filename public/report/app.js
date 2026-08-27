@@ -161,6 +161,7 @@ function chooseSubject(code) {
 function applyReportBrandAssets(subjectCode) {
   const track = subjectCode.startsWith('ap_') ? 'ap' : 'sat';
   const trackLabel = track === 'ap' ? 'AP' : 'SAT';
+  $('#parent-report').classList.toggle('ap-report', track === 'ap');
   const cover = $('#report-cover-image');
   const closing = $('#report-closing-image');
   const highScore = $('#report-high-score-image');
