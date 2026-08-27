@@ -548,6 +548,40 @@ function renderTeacherProfile() {
   container.innerHTML = '<div class="teacher-profile"><div class="teacher-intro"><p class="teacher-label">老师</p><h2>老师</h2><p>暂无教师简介。</p></div></div>';
 }
 
+function createTeacherProfileContinuation(pageNumber) {
+  const page = document.createElement('article');
+  page.className = 'report-page teacher-page teacher-profile-continuation-page delivery-only';
+  page.innerHTML = `<img class="report-brand-header" src="assets/lumist-report-header-black.png" alt="路觅教育" /><div class="page-kicker">${String(pageNumber).padStart(2, '0')} / 任课教师 · 续</div><div class="teacher-profile teacher-profile-continuation"><div class="teacher-intro"><div class="teacher-sections"></div></div></div>`;
+  return page;
+}
+
+function layoutTeacherProfilePages() {
+  const teacherPage = document.querySelector('.teacher-page:not(.teacher-profile-continuation-page)');
+  if (!teacherPage) return;
+
+  document.querySelectorAll('.teacher-profile-continuation-page').forEach((page) => page.remove());
+  teacherPage.classList.remove('teacher-page-compact');
+  const pageNumber = Number(teacherPage.querySelector('.page-kicker')?.textContent.match(/\d+/)?.[0] || 0);
+  const splitPage = (page, number) => {
+    let continuation = null;
+    while (page.scrollHeight > PLAN_PAGE_AVAILABLE_HEIGHT) {
+      const sections = Array.from(page.querySelectorAll('.teacher-sections > section'));
+      if (sections.length === 0) {
+        page.classList.add('teacher-page-compact');
+        return;
+      }
+      if (!continuation) {
+        continuation = createTeacherProfileContinuation(number + 1);
+        page.after(continuation);
+      }
+      continuation.querySelector('.teacher-sections').prepend(sections.at(-1));
+    }
+    if (continuation) splitPage(continuation, number + 1);
+  };
+
+  splitPage(teacherPage, pageNumber);
+}
+
 function renderReport(data) {
   const name = $('#student-name').value.trim() || '学生';
   const target = resolveTargetScore(currentSubjectCode, $('#target-score').value);
@@ -576,6 +610,7 @@ function renderReport(data) {
   renderTeacherProfile();
   layoutSummaryPages();
   renderCoursePlan(data.coursePlan);
+  layoutTeacherProfilePages();
   renderReportCriticalWarning(data);
   renderReportQualityNotice(data);
 }
