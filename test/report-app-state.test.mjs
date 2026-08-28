@@ -25,7 +25,7 @@ test('summary editor header does not reserve course stage navigation space', asy
   const styles = await readFile(new URL('../public/report/styles.css', import.meta.url), 'utf8');
   assert.match(styles, /#summary-editor-modal\.workspace-inline-editor \.plan-editor-header \{ top:86px; \}/);
   assert.match(styles, /\.workspace-stage-shortcuts \{ position:sticky; top:86px;/);
-  assert.match(styles, /\.workspace-inline-editor \.plan-editor-header \{ position:sticky; top:142px;/);
+  assert.match(styles, /\.workspace-inline-editor \.plan-editor-header \{ position:sticky; top:139px;/);
 });
 
 test('course plan pagination reserves print safety space', async () => {
@@ -111,6 +111,12 @@ test('high-score case page switches between SAT and AP full-page materials', asy
 test('AP slogan stays off the closing page', async () => {
   const styles = await readFile(new URL('../public/report/styles.css', import.meta.url), 'utf8');
   assert.match(styles, /\.report-document\.ap-report \.closing-page::before \{ display:none; \}/);
+});
+
+test('AP subject results use the high-resolution optimized asset', async () => {
+  const html = await readFile(new URL('../public/report/index.html', import.meta.url), 'utf8');
+  assert.match(html, /assets\/lumist-ap-subject-results\.jpg/);
+  assert.doesNotMatch(html, /assets\/lumist-ap-subject-results\.png/);
 });
 
 test('course introduction appears after company introduction as a full-page material', async () => {
