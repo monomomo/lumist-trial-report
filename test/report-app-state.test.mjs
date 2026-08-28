@@ -25,7 +25,7 @@ test('summary editor header does not reserve course stage navigation space', asy
   const styles = await readFile(new URL('../public/report/styles.css', import.meta.url), 'utf8');
   assert.match(styles, /#summary-editor-modal\.workspace-inline-editor \.plan-editor-header \{ top:86px; \}/);
   assert.match(styles, /\.workspace-stage-shortcuts \{ position:sticky; top:86px;/);
-  assert.match(styles, /\.workspace-inline-editor \.plan-editor-header \{ position:sticky; top:139px;/);
+  assert.match(styles, /#course-plan-modal\.workspace-inline-editor \.plan-editor-header \{ position:static; top:auto; \}/);
 });
 
 test('course plan pagination reserves print safety space', async () => {
