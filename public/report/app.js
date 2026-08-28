@@ -10,10 +10,10 @@ const setText = (selector, value) => { $(selector).textContent = value; };
 const escapeHtml = (value) => String(value).replace(/[&<>'"]/g, (character) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;' })[character]);
 const CSS_PIXELS_PER_INCH = 96;
 const MILLIMETERS_PER_INCH = 25.4;
-const A4_PAGE_HEIGHT_MM = 297;
+const REPORT_PAGE_HEIGHT_MM = 296;
 const PLAN_PAGE_VERTICAL_PADDING = 84;
 const PLAN_PAGE_SAFETY_MARGIN = 32;
-const PLAN_PAGE_AVAILABLE_HEIGHT = A4_PAGE_HEIGHT_MM / MILLIMETERS_PER_INCH * CSS_PIXELS_PER_INCH
+const PLAN_PAGE_AVAILABLE_HEIGHT = REPORT_PAGE_HEIGHT_MM / MILLIMETERS_PER_INCH * CSS_PIXELS_PER_INCH
   - PLAN_PAGE_VERTICAL_PADDING
   - PLAN_PAGE_SAFETY_MARGIN;
 

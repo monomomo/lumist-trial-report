@@ -16,7 +16,7 @@ test('course plan pagination reserves print safety space', async () => {
   const styles = await readFile(new URL('../public/report/styles.css', import.meta.url), 'utf8');
   assert.match(source, /CSS_PIXELS_PER_INCH = 96/);
   assert.match(source, /MILLIMETERS_PER_INCH = 25\.4/);
-  assert.match(source, /A4_PAGE_HEIGHT_MM = 297/);
+  assert.match(source, /REPORT_PAGE_HEIGHT_MM = 296/);
   assert.match(source, /PLAN_PAGE_VERTICAL_PADDING = 84/);
   assert.match(source, /PLAN_PAGE_SAFETY_MARGIN = 32/);
   assert.match(source, /body\.scrollHeight > PLAN_PAGE_AVAILABLE_HEIGHT/);
@@ -26,6 +26,7 @@ test('course plan pagination reserves print safety space', async () => {
   assert.equal(styles.includes('.plan-measurement-host .plan-page-body { height:100%'), false);
   assert.match(styles, /contain:layout paint; break-inside:avoid-page;/);
   assert.match(styles, /height:296mm !important; min-height:296mm !important; max-height:296mm !important;/);
+  assert.match(styles, /\.report-page \{ width:min\(100%,210mm\); aspect-ratio:210 \/ 296;/);
 });
 
 test('summary page compacts and splits by measured A4 content height', async () => {

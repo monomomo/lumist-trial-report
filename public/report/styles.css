@@ -164,7 +164,7 @@ nav .nav-item.active,nav .nav-item:hover { background:#5a4712; }
 @media screen and (max-width:900px) { .sat-results-page { padding:30px 25px; }.sat-results-page::after { font-size:110px; top:145px; }.sat-results-hero h2 { font-size:34px; }.sat-results-metric { gap:5px; }.sat-results-metric b,.sat-results-metric strong { font-size:48px; }.sat-results-metric span { font-size:14px; }.sat-results-cards { padding:0; }.sat-results-cards img { width:100%; }.sat-results-note { display:block; }.sat-results-note b { display:block; margin-bottom:3px; } }
 .hour-plan table { border:1px solid #e3c656; table-layout:fixed; }.hour-plan th { border-right:1px solid rgba(82,62,0,.25); }.hour-plan th:first-child { width:10%; }.hour-plan th:nth-child(2) { width:13%; }.hour-plan th:nth-child(3) { width:39%; }.hour-plan th:nth-child(4) { width:38%; }.hour-plan td { border-right:1px solid #eadb9e; border-bottom:1px solid #eadb9e; padding:10px 9px; line-height:1.5; }.hour-plan tbody tr:last-child td { border-bottom:0; }.hour-plan .total-hours-cell { background:#fff4c8; color:#6e5300; text-align:center; font-size:18px; font-weight:900; vertical-align:middle; }.hour-plan .session-hours-cell { color:#8a6500; text-align:center; font-weight:800; white-space:nowrap; }
 @media screen and (max-width:900px) { .hour-plan { overflow-x:auto; }.hour-plan table { min-width:720px; } }
-.report-page { aspect-ratio:210 / 297; min-height:0; overflow:hidden; }
+.report-page { width:min(100%,210mm); aspect-ratio:210 / 296; min-height:0; overflow:hidden; }
 .cover-page,.closing-page { padding:0; }
 .cover-page img,.closing-page img { width:100%; height:100%; object-fit:cover; }
 .sat-results-cards img { width:86%; max-height:690px; object-fit:contain; }
@@ -172,7 +172,7 @@ nav .nav-item.active,nav .nav-item:hover { background:#5a4712; }
 .summary-page .analysis-box { margin-top:18px; }.summary-page .three-columns { margin-top:14px; }.summary-divider { display:flex; align-items:center; gap:12px; margin:32px 0 16px; color:#8a6500; font-size:13px; font-weight:900; }.summary-divider::before,.summary-divider::after { content:""; height:1px; background:#e3c65b; flex:1; }.summary-page .lesson-card { padding:15px 18px; }.summary-page .outcome-grid { margin-top:16px; gap:16px; }.summary-page .outcome-grid section { padding:15px 17px; }.summary-page .subheading { margin:19px 0 9px; }
 .summary-page { padding:42px 53px 38px; }
 .summary-measurement-host { position:absolute; left:-10000px; top:0; width:210mm; visibility:hidden; pointer-events:none; }
-.summary-measurement-host .summary-page { width:210mm !important; height:297mm !important; min-height:297mm !important; max-height:297mm !important; margin:0 !important; padding:42px 53px !important; box-shadow:none !important; }
+.summary-measurement-host .summary-page { width:210mm !important; height:296mm !important; min-height:296mm !important; max-height:296mm !important; margin:0 !important; padding:42px 53px !important; box-shadow:none !important; }
 .summary-measurement-host .student-grid { grid-template-columns:repeat(4,1fr) !important; }
 .summary-measurement-host .three-columns { grid-template-columns:repeat(3,1fr) !important; }
 .summary-measurement-host .outcome-grid { grid-template-columns:1fr 1fr !important; }
@@ -297,7 +297,7 @@ nav .nav-item.active,nav .nav-item:hover { background:#5a4712; }
 .reference-plan-page .plan-note { margin-top:9px; padding:8px 10px; color:#685925; font-size:10px; line-height:1.45; }
 .reference-plan-page .plan-note-reserve { visibility:hidden; }
 .plan-measurement-host { position:absolute; left:-10000px; top:0; width:210mm; visibility:hidden; pointer-events:none; }
-.plan-measurement-host .reference-plan-page { width:210mm !important; height:297mm !important; min-height:297mm !important; max-height:297mm !important; margin:0 !important; aspect-ratio:auto !important; box-shadow:none !important; }
+.plan-measurement-host .reference-plan-page { width:210mm !important; height:296mm !important; min-height:296mm !important; max-height:296mm !important; margin:0 !important; aspect-ratio:auto !important; box-shadow:none !important; }
 .plan-measurement-host .plan-page-body { overflow:hidden; }
 .plan-measurement-host .reference-plan-page { padding:42px 53px !important; }
 .plan-page-heading { display:flex; align-items:flex-start; justify-content:space-between; gap:24px; margin-bottom:14px; }
