@@ -215,7 +215,7 @@ nav .nav-item.active,nav .nav-item:hover { background:#5a4712; }
 .summary-page-condensed .subheading { margin:10px 0 6px; font-size:13px; }
 .teacher-page { position:relative; overflow:hidden; padding:42px 53px 38px; }
 .teacher-page::after { content:""; position:absolute; width:210px; height:210px; right:-92px; top:-92px; border:35px solid #fff0ba; border-radius:50%; }
-.teacher-profile { grid-template-columns:245px minmax(0,1fr); grid-template-areas:"photo intro" "photo qr"; gap:0 42px; align-items:start; margin-top:4px; }
+.teacher-profile { grid-template-columns:245px minmax(0,1fr); grid-template-areas:"photo intro" "qr intro"; gap:18px 42px; align-items:start; margin-top:4px; }
 .teacher-photo-wrap { grid-area:photo; height:510px; position:relative; border-radius:0; background:#efe1b7; box-shadow:16px 16px 0 #ffd34f; }
 .teacher-photo-name { position:absolute; left:18px; bottom:18px; color:#fff; font-size:11px; font-weight:900; letter-spacing:2px; text-transform:uppercase; text-shadow:0 1px 10px rgba(0,0,0,.25); }
 .teacher-intro { grid-area:intro; padding:19px 0 24px; position:relative; z-index:1; }
@@ -225,7 +225,7 @@ nav .nav-item.active,nav .nav-item:hover { background:#5a4712; }
 .teacher-intro p:not(.teacher-label) { font-size:13px; line-height:1.86; margin:0 0 12px; }
 .teacher-tags { margin-top:19px; gap:8px; }
 .teacher-tags span { border-radius:0; padding:7px 10px; font-size:11px; }
-.teacher-qr { grid-area:qr; align-self:stretch; border:1px solid #ecd98c; border-left:5px solid #ffc928; padding:14px 16px; display:flex; align-items:center; gap:14px; text-align:left; background:#fffdf5; }
+.teacher-qr { grid-area:qr; align-self:start; width:100%; border:1px solid #ecd98c; border-left:5px solid #ffc928; padding:14px 16px; display:flex; align-items:center; gap:14px; text-align:left; background:#fffdf5; }
 .teacher-qr img { width:80px; height:80px; margin:0; flex:none; }
 .teacher-qr span { font-size:12px; color:#4e4836; font-weight:700; }
 .teacher-profile-continuation-page .teacher-profile { display:block; }
@@ -253,7 +253,7 @@ nav .nav-item.active,nav .nav-item:hover { background:#5a4712; }
 .sat-results-page > img { display:block; width:100%; height:100%; object-fit:cover; }
 .course-introduction-page { padding:0 !important; background:#fff; }
 .course-introduction-page > img { display:block; width:100%; height:100%; object-fit:cover; }
-.teacher-profile { grid-template-columns:275px minmax(0,1fr); gap:0 44px; }
+.teacher-profile { grid-template-columns:275px minmax(0,1fr); gap:18px 44px; }
 .teacher-photo-wrap { height:585px; box-shadow:18px 18px 0 #ffd34f; }
 .teacher-intro { padding:14px 0 20px; }
 .teacher-intro h2 { margin:15px 0 12px; }
