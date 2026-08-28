@@ -562,11 +562,14 @@ function layoutTeacherProfilePages() {
   if (!teacherPage) return;
 
   document.querySelectorAll('.teacher-profile-continuation-page').forEach((page) => page.remove());
-  teacherPage.classList.remove('teacher-page-compact');
+  teacherPage.classList.remove('teacher-page-compact', 'teacher-page-condensed');
   const pageNumber = Number(teacherPage.querySelector('.page-kicker')?.textContent.match(/\d+/)?.[0] || 0);
+  const isOverflowing = (page) => page.scrollHeight > page.offsetHeight + 1;
+  if (isOverflowing(teacherPage)) teacherPage.classList.add('teacher-page-compact');
+  if (isOverflowing(teacherPage)) teacherPage.classList.add('teacher-page-condensed');
   const splitPage = (page, number) => {
     let continuation = null;
-    while (page.scrollHeight > PLAN_PAGE_AVAILABLE_HEIGHT) {
+    while (isOverflowing(page)) {
       const sections = Array.from(page.querySelectorAll('.teacher-sections > section'));
       if (sections.length === 0) {
         page.classList.add('teacher-page-compact');

@@ -43,6 +43,9 @@ test('teacher page has no Amber or SAT Math presentation hardcoding', async () =
   assert.match(appSource, /profile\.sections/);
   assert.match(appSource, /profile\.subjects/);
   assert.match(appSource, /getActiveTeacherProfile/);
+  assert.match(appSource, /page\.scrollHeight > page\.offsetHeight \+ 1/);
+  assert.match(appSource, /teacher-page-condensed/);
+  assert.match(styles, /\.teacher-page-condensed \.teacher-sections p/);
 });
 
 test('teacher profile excludes language ability from current and historical reports', async () => {
