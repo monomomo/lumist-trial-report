@@ -101,6 +101,11 @@ test('high-score case page switches between SAT and AP full-page materials', asy
   assert.match(styles, /\.sat-results-page > img \{[^}]*width:100%;[^}]*height:100%;[^}]*object-fit:cover;/);
 });
 
+test('AP slogan stays off the closing page', async () => {
+  const styles = await readFile(new URL('../public/report/styles.css', import.meta.url), 'utf8');
+  assert.match(styles, /\.report-document\.ap-report \.closing-page::before \{ display:none; \}/);
+});
+
 test('course introduction appears after company introduction as a full-page material', async () => {
   const htmlSource = await readFile(new URL('../public/report/index.html', import.meta.url), 'utf8');
   const styles = await readFile(new URL('../public/report/styles.css', import.meta.url), 'utf8');

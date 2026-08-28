@@ -479,6 +479,7 @@ body.modal-open { overflow:hidden; }
 .ap-subject-results-page>img { display:block; width:100%; height:100%; object-fit:cover; }
 .report-document.ap-report .report-page { position:relative; }
 .report-document.ap-report .report-page::before { content:""; position:absolute; top:20px; right:24px; z-index:30; width:190px; aspect-ratio:1280 / 365; background:url("assets/lumist-ap-slogan.png") center / contain no-repeat; pointer-events:none; }
+.report-document.ap-report .closing-page::before { display:none; }
 @media print { .report-document:not(.ap-report) .ap-only { display:none !important; }.report-document.ap-report .report-page::before { top:16px; right:20px; width:170px; } }
 
 /* 科目选择器在 field-grid 中保持与其他输入一致 */
