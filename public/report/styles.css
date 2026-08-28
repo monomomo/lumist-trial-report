@@ -31,6 +31,7 @@ nav { display:grid; gap:9px; }.nav-item { text-align:left; border:0; color:#c6ce
 .workspace-stage-shortcuts>span { flex:none; color:#65552a; font-size:12px; font-weight:800; }
 .workspace-stage-shortcuts button { flex:none; border:1px solid #e2d5aa; border-radius:7px; background:#fff; color:#665a3a; padding:7px 10px; font-size:11px; font-weight:700; white-space:nowrap; }
 .workspace-stage-shortcuts button:hover { border-color:#cda12b; background:#fff7dc; color:#5f4700; }
+.workspace-inline-editor .workspace-stage-shortcuts { margin:-1px -1px 0; border-radius:14px 14px 0 0; }
 .workspace-inline-editor { position:static; inset:auto; z-index:auto; background:transparent; padding:0; display:block; }
 .workspace-inline-editor .plan-editor-shell { width:100%; height:auto; max-height:none; border:1px solid #eadfbd; border-radius:14px; box-shadow:0 8px 25px rgba(90,71,18,.06); overflow:visible; display:grid; }
 .workspace-inline-editor .plan-editor-header { padding:22px 24px; }

@@ -11,6 +11,16 @@ test('report app declares current report state before initialization', async () 
   assert.ok(declarationIndex < initializationIndex);
 });
 
+test('stage shortcuts stay inside the course plan editor', async () => {
+  const html = await readFile(new URL('../public/report/index.html', import.meta.url), 'utf8');
+  const courseEditorIndex = html.indexOf('id="course-plan-modal"');
+  const shortcutsIndex = html.indexOf('id="workspace-stage-shortcuts"');
+  const courseHeaderIndex = html.indexOf('id="course-plan-editor-title"');
+  assert.ok(courseEditorIndex >= 0);
+  assert.ok(shortcutsIndex > courseEditorIndex);
+  assert.ok(shortcutsIndex < courseHeaderIndex);
+});
+
 test('course plan pagination reserves print safety space', async () => {
   const source = await readFile(new URL('../public/report/app.js', import.meta.url), 'utf8');
   const styles = await readFile(new URL('../public/report/styles.css', import.meta.url), 'utf8');
