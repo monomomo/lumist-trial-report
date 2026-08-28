@@ -21,6 +21,13 @@ test('stage shortcuts stay inside the course plan editor', async () => {
   assert.ok(shortcutsIndex < courseHeaderIndex);
 });
 
+test('summary editor header does not reserve course stage navigation space', async () => {
+  const styles = await readFile(new URL('../public/report/styles.css', import.meta.url), 'utf8');
+  assert.match(styles, /#summary-editor-modal\.workspace-inline-editor \.plan-editor-header \{ top:86px; \}/);
+  assert.match(styles, /\.workspace-stage-shortcuts \{ position:sticky; top:86px;/);
+  assert.match(styles, /\.workspace-inline-editor \.plan-editor-header \{ position:sticky; top:142px;/);
+});
+
 test('course plan pagination reserves print safety space', async () => {
   const source = await readFile(new URL('../public/report/app.js', import.meta.url), 'utf8');
   const styles = await readFile(new URL('../public/report/styles.css', import.meta.url), 'utf8');
