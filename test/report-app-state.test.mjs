@@ -338,3 +338,20 @@ test('generated lessons cannot fail the whole report for page length', async () 
   assert.equal(source.includes("throw new Error('COURSE_PLAN_LESSON_TOO_LONG')"), false);
   assert.equal(source.includes('COURSE_PLAN_LESSON_TOO_LONG:'), false);
 });
+
+test('generated summary fields allow concise evidence instead of forcing filler', async () => {
+  const routeSource = await readFile(new URL('../app/api/generate-report/route.ts', import.meta.url), 'utf8');
+
+  assert.match(routeSource, /overview: z\.string\(\)\.min\(8\)\.max\(500\)/);
+  assert.match(routeSource, /lessonSummary: z\.string\(\)\.min\(8\)\.max\(400\)/);
+  assert.match(routeSource, /performance: z\.string\(\)\.min\(8\)\.max\(300\)/);
+  assert.doesNotMatch(routeSource, /overview: z\.string\(\)\.min\(40\)/);
+});
+
+test('AI client supports an explicit OpenAI-compatible base URL', async () => {
+  const routeSource = await readFile(new URL('../app/api/generate-report/route.ts', import.meta.url), 'utf8');
+  const envSource = await readFile(new URL('../.env.example', import.meta.url), 'utf8');
+
+  assert.match(routeSource, /baseURL: process\.env\.OPENAI_BASE_URL/);
+  assert.match(envSource, /^OPENAI_BASE_URL=$/m);
+});

@@ -29,6 +29,9 @@ const forbiddenPatterns: Record<string, RegExp[]> = {
     /AP Calculus|AP Computer Science|AP Microeconomics|Digital SAT/i,
     /Consumer Surplus|Producer Surplus|Price Elasticity|Perfect Competition|Monopoly|Oligopoly|Factor Markets|Externalities/i
   ],
+  ap_micro_macro_economics: [
+    /AP Calculus|AP Computer Science|Digital SAT/i,
+  ],
   ap_precalculus: [
     /Differentiation|Applications of Derivatives|Integration and Accumulation of Change|Applications of Integration|Differential Equations|Infinite Sequences and Series|Taylor Series|Maclaurin Series/i,
     /Bluebook|Student Question Bank|Educator Question Bank|Digital SAT|SAT Module|Module 1|Module 2/i
@@ -105,7 +108,8 @@ const forbiddenPatterns: Record<string, RegExp[]> = {
 };
 
 const allowedRelatedCourseCodes: Record<string, Set<string>> = {
-  ap_precalculus: new Set(['ap_calculus_ab', 'ap_calculus_bc', 'sat_math'])
+  ap_precalculus: new Set(['ap_calculus_ab', 'ap_calculus_bc', 'sat_math']),
+  ap_micro_macro_economics: new Set(['ap_microeconomics', 'ap_macroeconomics'])
 };
 
 export function hasSubjectScopeViolation(subjectCode: string, report: unknown): boolean {

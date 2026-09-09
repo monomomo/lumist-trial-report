@@ -51,6 +51,7 @@ const DATA_ANALYSIS_SUBJECTS = new Set([
   'ap_environmental_science',
   'ap_microeconomics',
   'ap_macroeconomics',
+  'ap_micro_macro_economics',
   'ap_psychology',
   'ap_human_geography',
   'ap_comparative_government',

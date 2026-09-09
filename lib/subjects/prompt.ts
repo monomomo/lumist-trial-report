@@ -1,6 +1,7 @@
 import type { SubjectDefinition } from './catalog.js';
 import { PLANNING_FOCUS_AREAS, PLANNING_SCENARIOS, normalizePlanningFocusAreas, resolvePlanningScenario } from '../reports/planning-context.js';
 import { buildCalculusSyllabusPrompt } from './ap-calculus-syllabus.js';
+import { buildApFrameworkPrompt } from './ap-framework.js';
 
 export interface ReportPromptData {
   studentName: string;
@@ -207,13 +208,24 @@ AP Macroeconomics 规划要求：
 - 不得使用企业成本、市场结构或个体消费者逻辑替代宏观总量分析。`;
   }
 
+  if (subject.code === 'ap_micro_macro_economics') {
+    return `${apShared}
+
+AP Microeconomics + Macroeconomics 联动规划要求：
+- 报告和课程规划必须明确区分“共享基础”“Micro 专项”“Macro 专项”三类安排；共享基础仅用于稀缺性、机会成本、PPC、比较优势、基础供需和市场均衡。
+- 共享基础应服务两门课的共同语言与图像读法，不得把 Micro 的消费者、企业、成本、市场结构、要素市场或市场失灵写成 Macro 内容，也不得把 GDP、失业、通胀、AD-AS、财政货币政策、金融部门、汇率或国际收支写成 Micro 内容。
+- 总课时是两门课共同预算：先根据老师记录安排必要的共享基础，再分别安排 Micro 和 Macro 的专项课时。两条专项路径都必须出现，且每条至少有一节明确标识的课程；不要声称两门考试共享同一套题型或可以互相替代。
+- 课时 theme 必须以“共享基础：”“Micro：”或“Macro：”开头。阶段标题应说明该阶段包含的路径，避免只写笼统的“经济学复习”。
+- 若输入只提供其中一门课的成绩或课堂证据，只将其写作该门课的事实；另一门课只安排后续诊断与训练，不补造结论。`;
+  }
+
   return apShared;
 }
 
 export function buildSystemPrompt(subject: SubjectDefinition): string {
   const modules = subject.modules.join('、');
   const planningGuidance = buildPlanningGuidance(subject);
-  return `你是路觅教育本次试听课的任课老师，负责生成 ${subject.displayName} 家长报告、课程规划和内部销售跟进卡。
+  return `你是路觅教育本次试听课的任课老师，负责生成 ${subject.displayName} 家长报告和课程规划。
 
 交付标准：
 
@@ -221,12 +233,21 @@ export function buildSystemPrompt(subject: SubjectDefinition): string {
 - 只把输入明确提供的内容写成课堂事实，不编造成绩、日期、正确率、诊断结果或课堂活动。
 - 区分本节课已经观察到的表现和接下来准备验证的判断，不把试听表现等同于正式考试能力。
 - 课程主体和课时训练只能围绕 ${subject.displayName}，允许使用的模块为：${modules}。可以说明与前置或后续课程的真实衔接，但不能把其他科目的知识点写成本课程授课内容。
+- 先将老师记录分为已知背景、课堂任务、课堂证据、已确认成果和后续行动。同一事实只分配给最匹配的一个家长字段，不在多个字段中换词重复。
+- 信息不足时缩短内容，不用套话补足字数，不补造学习习惯、性格、长期能力或稳定弱点。
 
 受众与口吻
-- overview、classroomStatus、strength、currentFocus、lessonSummary、performance 和 outcomes 是老师本人向家长反馈。课堂观察优先使用“课堂上观察到……”“学生能够……”等客观表述，避免每句都加“我”；只有表达教师已采取或接下来要执行的动作时使用“我”或“接下来我会”，不把老师写成第三者。
+- overview 只写学生学习背景、课程衔接与目标，不复述课堂表现或本节授课内容。
+- classroomStatus 只写试听课中可观察的学习过程、作答习惯、互动方式和提示前后的变化，不写课程安排或没有证据的能力标签。
+- strength 只写老师记录能够支持的已体现优势，并说明对应的任务或表现。证据不足时使用保守表述，不补造优势。
+- currentFocus 只写下一步准备训练、验证或稳定的 1 至 3 个重点。把课堂现象转化为后续行动，不复述课堂观察和学习成果。
+- lessonSummary 只写本节课实际讲解、练习或讨论的内容和方法，不写学生表现或未来安排。
+- performance 只写学生完成课堂任务时呈现的作答证据，优先写独立完成、遇到的困难和提示后的变化，不重复 lessonSummary 的授课过程。
+- outcomes 返回 1 至 5 项，只写本节课已经获得且能由课堂作答、表达或练习结果支持的认识、方法或修正结果。不把未来课程目标写成既得成果，不为凑数补造成果。
+- priorityAreas 返回 2 至 6 个简洁的后续重点主题，不写完整句子、学生评价或与阶段标题完全相同的文案。
+- 以上家长字段采用任课老师本人向家长反馈的口吻。课堂观察优先使用“课堂上观察到……”“学生能够……”等客观表述，避免每句都加“我”；只有表达教师已采取或接下来要执行的动作时使用“我”或“接下来我会”，不把老师写成第三者。
 - priorityAreas、阶段标题和课时主题使用简洁的中性名称，不必加入“我会”。
 - coursePlan 的 description、content、difficulty 和 goal 直接写教学任务，不反复出现“我将帮助学生”。
-- salesFollowUp 仅供内部使用，可以第三人称概括，但不得制造焦虑或承诺提分。
 
 写作要求
 - 使用自然、克制、具体的中文。删除套话、宣传语、空泛评价和同义反复。
@@ -239,7 +260,7 @@ export function buildSystemPrompt(subject: SubjectDefinition): string {
 课程规划
 - 输入会给出固定课时块数量和时长顺序。必须生成完全相同数量的 lessons，不自行计算或改写 duration；系统会在返回后写入时长。
 - 每个 lesson 写 theme、content、difficulty 和 goal。字段要语义完整，不以顿号、逗号、斜杠或未闭合括号结尾。
-- 每个 lesson 同时返回 unitCodes。只有 AP Calculus AB/BC 使用合法 Unit code；其他科目固定返回空数组。
+- 每个 lesson 同时返回 unitCodes。AP 科目必须使用输入 syllabus.allowedUnits 或 syllabus.allowedSections 中的合法 code；SAT 科目固定返回空数组。
 - coursePlan.rationale 只写后续调整依据，不写总课时数字或另一套方案。
 - 正式课程第 1 课必须承接试听课已取得的结论，不得重复试听课已经完成的课程框架、核心术语导入或同一组基础练习。
 - 阶段检测只能写实际覆盖的 Unit 或模块，不承诺“每完成固定数量 Unit 就测评”等机械频率；检测范围必须与该阶段 lessons 的实际内容一致。
@@ -252,7 +273,8 @@ export function buildUserInput(subject: SubjectDefinition, data: ReportPromptDat
   const scenario = PLANNING_SCENARIOS[planningScenario];
   const planningFocusAreas = normalizePlanningFocusAreas(data.planningFocusAreas, subject.code)
     .map((code) => ({ code, ...PLANNING_FOCUS_AREAS[code] }));
-  const syllabus = buildCalculusSyllabusPrompt(subject.code, planningScenario, data.teacherNotes);
+  const syllabus = buildCalculusSyllabusPrompt(subject.code, planningScenario, data.teacherNotes)
+    || buildApFrameworkPrompt(subject.code);
   const input = {
     studentName: data.studentName,
     currentScore: formatOptional(data.currentScore),

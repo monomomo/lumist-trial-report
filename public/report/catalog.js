@@ -10,6 +10,7 @@ export const SUBJECT_CODES = Object.freeze([
   'ap_csa',
   'ap_microeconomics',
   'ap_macroeconomics',
+  'ap_micro_macro_economics',
   'ap_precalculus',
   'ap_physics_1',
   'ap_physics_2',
@@ -97,8 +98,8 @@ export const SUBJECT_CATALOG = Object.freeze({
     scoreMin: 1,
     scoreMax: 5,
     scoreStep: 1,
-    modules: ['Java Fundamentals', 'Selection and Iteration', 'Classes and Objects', 'Data Collections', 'Inheritance and Polymorphism', 'Recursion'],
-    promptContext: 'AP Computer Science A 课程使用 Java，聚焦程序设计基础、控制结构、类与对象、数据集合、继承多态和递归，不得混入 AP CSP 或其他语言课程内容。'
+    modules: ['Using Objects and Methods', 'Selection and Iteration', 'Class Creation', 'Data Collections'],
+    promptContext: 'AP Computer Science A 使用 2025 起生效的四单元框架：Using Objects and Methods、Selection and Iteration、Class Creation、Data Collections，使用 Java 训练代码设计、编写、分析、文档表达与负责任计算，不得混入旧版单元结构或 AP CSP 内容。'
   }),
   ap_microeconomics: createSubject({
     code: 'ap_microeconomics',
@@ -119,6 +120,16 @@ export const SUBJECT_CATALOG = Object.freeze({
     scoreStep: 1,
     modules: ['Basic Economic Concepts', 'Economic Indicators and the Business Cycle', 'National Income and Price Determination', 'Financial Sector', 'Long-Run Consequences of Stabilization Policies', 'Open Economy—International Trade and Finance'],
     promptContext: 'AP Macroeconomics 课程聚焦经济指标、商业周期、国民收入与价格、金融部门、稳定政策长期影响和开放经济，不得混入微观企业与市场结构分析。'
+  }),
+  ap_micro_macro_economics: createSubject({
+    code: 'ap_micro_macro_economics',
+    displayName: 'AP Microeconomics + Macroeconomics',
+    scoreLabel: 'AP 经济学成绩',
+    scoreMin: 1,
+    scoreMax: 5,
+    scoreStep: 1,
+    modules: ['Shared Foundations: Basic Economic Concepts', 'Shared Foundations: Supply and Demand', 'Micro Track: Production, Cost, and Market Structure', 'Micro Track: Factor Markets and Market Failure', 'Macro Track: Economic Indicators and AD-AS', 'Macro Track: Financial Sector and Stabilization Policies', 'Macro Track: Open Economy—International Trade and Finance'],
+    promptContext: '这是 AP Microeconomics 与 AP Macroeconomics 的联动规划，不是把两门课混成一门。共享部分只限稀缺性、机会成本、PPC、比较优势、基础供需与均衡。Micro 路径必须保留消费者与企业、成本、市场结构、要素市场、市场失灵；Macro 路径必须保留 GDP、失业和通胀、AD-AS、财政与货币政策、金融部门、经济增长、汇率与国际收支。所有课时共用同一个总课时预算，但必须清楚标明共享基础、Micro 专项或 Macro 专项，不能以一门课内容替代另一门课的备考。'
   }),
   ap_precalculus: createApSubject(
     'ap_precalculus',

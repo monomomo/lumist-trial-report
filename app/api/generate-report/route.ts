@@ -9,6 +9,7 @@ import { getCoursePlanQualityIssues, getCoursePlanWordingIssues } from '@/lib/su
 import { applyLessonDurationSlots, buildLessonDurationSlots, reconcileCoursePlanLessonCount } from '@/lib/subjects/lesson-slots';
 import { PLANNING_FOCUS_AREA_CODES, PLANNING_SCENARIO_CODES, normalizePlanningFocusAreas } from '@/lib/reports/planning-context';
 import { reviewCalculusSyllabusCoverage } from '@/lib/subjects/ap-calculus-syllabus.js';
+import { reviewApFrameworkCodes } from '@/lib/subjects/ap-framework';
 import { hasUnnaturalTeacherPerspective, normalizeTeacherPerspective } from '@/lib/reports/teacher-perspective';
 import { createGenerationDiagnostics, type GenerationStage } from '@/lib/reports/generation-diagnostics';
 import { getGenerationFailureDetails } from '@/lib/reports/generation-failures';
@@ -29,15 +30,15 @@ const lessonSchema = z.object({
   unitCodes: z.array(z.string().min(1).max(20)).max(10)
 });
 
-const reportSchema = z.object({
-  overview: z.string().min(40).max(500),
+const generatedReportSchema = z.object({
+  overview: z.string().min(8).max(500),
   classroomStatus: z.string().min(10).max(160),
   strength: z.string().min(8).max(160),
   currentFocus: z.string().min(8).max(180),
   lessonTitle: z.string().min(5).max(80),
-  lessonSummary: z.string().min(20).max(400),
-  performance: z.string().min(20).max(300),
-  outcomes: z.array(z.string().min(6).max(120)).min(3).max(5),
+  lessonSummary: z.string().min(8).max(400),
+  performance: z.string().min(8).max(300),
+  outcomes: z.array(z.string().min(6).max(120)).min(1).max(5),
   priorityAreas: z.array(z.string().min(2).max(80)).min(2).max(6),
   coursePlan: z.object({
     rationale: z.string().min(20).max(180),
@@ -46,12 +47,6 @@ const reportSchema = z.object({
       description: z.string().min(10).max(100),
       lessons: z.array(lessonSchema).min(1).max(12)
     })).min(1).max(6)
-  }),
-  salesFollowUp: z.object({
-    positive: z.string().min(15).max(240),
-    urgent: z.string().min(20).max(320),
-    angle: z.string().min(20).max(260),
-    script: z.string().min(80).max(800)
   })
 });
 
@@ -95,6 +90,21 @@ function limitText(value: string, maximum: number) {
   return `${normalized.slice(0, maximum - 1).replace(/[，。；、,:：\s]+$/g, '')}。`;
 }
 
+function buildSalesFollowUp(
+  report: z.infer<typeof generatedReportSchema>,
+  subjectName: string,
+  targetScore: string,
+) {
+  const priorities = report.priorityAreas.slice(0, 3).join('、') || report.currentFocus;
+  const target = targetScore ? `，逐步向 ${targetScore} 的学习目标推进` : '';
+  return {
+    positive: limitText(`试听课中已观察到的积极表现：${report.strength}`, 240),
+    urgent: limitText(`后续建议优先关注：${report.currentFocus}。课程重点将根据课堂作答、错题类型和完成情况继续调整。`, 320),
+    angle: limitText(`沟通时可围绕“${priorities}”介绍后续安排，说明课程会依据学生的实际表现动态调整。`, 260),
+    script: limitText(`家长您好，本次 ${subjectName} 试听课中，${report.performance}。目前比较积极的表现是：${report.strength}。接下来建议围绕${report.currentFocus}安排课程，并根据后续作答、错题和完成情况动态调整${target}。`, 800),
+  };
+}
+
 function limitQualityWarnings(values: string[], maximum = 20) {
   const warnings = [...new Set(values.map((value) => value.trim()).filter(Boolean))];
   if (warnings.length <= maximum) return warnings;
@@ -115,7 +125,7 @@ function getInputCompleteness(notes: string) {
   };
 }
 
-function getParentVoiceIssues(report: z.infer<typeof reportSchema>) {
+function getParentVoiceIssues(report: z.infer<typeof generatedReportSchema>) {
   const summaryTexts = [
     report.overview,
     report.classroomStatus,
@@ -151,7 +161,7 @@ function getParentVoiceIssues(report: z.infer<typeof reportSchema>) {
   return issues;
 }
 
-function sanitizeParentReport(report: z.infer<typeof reportSchema>, subjectCode: string) {
+function sanitizeParentReport(report: z.infer<typeof generatedReportSchema>, subjectCode: string) {
   const subject = resolveSubject(subjectCode);
   const safeOverview = `本次试听课中，我先了解了学生目前与 ${subject.displayName} 课程的衔接情况。接下来我会通过具体任务继续观察知识掌握、作答过程和易错点，再据此调整后续课时重点。`;
   const safeClassroomStatus = '本节课主要用于了解学生当前的学习衔接和作答习惯，接下来我会结合具体任务继续观察。';
@@ -164,15 +174,10 @@ function sanitizeParentReport(report: z.infer<typeof reportSchema>, subjectCode:
     if (parentFacingForbiddenPattern.test(value)) return fallback;
     return normalizeTeacherPerspective(value);
   };
-  const safeOutcomes = [
-    `我已初步了解学生与 ${subject.displayName} 课程的衔接情况`,
-    '学生明确了接下来课堂练习的重点',
-    '我会根据后续作答过程和错因继续调整教学安排'
-  ];
   const outcomes = report.outcomes
     .filter((item) => !parentFacingForbiddenPattern.test(item))
     .map(normalizeTeacherPerspective);
-  safeOutcomes.forEach((item) => { if (outcomes.length < 3 && !outcomes.includes(item)) outcomes.push(item); });
+  if (outcomes.length === 0) outcomes.push(`本节课完成了学生与 ${subject.displayName} 课程衔接情况的初步沟通`);
   const priorityAreas = report.priorityAreas
     .filter((item) => !parentFacingForbiddenPattern.test(item))
     .map(normalizeTeacherPerspective);
@@ -300,11 +305,12 @@ export async function POST(request: Request) {
 
     const client = new OpenAI({
       apiKey,
+      baseURL: process.env.OPENAI_BASE_URL,
       timeout: 240000,
       maxRetries: 0
     });
     const generateModelReport = async (repair?: {
-      report: z.infer<typeof reportSchema>;
+      report: z.infer<typeof generatedReportSchema>;
       issues: string[];
     }) => {
       const input = [
@@ -328,7 +334,7 @@ ${JSON.stringify(repair.report)}
       const response = await client.responses.parse({
         model: process.env.OPENAI_MODEL || 'gpt-5-mini',
         input,
-        text: { format: zodTextFormat(reportSchema, 'trial_report') },
+        text: { format: zodTextFormat(generatedReportSchema, 'trial_report') },
         reasoning: { effort: lessonDurations.length >= 20 ? 'medium' : 'low' },
         max_output_tokens: Math.min(16000, Math.max(8000, 4500 + lessonDurations.length * 300))
       });
@@ -340,7 +346,7 @@ ${JSON.stringify(repair.report)}
     if (!modelReport) {
       return failureResponse('EMPTY_MODEL_OUTPUT', 502);
     }
-    const reviewReport = (report: z.infer<typeof reportSchema>) => {
+    const reviewReport = (report: z.infer<typeof generatedReportSchema>) => {
       const issues = [];
       if (hasSubjectScopeViolation(subject.code, report)) {
         issues.push(`内容只能使用 ${subject.displayName} 的模块和术语`);
@@ -354,6 +360,7 @@ ${JSON.stringify(repair.report)}
         parsed.data.teacherNotes,
       );
       issues.push(...syllabusReview.hardIssues, ...syllabusReview.warnings);
+      issues.push(...reviewApFrameworkCodes(report, subject.code));
       issues.push(...getUnexpectedLanguageIssues(report));
       return issues;
     };
@@ -387,6 +394,7 @@ ${JSON.stringify(repair.report)}
       parsed.data.planningScenario,
       parsed.data.teacherNotes,
     );
+    const finalFrameworkIssues = reviewApFrameworkCodes(modelReport, subject.code);
     const finalScopeIssues = hasSubjectScopeViolation(subject.code, modelReport)
       ? [`内容可能混入不属于 ${subject.displayName} 的模块或术语`]
       : [];
@@ -405,6 +413,7 @@ ${JSON.stringify(repair.report)}
       ...finalLanguageIssues,
       ...finalWordingIssues,
       ...finalSyllabusReview.hardIssues,
+      ...finalFrameworkIssues,
       ...finalScopeIssues,
       ...(lessonCountAdjustment.warning ? [lessonCountAdjustment.warning] : []),
     ]);
@@ -445,6 +454,7 @@ ${JSON.stringify(repair.report)}
         totalHours: parsed.data.totalHours
       }
     };
+    const salesFollowUp = buildSalesFollowUp(finalReport, subject.displayName, targetScore);
     const finalModelWarnings = [
       ...getCoursePlanQualityIssues(finalReport, subject.code, lessonDurations.length),
       ...finalSyllabusReview.warnings,
@@ -470,6 +480,7 @@ ${JSON.stringify(repair.report)}
       model: process.env.OPENAI_MODEL || 'gpt-5-mini',
       report: {
         ...finalReport,
+        salesFollowUp,
         planningContext: {
           scenario: parsed.data.planningScenario,
           lessonCount: parsed.data.lessonCount,
