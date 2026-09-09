@@ -1300,7 +1300,17 @@ function buildHistoricalTeacherProfile(snapshot) {
 
 async function openHistoricalReport(reportId) {
   const response = await fetch(`/api/reports?id=${encodeURIComponent(reportId)}`);
-  const result = await response.json();
+  const responseText = await response.text();
+  let result;
+  try {
+    result = JSON.parse(responseText);
+  } catch {
+    const error = new Error('AI_GATEWAY_ERROR');
+    error.requestId = response.headers.get('x-request-id') || '';
+    error.reason = `AI 服务返回异常（HTTP ${response.status}）。`;
+    error.suggestion = '请稍后重新生成；如果反复出现，请联系管理员检查 Vercel Function 日志。';
+    throw error;
+  }
   if (!response.ok || !result.report) throw new Error(result.error || 'REPORT_NOT_FOUND');
   const record = result.report;
   const subjectCode = resolveStoredSubjectCode(record.subject);
@@ -1406,6 +1416,7 @@ $('#report-form').addEventListener('submit', async (event) => {
     notice.classList.add('error');
     const messages = {
       AI_GENERATION_FAILED: 'AI 服务暂时无响应，请稍后重试。',
+      AI_GATEWAY_ERROR: 'AI 服务请求超时或平台暂时异常，请稍后重试。',
       INVALID_SCORE: '当前成绩或目标成绩不符合所选科目的分数范围。',
       INVALID_LESSON_COUNT: '预计课次与总课时不匹配，请返回检查。',
       SYLLABUS_COVERAGE_VIOLATION: '课程规划遗漏或错误标记了 Calculus 官方 Unit，请重新生成。',

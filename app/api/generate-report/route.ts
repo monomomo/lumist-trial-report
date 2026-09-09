@@ -310,6 +310,7 @@ export async function POST(request: Request) {
       timeout: 240000,
       maxRetries: 0
     });
+    const isDeepSeek = process.env.OPENAI_BASE_URL?.includes('api.deepseek.com') === true;
     const generateModelReport = async (repair?: {
       report: z.infer<typeof generatedReportSchema>;
       issues: string[];
@@ -336,7 +337,7 @@ ${JSON.stringify(repair.report)}
         model: process.env.OPENAI_MODEL || 'gpt-5-mini',
         input,
         text: { format: zodTextFormat(generatedReportSchema, 'trial_report') },
-        reasoning: { effort: lessonDurations.length >= 20 ? 'medium' : 'low' },
+        reasoning: { effort: isDeepSeek ? 'none' : lessonDurations.length >= 20 ? 'medium' : 'low' },
         max_output_tokens: maxOutputTokens
       });
       const validate = (value: unknown) => {

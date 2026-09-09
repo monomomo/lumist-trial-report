@@ -355,3 +355,12 @@ test('AI client supports an explicit OpenAI-compatible base URL', async () => {
   assert.match(routeSource, /baseURL: process\.env\.OPENAI_BASE_URL/);
   assert.match(envSource, /^OPENAI_BASE_URL=$/m);
 });
+
+test('DeepSeek generation disables thinking and handles non-JSON gateway errors', async () => {
+  const routeSource = await readFile(new URL('../app/api/generate-report/route.ts', import.meta.url), 'utf8');
+  const appSource = await readFile(new URL('../public/report/app.js', import.meta.url), 'utf8');
+
+  assert.match(routeSource, /isDeepSeek \? 'none'/);
+  assert.match(appSource, /new Error\('AI_GATEWAY_ERROR'\)/);
+  assert.match(appSource, /await response\.text\(\)/);
+});
