@@ -15,6 +15,7 @@ import { createGenerationDiagnostics, type GenerationStage } from '@/lib/reports
 import { getGenerationFailureDetails } from '@/lib/reports/generation-failures';
 import { getUnexpectedLanguageIssues } from '@/lib/reports/language-quality';
 import { getAuthResult, AUTH_STATUS } from '@/lib/auth/current-user';
+import { parseModelResponse } from '@/lib/reports/model-response';
 
 export const runtime = 'nodejs';
 export const maxDuration = 300;
@@ -331,14 +332,32 @@ ${JSON.stringify(repair.report)}
 </previous_report>`,
         });
       }
-      const response = await client.responses.parse({
+      const requestModelReport = (maxOutputTokens: number) => client.responses.parse({
         model: process.env.OPENAI_MODEL || 'gpt-5-mini',
         input,
         text: { format: zodTextFormat(generatedReportSchema, 'trial_report') },
         reasoning: { effort: lessonDurations.length >= 20 ? 'medium' : 'low' },
-        max_output_tokens: Math.min(16000, Math.max(8000, 4500 + lessonDurations.length * 300))
+        max_output_tokens: maxOutputTokens
       });
-      return response.output_parsed;
+      const validate = (value: unknown) => {
+        const result = generatedReportSchema.safeParse(value);
+        return result.success ? result.data : null;
+      };
+      const initialMaxOutputTokens = Math.min(32000, Math.max(16000, 6000 + lessonDurations.length * 400));
+      let response = await requestModelReport(initialMaxOutputTokens);
+      let report = parseModelResponse(response, validate);
+      if (report) return report;
+      if (response.status === 'incomplete' && response.incomplete_details?.reason === 'max_output_tokens') {
+        diagnostics.record('output_retry_requested', {
+          stage,
+          subjectCode,
+          lessonCount,
+          repairAttempted,
+        });
+        response = await requestModelReport(Math.min(48000, initialMaxOutputTokens * 2));
+        report = parseModelResponse(response, validate);
+      }
+      return report;
     };
 
     stage = 'model_generation';

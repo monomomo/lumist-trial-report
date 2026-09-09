@@ -9,7 +9,7 @@ export type GenerationStage =
   | 'quality_validation'
   | 'response_assembly';
 
-export type GenerationEvent = 'started' | 'repair_requested' | 'accepted_with_warnings' | 'failed' | 'succeeded';
+export type GenerationEvent = 'started' | 'output_retry_requested' | 'repair_requested' | 'accepted_with_warnings' | 'failed' | 'succeeded';
 
 export interface GenerationDiagnosticMetadata {
   stage: GenerationStage;
@@ -54,7 +54,7 @@ export function createGenerationDiagnostics() {
         console.error(payload);
         return;
       }
-      if (event === 'repair_requested' || event === 'accepted_with_warnings') {
+      if (event === 'output_retry_requested' || event === 'repair_requested' || event === 'accepted_with_warnings') {
         console.warn(payload);
         return;
       }
