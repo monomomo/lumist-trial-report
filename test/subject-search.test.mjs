@@ -27,6 +27,7 @@ test('subject groups and search aliases cover every supported subject exactly on
   assert.match(aliasBlock, /AP物理C电磁/);
   assert.match(aliasBlock, /AP英语文学与写作/);
   assert.match(aliasBlock, /AP汉语语言与文化/);
+  assert.match(aliasBlock, /AP商业与个人理财/);
 });
 
 test('subject search supports text filtering and keyboard selection', async () => {

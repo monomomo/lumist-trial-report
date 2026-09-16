@@ -11,6 +11,7 @@ export const SUBJECT_CODES = Object.freeze([
   'ap_microeconomics',
   'ap_macroeconomics',
   'ap_micro_macro_economics',
+  'ap_business_personal_finance',
   'ap_precalculus',
   'ap_physics_1',
   'ap_physics_2',
@@ -131,6 +132,12 @@ export const SUBJECT_CATALOG = Object.freeze({
     modules: ['Shared Foundations: Basic Economic Concepts', 'Shared Foundations: Supply and Demand', 'Micro Track: Production, Cost, and Market Structure', 'Micro Track: Factor Markets and Market Failure', 'Macro Track: Economic Indicators and AD-AS', 'Macro Track: Financial Sector and Stabilization Policies', 'Macro Track: Open Economy—International Trade and Finance'],
     promptContext: '这是 AP Microeconomics 与 AP Macroeconomics 的联动规划，不是把两门课混成一门。共享部分只限稀缺性、机会成本、PPC、比较优势、基础供需与均衡。Micro 路径必须保留消费者与企业、成本、市场结构、要素市场、市场失灵；Macro 路径必须保留 GDP、失业和通胀、AD-AS、财政与货币政策、金融部门、经济增长、汇率与国际收支。所有课时共用同一个总课时预算，但必须清楚标明共享基础、Micro 专项或 Macro 专项，不能以一门课内容替代另一门课的备考。'
   }),
+  ap_business_personal_finance: createApSubject(
+    'ap_business_personal_finance',
+    'AP Business with Personal Finance',
+    ['Businesses, Competition, and New Ideas', 'Marketing', 'Personal Saving and Borrowing + Business Finance and Accounting', 'Management and Strategy', 'Personal Goals, Budgeting, and Investing'],
+    'AP Business with Personal Finance 自 2026–27 学年开设。完整课程覆盖企业与竞争、营销、个人储蓄与借贷、企业财务与会计、管理与战略，以及个人目标、预算与投资；AP 统考只考 Unit 1–4，Unit 5 Personal Goals, Budgeting, and Investing 属于完整课程但不纳入 AP 考试。考试为全数字化，包含 60 道选择题、Business Canvas Project Exam-Day Validation，以及 Personal Finance、Business Concept Application、Business Decision 三道自由回答题。规划应结合真实情境、定量与定性数据、商业沟通和证据支持的决策，不得把 Unit 5 写成统考考点。'
+  ),
   ap_precalculus: createApSubject(
     'ap_precalculus',
     'AP Precalculus',

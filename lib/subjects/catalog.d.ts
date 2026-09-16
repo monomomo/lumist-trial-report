@@ -8,6 +8,7 @@ export type SubjectCode =
   | 'ap_microeconomics'
   | 'ap_macroeconomics'
   | 'ap_micro_macro_economics'
+  | 'ap_business_personal_finance'
   | 'ap_precalculus'
   | 'ap_physics_1'
   | 'ap_physics_2'

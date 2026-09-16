@@ -219,6 +219,18 @@ AP Microeconomics + Macroeconomics 联动规划要求：
 - 若输入只提供其中一门课的成绩或课堂证据，只将其写作该门课的事实；另一门课只安排后续诊断与训练，不补造结论。`;
   }
 
+  if (subject.code === 'ap_business_personal_finance') {
+    return `${apShared}
+
+AP Business with Personal Finance 规划要求：
+- Unit 1–4 是 AP 统考范围；Unit 5 可以作为完整课程与生活应用内容安排，但 theme 和 goal 必须明确标注“非 AP 统考范围”，不得用于宣称提分覆盖率。
+- 围绕真实商业或个人财务情境安排概念应用、数据解读、机会或问题识别、决策标准、方案比较、建议与证据支持，不把背术语当作主要教学活动。
+- 考试任务应覆盖 stimulus-based MCQ、Business Canvas Project Exam-Day Validation、Personal Finance FRQ、Business Concept Application FRQ 和 Business Decision FRQ。
+- Business Canvas Project 训练只能基于学生真实完成的项目过程进行复盘与验证，不得替学生虚构产品、假设测试或项目成果。
+- difficulty 应具体到财务报表或数据解读、储蓄与借贷计算、营销证据、决策标准、方案权衡、商业沟通或建议论证。
+- goal 应通过计算结果、数据标注、决策矩阵、商业沟通成品、MCQ 选项依据或 FRQ 评分点核对。`;
+  }
+
   return apShared;
 }
 

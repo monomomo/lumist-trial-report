@@ -32,6 +32,9 @@ const forbiddenPatterns: Record<string, RegExp[]> = {
   ap_micro_macro_economics: [
     /AP Calculus|AP Computer Science|Digital SAT/i,
   ],
+  ap_business_personal_finance: [
+    /Aggregate Demand|Aggregate Supply|Monetary Policy|Fiscal Policy|Foreign Exchange Market|DBQ|LEQ|Differentiation|Java Fundamentals/i,
+  ],
   ap_precalculus: [
     /Differentiation|Applications of Derivatives|Integration and Accumulation of Change|Applications of Integration|Differential Equations|Infinite Sequences and Series|Taylor Series|Maclaurin Series/i,
     /Bluebook|Student Question Bank|Educator Question Bank|Digital SAT|SAT Module|Module 1|Module 2/i

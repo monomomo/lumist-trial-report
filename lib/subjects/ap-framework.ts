@@ -31,6 +31,7 @@ const FRAMEWORK_META: Partial<Record<SubjectCode, FrameworkMeta>> = {
   ap_microeconomics: { slug: 'ap-microeconomics', type: 'units', practices: ['Principles and models', 'Interpretation', 'Manipulation', 'Graphing and visuals'] },
   ap_macroeconomics: { slug: 'ap-macroeconomics', type: 'units', practices: ['Principles and models', 'Interpretation', 'Manipulation', 'Graphing and visuals'] },
   ap_micro_macro_economics: { slug: 'ap-microeconomics', type: 'units', practices: ['Principles and models', 'Interpretation', 'Manipulation', 'Graphing and visuals'] },
+  ap_business_personal_finance: { slug: 'ap-business-personal-finance', type: 'units', practices: ['Concept application', 'Entrepreneurship', 'Decision making', 'Communication', 'Collaboration'] },
   ap_us_history: { slug: 'ap-united-states-history', type: 'units', practices: HISTORY_PRACTICES },
   ap_world_history: { slug: 'ap-world-history-modern', type: 'units', practices: HISTORY_PRACTICES },
   ap_european_history: { slug: 'ap-european-history', type: 'units', practices: HISTORY_PRACTICES },
@@ -53,6 +54,7 @@ const CODE_PREFIXES: Partial<Record<SubjectCode, string>> = {
   ap_physics_c_mechanics: 'physcm', ap_physics_c_electricity_magnetism: 'physce', ap_chemistry: 'chem',
   ap_biology: 'bio', ap_environmental_science: 'apes', ap_microeconomics: 'micro',
   ap_macroeconomics: 'macro', ap_micro_macro_economics: 'econ', ap_us_history: 'apush',
+  ap_business_personal_finance: 'bpf',
   ap_world_history: 'whap', ap_european_history: 'euro', ap_psychology: 'psych',
   ap_human_geography: 'hug', ap_comparative_government: 'compgov', ap_us_government: 'usgov',
   ap_english_literature: 'lit', ap_english_language: 'lang', ap_art_history: 'arth',
@@ -69,7 +71,7 @@ export function getApFramework(subjectCode: string) {
   const meta = FRAMEWORK_META[subjectCode] as FrameworkMeta;
   const prefix = CODE_PREFIXES[subjectCode] as string;
   return {
-    catalogSnapshot: '2026-09-07',
+    catalogSnapshot: '2026-09-16',
     source: `https://apcentral.collegeboard.org/courses/${meta.slug}`,
     frameworkType: meta.type,
     sections: subject.modules.map((title, index) => ({ code: `${prefix}_u${index + 1}`, number: index + 1, title })),

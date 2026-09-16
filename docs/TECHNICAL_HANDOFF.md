@@ -16,7 +16,7 @@
 
 - 老师账号名和密码登录
 - 按登录老师展示独立的老师介绍页
-- 31 个 SAT/AP 科目的搜索下拉选择
+- 32 个 SAT/AP 科目的搜索下拉选择
 - AI 结构化生成、质量检查与二次修复
 - 课程规划总课时精确分配
 - 报告编辑、保存、历史列表与再次打开
@@ -195,7 +195,7 @@ API 和数据库 RLS 都限制老师只能访问自己的报告。报告保存 `
 
 ## 6. 支持科目
 
-当前科目目录共 31 个：
+当前科目目录共 32 个：
 
 - SAT Math
 - SAT English
@@ -204,6 +204,8 @@ API 和数据库 RLS 都限制老师只能访问自己的报告。报告保存 `
 - AP Computer Science A
 - AP Microeconomics
 - AP Macroeconomics
+- AP Microeconomics + Macroeconomics
+- AP Business with Personal Finance
 - AP Precalculus
 - AP Physics 1
 - AP Physics 2

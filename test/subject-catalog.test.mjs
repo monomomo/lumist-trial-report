@@ -17,6 +17,7 @@ const EXPECTED_CODES = [
   'ap_microeconomics',
   'ap_macroeconomics',
   'ap_micro_macro_economics',
+  'ap_business_personal_finance',
   'ap_precalculus',
   'ap_physics_1',
   'ap_physics_2',
@@ -124,6 +125,14 @@ test('combined AP economics prompt keeps shared foundations and two separate sub
   assert.match(prompt, /Micro 专项/);
   assert.match(prompt, /Macro 专项/);
   assert.match(prompt, /每条至少有一节/);
+});
+
+test('AP Business with Personal Finance prompt separates the full course from the tested scope', () => {
+  const prompt = buildSystemPrompt(SUBJECT_CATALOG.ap_business_personal_finance);
+  assert.match(prompt, /2026–27/);
+  assert.match(prompt, /AP 统考只考 Unit 1–4/);
+  assert.match(prompt, /Unit 5.+不纳入 AP 考试/);
+  assert.match(prompt, /Business Canvas Project Exam-Day Validation/);
 });
 
 test('catalog exposes exactly the supported subject codes', () => {
