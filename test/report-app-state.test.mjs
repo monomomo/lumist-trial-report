@@ -361,6 +361,9 @@ test('DeepSeek generation disables thinking and handles non-JSON gateway errors'
   const appSource = await readFile(new URL('../public/report/app.js', import.meta.url), 'utf8');
 
   assert.match(routeSource, /isDeepSeek \? 'none'/);
+  assert.match(routeSource, /isDeepSeek \? client\.responses\.create\(payload\) : client\.responses\.parse\(payload\)/);
+  assert.match(routeSource, /safeParse\(normalizeGeneratedReportCandidate\(value\)\)/);
+  assert.match(routeSource, /reviewIssues\.length > 0 && lessonDurations\.length < 20/);
   assert.match(appSource, /new Error\('AI_GATEWAY_ERROR'\)/);
   assert.match(appSource, /await response\.text\(\)/);
 });

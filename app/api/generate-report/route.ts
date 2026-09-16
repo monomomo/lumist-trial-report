@@ -91,6 +91,53 @@ function limitText(value: string, maximum: number) {
   return `${normalized.slice(0, maximum - 1).replace(/[，。；、,:：\s]+$/g, '')}。`;
 }
 
+function normalizeGeneratedReportCandidate(value: unknown) {
+  if (!value || typeof value !== 'object') return value;
+  const report = value as Record<string, unknown>;
+  const coursePlan = report.coursePlan && typeof report.coursePlan === 'object'
+    ? report.coursePlan as Record<string, unknown>
+    : {};
+  const stages = Array.isArray(coursePlan.stages) ? coursePlan.stages : [];
+  const normalizeList = (items: unknown, maximum: number, textMaximum: number) =>
+    (Array.isArray(items) ? items : []).slice(0, maximum).map((item) => limitText(String(item), textMaximum));
+  const normalizeLesson = (lesson: unknown) => {
+    const item = lesson && typeof lesson === 'object' ? lesson as Record<string, unknown> : {};
+    return {
+      ...item,
+      theme: limitText(String(item.theme ?? ''), 36),
+      content: limitText(String(item.content ?? ''), 105),
+      difficulty: limitText(String(item.difficulty ?? ''), 105),
+      goal: limitText(String(item.goal ?? ''), 80),
+      unitCodes: normalizeList(item.unitCodes, 10, 20),
+    };
+  };
+  return {
+    ...report,
+    overview: limitText(String(report.overview ?? ''), 500),
+    classroomStatus: limitText(String(report.classroomStatus ?? ''), 160),
+    strength: limitText(String(report.strength ?? ''), 160),
+    currentFocus: limitText(String(report.currentFocus ?? ''), 180),
+    lessonTitle: limitText(String(report.lessonTitle ?? ''), 80),
+    lessonSummary: limitText(String(report.lessonSummary ?? ''), 400),
+    performance: limitText(String(report.performance ?? ''), 300),
+    outcomes: normalizeList(report.outcomes, 5, 120),
+    priorityAreas: normalizeList(report.priorityAreas, 6, 80),
+    coursePlan: {
+      ...coursePlan,
+      rationale: limitText(String(coursePlan.rationale ?? ''), 180),
+      stages: stages.slice(0, 6).map((stage) => {
+        const item = stage && typeof stage === 'object' ? stage as Record<string, unknown> : {};
+        return {
+          ...item,
+          title: limitText(String(item.title ?? ''), 50),
+          description: limitText(String(item.description ?? ''), 100),
+          lessons: (Array.isArray(item.lessons) ? item.lessons : []).slice(0, 12).map(normalizeLesson),
+        };
+      }),
+    },
+  };
+}
+
 function buildSalesFollowUp(
   report: z.infer<typeof generatedReportSchema>,
   subjectName: string,
@@ -333,15 +380,18 @@ ${JSON.stringify(repair.report)}
 </previous_report>`,
         });
       }
-      const requestModelReport = (maxOutputTokens: number) => client.responses.parse({
-        model: process.env.OPENAI_MODEL || 'gpt-5-mini',
-        input,
-        text: { format: zodTextFormat(generatedReportSchema, 'trial_report') },
-        reasoning: { effort: isDeepSeek ? 'none' : lessonDurations.length >= 20 ? 'medium' : 'low' },
-        max_output_tokens: maxOutputTokens
-      });
+      const requestModelReport = (maxOutputTokens: number) => {
+        const payload = {
+          model: process.env.OPENAI_MODEL || 'gpt-5-mini',
+          input,
+          text: { format: zodTextFormat(generatedReportSchema, 'trial_report') },
+          reasoning: { effort: isDeepSeek ? 'none' as const : lessonDurations.length >= 20 ? 'medium' as const : 'low' as const },
+          max_output_tokens: maxOutputTokens,
+        };
+        return isDeepSeek ? client.responses.create(payload) : client.responses.parse(payload);
+      };
       const validate = (value: unknown) => {
-        const result = generatedReportSchema.safeParse(value);
+        const result = generatedReportSchema.safeParse(normalizeGeneratedReportCandidate(value));
         return result.success ? result.data : null;
       };
       const initialMaxOutputTokens = Math.min(32000, Math.max(16000, 6000 + lessonDurations.length * 400));
@@ -386,7 +436,7 @@ ${JSON.stringify(repair.report)}
     };
     stage = 'quality_validation';
     let reviewIssues = reviewReport(modelReport);
-    if (reviewIssues.length > 0) {
+    if (reviewIssues.length > 0 && lessonDurations.length < 20) {
       repairAttempted = true;
       stage = 'quality_repair';
       diagnostics.record('repair_requested', {
