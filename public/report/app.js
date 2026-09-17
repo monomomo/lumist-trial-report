@@ -85,6 +85,7 @@ let planningSource = 'ai';
 let uploadedCoursePlan = null;
 let uploadedCoursePlanConfirmed = false;
 let selectedCoursePlanFile = null;
+let coursePlanParseVersion = 0;
 const UPLOAD_REPORT_NOTE = '老师已上传并确认完整课程规划，本报告仅对老师提供的原规划进行结构化整理与排版。';
 
 function populateSubjectSelect() {
@@ -1166,10 +1167,12 @@ function renderUploadedCoursePlan(result) {
   const warnings = Array.isArray(result.warnings) ? result.warnings : [];
   const corrections = Array.isArray(result.extraction?.corrections) ? result.extraction.corrections : [];
   const stages = Array.isArray(result.extraction?.stages) ? result.extraction.stages : [];
-  $('#course-plan-upload-review').innerHTML = `<header><div><h3>${escapeHtml(result.extraction?.title || result.fileName || '已解析课程规划')}</h3><p>请核对课次、顺序、时长和文字。修改后点击“确认使用此规划”。</p></div><button type="button" class="primary-btn" data-upload-action="confirm">确认使用此规划</button></header>${warnings.length ? `<ul class="course-plan-upload-warnings">${warnings.map((item) => `<li>${escapeHtml(item)}</li>`).join('')}</ul>` : ''}${corrections.length ? `<details><summary>查看 ${corrections.length} 项文字修正</summary><ul class="course-plan-upload-warnings">${corrections.map((item) => `<li>${escapeHtml(item.original)} → ${escapeHtml(item.corrected)}</li>`).join('')}</ul></details>` : ''}<div>${stages.map((stage, stageIndex) => `<section class="uploaded-stage" data-upload-stage="${stageIndex}"><input aria-label="阶段名称" value="${escapeHtml(stage.title)}" maxlength="100" required><textarea aria-label="阶段说明" maxlength="300">${escapeHtml(stage.description || '')}</textarea><div class="uploaded-lessons">${stage.lessons.map((lesson, lessonIndex) => `<div class="uploaded-lesson" data-upload-lesson="${lessonIndex}"><select aria-label="课时时长"><option value="">未填写</option>${[0.5, 1, 1.5, 2].map((duration) => `<option value="${duration}"${Number(lesson.duration) === duration ? ' selected' : ''}>${duration}h</option>`).join('')}</select><input aria-label="课程主题" value="${escapeHtml(lesson.theme)}" maxlength="120" required><textarea aria-label="课程内容" maxlength="600">${escapeHtml(lesson.content || '')}</textarea></div>`).join('')}</div></section>`).join('')}</div>`;
+  $('#course-plan-upload-review').innerHTML = `<header><div><p class="eyebrow">AI 解析完成</p><h3>调整课程规划</h3><p>${escapeHtml(result.extraction?.title || result.fileName || '已解析课程规划')} · 请核对课次、顺序、时长和文字。</p></div><div class="course-plan-review-actions"><button type="button" class="secondary-btn" data-upload-action="reselect">重新上传</button><button type="button" class="primary-btn" data-upload-action="confirm">确认使用此规划</button></div></header>${warnings.length ? `<ul class="course-plan-upload-warnings">${warnings.map((item) => `<li>${escapeHtml(item)}</li>`).join('')}</ul>` : ''}${corrections.length ? `<details><summary>查看 ${corrections.length} 项文字修正</summary><ul class="course-plan-upload-warnings">${corrections.map((item) => `<li>${escapeHtml(item.original)} → ${escapeHtml(item.corrected)}</li>`).join('')}</ul></details>` : ''}<div>${stages.map((stage, stageIndex) => `<section class="uploaded-stage" data-upload-stage="${stageIndex}"><input aria-label="阶段名称" value="${escapeHtml(stage.title)}" maxlength="100" required><textarea aria-label="阶段说明" maxlength="300">${escapeHtml(stage.description || '')}</textarea><div class="uploaded-lessons">${stage.lessons.map((lesson, lessonIndex) => `<div class="uploaded-lesson" data-upload-lesson="${lessonIndex}"><select aria-label="课时时长"><option value="">未填写</option>${[0.5, 1, 1.5, 2].map((duration) => `<option value="${duration}"${Number(lesson.duration) === duration ? ' selected' : ''}>${duration}h</option>`).join('')}</select><input aria-label="课程主题" value="${escapeHtml(lesson.theme)}" maxlength="120" required><textarea aria-label="课程内容" maxlength="600">${escapeHtml(lesson.content || '')}</textarea></div>`).join('')}</div></section>`).join('')}</div>`;
+  $('#course-plan-upload-panel').classList.add('is-reviewing');
   $('#course-plan-upload-review').classList.remove('hidden');
   uploadedCoursePlanConfirmed = false;
   uploadedCoursePlan = null;
+  $('#course-plan-upload-review').scrollIntoView({ behavior: 'smooth', block: 'start' });
 }
 
 function collectUploadedCoursePlan() {
@@ -1196,6 +1199,7 @@ function collectUploadedCoursePlan() {
 
 async function parseUploadedCoursePlan() {
   const file = selectedCoursePlanFile || $('#course-plan-file').files[0];
+  const parseVersion = coursePlanParseVersion;
   const status = $('#course-plan-upload-status');
   if (!file) {
     status.className = 'course-plan-upload-status error';
@@ -1204,27 +1208,27 @@ async function parseUploadedCoursePlan() {
   }
   status.className = 'course-plan-upload-status';
   status.textContent = '正在读取并整理课程规划，请稍候…';
-  $('#parse-course-plan').disabled = true;
   try {
     const form = new FormData();
     form.append('file', file);
     form.append('subjectCode', currentSubjectCode);
     const response = await fetch('/api/parse-course-plan', { method: 'POST', body: form });
     const result = await response.json();
+    if (parseVersion !== coursePlanParseVersion) return;
     if (!response.ok) throw new Error(result.error || 'COURSE_PLAN_PARSE_FAILED');
     renderUploadedCoursePlan(result);
     status.className = 'course-plan-upload-status success';
     status.textContent = `已解析 ${result.extraction.stages.flatMap((stage) => stage.lessons).length} 节课，请核对后确认。`;
   } catch (error) {
+    if (parseVersion !== coursePlanParseVersion) return;
     status.className = 'course-plan-upload-status error';
     status.textContent = error.message === 'UNAUTHORIZED' ? '登录已过期，请刷新页面重新登录。' : '文件解析失败，请检查文件格式或稍后重试。';
-  } finally {
-    $('#parse-course-plan').disabled = false;
   }
 }
 
 function selectCoursePlanFile(file) {
   const status = $('#course-plan-upload-status');
+  coursePlanParseVersion += 1;
   const validExtension = /\.(docx|xlsx|pdf)$/i.test(file?.name || '');
   if (!file || !validExtension || file.size > 8 * 1024 * 1024) {
     selectedCoursePlanFile = null;
@@ -1242,7 +1246,8 @@ function selectCoursePlanFile(file) {
   $('#course-plan-dropzone').classList.add('has-file');
   $('#course-plan-file-name').textContent = `${file.name} · ${(file.size / 1024 / 1024).toFixed(2)}MB`;
   status.className = 'course-plan-upload-status';
-  status.textContent = '文件已选择，点击“读取并整理课程规划”继续。';
+  status.textContent = '文件已选择，AI 正在读取并整理课程规划…';
+  parseUploadedCoursePlan();
 }
 
 function getSelectedPlanningFocusAreas() {
@@ -1684,7 +1689,6 @@ $('#course-plan-dropzone').addEventListener('drop', (event) => {
   $('#course-plan-dropzone').classList.remove('is-dragging');
   selectCoursePlanFile(event.dataTransfer.files[0]);
 });
-$('#parse-course-plan').addEventListener('click', parseUploadedCoursePlan);
 $('#course-plan-upload-review').addEventListener('input', () => {
   if (!uploadedCoursePlanConfirmed) return;
   uploadedCoursePlanConfirmed = false;
@@ -1694,6 +1698,15 @@ $('#course-plan-upload-review').addEventListener('input', () => {
   setPlanningSource('upload');
 });
 $('#course-plan-upload-review').addEventListener('click', (event) => {
+  if (event.target.dataset.uploadAction === 'reselect') {
+    coursePlanParseVersion += 1;
+    selectedCoursePlanFile = null;
+    $('#course-plan-file').value = '';
+    $('#course-plan-upload-panel').classList.remove('is-reviewing');
+    $('#course-plan-upload-review').classList.add('hidden');
+    $('#course-plan-file').click();
+    return;
+  }
   if (event.target.dataset.uploadAction !== 'confirm') return;
   try {
     uploadedCoursePlan = collectUploadedCoursePlan();

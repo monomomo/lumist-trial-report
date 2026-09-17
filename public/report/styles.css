@@ -523,12 +523,16 @@ body.modal-open { overflow:hidden; }
 .course-plan-dropzone strong { font-size:13px;color:#34405b; }
 .course-plan-dropzone small { font-size:11px;color:#7b8499;overflow-wrap:anywhere; }
 .course-plan-dropzone.has-file small { color:#177d51;font-weight:700; }
-.course-plan-upload-actions>.secondary-btn { justify-self:start; }
+.course-plan-upload-panel.is-reviewing>div:first-child,.course-plan-upload-panel.is-reviewing>.course-plan-upload-actions { display:none; }
+.course-plan-upload-panel.is-reviewing { padding:24px;background:#fff; }
+.course-plan-upload-panel.is-reviewing .course-plan-upload-review { border-top:0;padding-top:0; }
 .course-plan-upload-status { margin-top:12px;font-size:13px;color:#4d5870; }
 .course-plan-upload-status.error { color:#b42318; }
 .course-plan-upload-status.success { color:#177d51; }
 .course-plan-upload-review { margin-top:16px;border-top:1px solid #dce2ef;padding-top:16px; }
 .course-plan-upload-review>header { display:flex;justify-content:space-between;gap:16px;align-items:flex-start;margin-bottom:12px; }
+.course-plan-review-actions { display:flex;gap:8px;align-items:center;flex-wrap:wrap; }
+.course-plan-review-actions .primary-btn { width:auto;margin-top:0;white-space:nowrap; }
 .course-plan-upload-review h3 { margin:0 0 5px;font-size:16px; }
 .course-plan-upload-warnings { margin:10px 0;padding-left:20px;color:#9a5b00;font-size:12px; }
 .uploaded-stage { padding:14px;background:#fff;border:1px solid #e0e5ef;border-radius:10px;margin-top:12px; }
@@ -540,6 +544,7 @@ body.modal-open { overflow:hidden; }
 .course-plan-upload-confirmed { color:#177d51;font-weight:800; }
 @media screen and (max-width:900px) { .subject-options { width:100%;min-width:0;max-height:320px; }.subject-option-group button { align-items:flex-start;flex-direction:column;gap:3px; }.subject-option-group button small { white-space:normal; } }
 @media screen and (max-width:900px) { .uploaded-lesson { grid-template-columns:1fr; } }
+@media screen and (max-width:620px) { .course-plan-upload-review>header { flex-direction:column; }.course-plan-review-actions { width:100%; }.course-plan-review-actions button { flex:1; } }
 
 .field-grid select { border:1px solid #dfe3ed;border-radius:8px;padding:10px 11px;color:var(--ink);outline:none;background:#fff; }
 .field-grid select:focus { border-color:var(--blue);box-shadow:0 0 0 3px rgba(33,84,237,.1); }

@@ -335,10 +335,11 @@ test('teacher-uploaded course plans require review and are sent as a locked plan
   assert.match(htmlSource, /accept="\.docx,\.xlsx,\.pdf"/);
   assert.match(htmlSource, /id="course-plan-dropzone"/);
   assert.match(htmlSource, /拖拽文件到这里，或点击选择文件/);
-  assert.match(htmlSource, /读取并整理课程规划/);
+  assert.doesNotMatch(htmlSource, /id="parse-course-plan"/);
   assert.match(appSource, /ai-generation-fields/);
   assert.match(appSource, /UPLOAD_REPORT_NOTE/);
   assert.match(appSource, /dataTransfer\.files\[0\]/);
+  assert.match(appSource, /parseUploadedCoursePlan\(\)/);
   assert.match(appSource, /uploadedCoursePlanConfirmed/);
   assert.match(appSource, /lockedCoursePlan: uploadedCoursePlan/);
   assert.match(appSource, /确认使用此规划/);

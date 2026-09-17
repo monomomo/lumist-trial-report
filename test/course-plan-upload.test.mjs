@@ -61,13 +61,14 @@ test('upload prompts restrict AI to extraction and narrative-only report work', 
   assert.match(reportPrompt, /不得生成、改写、概括或评价课程规划/);
 });
 
-test('upload API keeps files in memory and the report API accepts a locked plan path', async () => {
+test('upload API keeps files in memory and the locked report path does not call AI again', async () => {
   const parseRoute = await readFile(new URL('../app/api/parse-course-plan/route.ts', import.meta.url), 'utf8');
   const reportRoute = await readFile(new URL('../app/api/generate-report/route.ts', import.meta.url), 'utf8');
   assert.match(parseRoute, /request\.formData\(\)/);
   assert.match(parseRoute, /extractCoursePlanText\(file\)/);
   assert.doesNotMatch(parseRoute, /writeFile|putObject|storage\.from/);
   assert.match(reportRoute, /lockedCoursePlan: lockedCoursePlanSchema\.optional\(\)/);
-  assert.match(reportRoute, /buildLockedReportPrompt/);
-  assert.match(reportRoute, /coursePlan: lockedCoursePlan/);
+  assert.match(reportRoute, /buildUploadedPlanReport/);
+  assert.match(reportRoute, /model: 'uploaded-plan-layout'/);
+  assert.doesNotMatch(reportRoute, /lockedResponse/);
 });

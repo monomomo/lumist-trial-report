@@ -17,7 +17,6 @@ import { getUnexpectedLanguageIssues } from '@/lib/reports/language-quality';
 import { getAuthResult, AUTH_STATUS } from '@/lib/auth/current-user';
 import { parseModelResponse } from '@/lib/reports/model-response';
 import { lockedCoursePlanSchema } from '@/lib/course-plan-upload/schema';
-import { buildLockedReportInput, buildLockedReportPrompt } from '@/lib/course-plan-upload/prompt';
 
 export const runtime = 'nodejs';
 export const maxDuration = 300;
@@ -52,8 +51,6 @@ const generatedReportSchema = z.object({
     })).min(1).max(6)
   })
 });
-
-const generatedNarrativeSchema = generatedReportSchema.omit({ coursePlan: true });
 
 const requestSchema = z.object({
   studentName: z.string().trim().min(1).max(30),
@@ -275,6 +272,23 @@ function buildTeacherNotice(notes: string) {
   return missing.length ? `当前课堂记录较为简略，家长版已采用保守表达。建议补充${missing.join('、')}，以生成更有针对性的报告。` : '';
 }
 
+function buildUploadedPlanReport(subjectName: string, targetScore: string, coursePlan: z.infer<typeof lockedCoursePlanSchema>) {
+  const targetText = targetScore ? `目标成绩为 ${targetScore}` : '目标成绩可由老师后续补充';
+  return {
+    overview: `本报告依据老师上传并确认的 ${subjectName} 课程规划整理，${targetText}。`,
+    classroomStatus: '上传模式未填写试听课堂记录，因此本报告不对学生课堂表现作推测。',
+    strength: '当前没有课堂观察依据，学生优势将在正式授课过程中持续记录。',
+    currentFocus: '后续教学将严格按照老师确认的课程阶段、课次顺序和课时时长执行。',
+    lessonTitle: `${subjectName}课程规划说明`,
+    lessonSummary: '本报告重点呈现老师已有课程规划，未额外生成或改写试听课堂内容。',
+    performance: '当前未提供课堂表现记录，报告不生成正确率、能力判断或课堂结论。',
+    outcomes: ['已完成课程阶段与课次结构整理', '已核对课程顺序和逐节时长'],
+    priorityAreas: ['课程进度落实', '阶段目标跟进'],
+    teacherNotice: '上传模式未填写试听课堂记录，本报告不包含课堂表现判断。',
+    coursePlan,
+  };
+}
+
 export async function POST(request: Request) {
   const diagnostics = createGenerationDiagnostics();
   let stage: GenerationStage = 'configuration';
@@ -319,12 +333,6 @@ export async function POST(request: Request) {
       return failureResponse('UNAUTHORIZED', 401);
     }
 
-    stage = 'configuration';
-    const apiKey = process.env.OPENAI_API_KEY;
-    if (!apiKey) {
-      return failureResponse('AI_SERVICE_NOT_CONFIGURED', 503);
-    }
-
     stage = 'request_validation';
     const parsed = requestSchema.safeParse(await readRequestBody(request));
     if (!parsed.success) {
@@ -356,57 +364,20 @@ export async function POST(request: Request) {
       lessonDurations,
     };
 
-    const client = new OpenAI({
-      apiKey,
-      baseURL: process.env.OPENAI_BASE_URL,
-      timeout: 240000,
-      maxRetries: 0
-    });
-    const isDeepSeek = process.env.OPENAI_BASE_URL?.includes('api.deepseek.com') === true;
     if (parsed.data.lockedCoursePlan) {
       const lockedCoursePlan = parsed.data.lockedCoursePlan;
       const lockedLessons = lockedCoursePlan.stages.flatMap((item) => item.lessons);
       if (lockedLessons.length !== lessonDurations.length || Math.abs(lockedCoursePlan.totalHours - parsed.data.totalHours) > 0.001) {
         return failureResponse('LOCKED_PLAN_MISMATCH', 400);
       }
-      stage = 'model_generation';
-      const lockedPayload = {
-        model: process.env.OPENAI_MODEL || 'gpt-5-mini',
-        input: [
-          { role: 'system' as const, content: buildLockedReportPrompt(subject.displayName) },
-          { role: 'user' as const, content: buildLockedReportInput({
-            studentName: parsed.data.studentName,
-            currentScore: parsed.data.currentScore,
-            targetScore,
-            examDate: parsed.data.examDate,
-            teacherNotes: parsed.data.teacherNotes,
-          }) },
-        ],
-        text: { format: zodTextFormat(generatedNarrativeSchema, 'trial_report_summary') },
-        reasoning: { effort: isDeepSeek ? 'none' as const : 'low' as const },
-        max_output_tokens: 8000,
-      };
-      const lockedResponse = isDeepSeek ? await client.responses.create(lockedPayload) : await client.responses.parse(lockedPayload);
-      const narrative = parseModelResponse(lockedResponse, (value) => {
-        const result = generatedNarrativeSchema.safeParse(value);
-        return result.success ? result.data : null;
-      });
-      if (!narrative) return failureResponse('EMPTY_MODEL_OUTPUT', 502);
-      const modelReport: z.infer<typeof generatedReportSchema> = { ...narrative, coursePlan: lockedCoursePlan };
       stage = 'response_assembly';
-      const parentReport = sanitizeParentReport(modelReport, subject.code);
-      const finalReport = {
-        ...parentReport,
-        teacherNotice: buildTeacherNotice(parsed.data.teacherNotes),
-        coursePlan: lockedCoursePlan,
-      };
+      const finalReport = buildUploadedPlanReport(subject.displayName, targetScore, lockedCoursePlan);
       const salesFollowUp = buildSalesFollowUp(finalReport, subject.displayName, targetScore);
-      const languageIssues = getUnexpectedLanguageIssues(narrative);
       diagnostics.record('succeeded', { stage, subjectCode, lessonCount, repairAttempted });
       return NextResponse.json({
         generated: true,
         requestId: diagnostics.requestId,
-        model: process.env.OPENAI_MODEL || 'gpt-5-mini',
+        model: 'uploaded-plan-layout',
         report: {
           ...finalReport,
           salesFollowUp,
@@ -420,12 +391,22 @@ export async function POST(request: Request) {
             reviewCompleted: true,
             subjectScopePassed: true,
             teacherVoicePassed: true,
-            criticalWarnings: languageIssues,
+            criticalWarnings: [],
             modelWarnings: [],
           },
         },
       }, { headers: { 'x-request-id': diagnostics.requestId } });
     }
+    stage = 'configuration';
+    const apiKey = process.env.OPENAI_API_KEY;
+    if (!apiKey) return failureResponse('AI_SERVICE_NOT_CONFIGURED', 503);
+    const client = new OpenAI({
+      apiKey,
+      baseURL: process.env.OPENAI_BASE_URL,
+      timeout: 240000,
+      maxRetries: 0
+    });
+    const isDeepSeek = process.env.OPENAI_BASE_URL?.includes('api.deepseek.com') === true;
     const generateModelReport = async (repair?: {
       report: z.infer<typeof generatedReportSchema>;
       issues: string[];
