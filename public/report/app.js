@@ -391,7 +391,7 @@ function renderCoursePlan(coursePlan) {
     page.className = 'report-page hour-plan reference-plan-page';
     const introduction = isUploadedPlan ? '严格按照老师确认的课程规划排版。' : '依据学生试听表现与目标动态编排，相邻阶段将按页面容量连续呈现。';
     const note = isUploadedPlan || !coursePlan.rationale ? '' : `<div class="plan-note plan-note-reserve"><strong>动态调整原则：</strong>${escapeHtml(coursePlan.rationale)} 课时可按 0.5h、1h、1.5h 或 2h 灵活调整。</div>`;
-    const planTitleHtml = `<div class="plan-page-body"><img class="report-brand-header" src="assets/lumist-report-header-black.png" alt="路觅教育" /><div class="page-kicker"></div><div class="plan-page-heading"><div><h2>${escapeHtml(createSubjectViewModel(currentSubjectCode).displayName)}个性化课程规划</h2><p>${introduction}</p></div><div class="plan-total-hours"><span>${isUploadedPlan ? '规划总课时' : '建议总课时'}</span><b>${escapeHtml(coursePlan.totalHours)}h</b></div></div><table><thead><tr><th>课时</th><th>时长</th><th>授课内容、目标与重难点</th></tr></thead><tbody></tbody></table>${note}</div>`;
+    const planTitleHtml = `<div class="plan-page-body"><img class="report-brand-header" src="assets/lumist-report-header-black.png" alt="路觅教育" /><div class="page-kicker"></div><div class="plan-page-heading"><div><h2>${escapeHtml(createSubjectViewModel(currentSubjectCode).displayName)}个性化课程规划</h2><p>${introduction}</p></div><div class="plan-total-hours"><span>${isUploadedPlan ? '规划总课时' : '建议总课时'}</span><b>${escapeHtml(coursePlan.totalHours)}h</b></div></div><table><thead><tr><th>课次</th><th>时长</th><th>授课内容、目标与重难点</th></tr></thead><tbody></tbody></table>${note}</div>`;
     page.innerHTML = planTitleHtml;
     measurementHost.appendChild(page);
     pages.push(page);
@@ -416,7 +416,7 @@ function renderCoursePlan(coursePlan) {
       lesson.content ? `<p><span>内容：</span>${escapeHtml(lesson.content)}</p>` : '',
       lesson.difficulty ? `<p><span>重难点：</span>${escapeHtml(lesson.difficulty)}</p>` : ''
     ].join('');
-    row.innerHTML = `<td class="plan-sequence-cell"><b>${String(lessonIndex).padStart(2, '0')}</b><span>课时</span></td><td class="plan-duration-cell">${escapeHtml(lesson.duration)}h</td><td class="plan-detail-cell"><b>${escapeHtml(lesson.theme)}</b>${details}</td>`;
+    row.innerHTML = `<td class="plan-sequence-cell"><b>${String(lessonIndex).padStart(2, '0')}</b><span>课次</span></td><td class="plan-duration-cell">${escapeHtml(lesson.duration)}h</td><td class="plan-detail-cell"><b>${escapeHtml(lesson.theme)}</b>${details}</td>`;
     return row;
   };
 
@@ -904,7 +904,7 @@ function renderPlanEditor() {
       addLesson.type = 'button';
       addLesson.className = 'secondary-btn add-lesson-btn';
       addLesson.dataset.addLesson = String(stageIndex);
-      addLesson.textContent = '新增课时';
+      addLesson.textContent = '新增课次';
       section.appendChild(addLesson);
     }
     content.appendChild(section);
@@ -923,7 +923,7 @@ function createLessonEditor(lesson, stageIndex, lessonIndex) {
   const card = document.createElement('article');
   card.className = 'plan-lesson-editor';
   const globalIndex = draftCoursePlan.stages.slice(0, stageIndex).reduce((total, stage) => total + stage.lessons.length, 0) + lessonIndex + 1;
-  card.innerHTML = `<header><b>课时 ${String(globalIndex).padStart(2, '0')}</b><div class="editor-icon-actions"><button type="button" data-lesson-action="up" data-stage-index="${stageIndex}" data-lesson-index="${lessonIndex}" ${lessonIndex === 0 ? 'disabled' : ''}>上移</button><button type="button" data-lesson-action="down" data-stage-index="${stageIndex}" data-lesson-index="${lessonIndex}" ${lessonIndex === draftCoursePlan.stages[stageIndex].lessons.length - 1 ? 'disabled' : ''}>下移</button><button type="button" data-lesson-action="copy" data-stage-index="${stageIndex}" data-lesson-index="${lessonIndex}">复制</button><button type="button" data-lesson-action="delete" data-stage-index="${stageIndex}" data-lesson-index="${lessonIndex}">删除</button></div></header>`;
+  card.innerHTML = `<header><b>课次 ${String(globalIndex).padStart(2, '0')}</b><div class="editor-icon-actions"><button type="button" data-lesson-action="up" data-stage-index="${stageIndex}" data-lesson-index="${lessonIndex}" ${lessonIndex === 0 ? 'disabled' : ''}>上移</button><button type="button" data-lesson-action="down" data-stage-index="${stageIndex}" data-lesson-index="${lessonIndex}" ${lessonIndex === draftCoursePlan.stages[stageIndex].lessons.length - 1 ? 'disabled' : ''}>下移</button><button type="button" data-lesson-action="copy" data-stage-index="${stageIndex}" data-lesson-index="${lessonIndex}">复制</button><button type="button" data-lesson-action="delete" data-stage-index="${stageIndex}" data-lesson-index="${lessonIndex}">删除</button></div></header>`;
   const grid = document.createElement('div');
   grid.className = 'plan-lesson-fields';
   const durationLabel = document.createElement('label');
@@ -1907,7 +1907,7 @@ $('#plan-editor-content').addEventListener('click', (event) => {
     if (stageAction === 'collapse') collapsedStages.has(stage) ? collapsedStages.delete(stage) : collapsedStages.add(stage);
     if (stageAction === 'up' || stageAction === 'down') draftCoursePlan.stages = moveItem(draftCoursePlan.stages, stageIndex, stageIndex + (stageAction === 'up' ? -1 : 1));
     if (stageAction === 'delete') {
-      if (!window.confirm(`确定删除该阶段及其中 ${stage.lessons.length} 个课时吗？`)) return;
+      if (!window.confirm(`确定删除该阶段及其中 ${stage.lessons.length} 个课次吗？`)) return;
       draftCoursePlan.stages.splice(stageIndex, 1);
     }
     markEditorDirty();
@@ -1920,7 +1920,7 @@ $('#plan-editor-content').addEventListener('click', (event) => {
     if (lessonAction === 'up' || lessonAction === 'down') draftCoursePlan.stages[stageIndex].lessons = moveItem(lessons, lessonIndex, lessonIndex + (lessonAction === 'up' ? -1 : 1));
     if (lessonAction === 'copy') lessons.splice(lessonIndex + 1, 0, cloneCoursePlan(lessons[lessonIndex]));
     if (lessonAction === 'delete') {
-      if (!window.confirm('确定删除该课时吗？')) return;
+      if (!window.confirm('确定删除该课次吗？')) return;
       lessons.splice(lessonIndex, 1);
     }
     markEditorDirty();

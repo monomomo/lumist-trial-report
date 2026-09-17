@@ -46,6 +46,13 @@ test('course plan pagination reserves print safety space', async () => {
   assert.match(styles, /\.report-page \{ width:min\(100%,210mm\); aspect-ratio:210 \/ 296;/);
 });
 
+test('course plan report labels sequence numbers as lesson occurrences instead of teaching hours', async () => {
+  const appSource = await readFile(new URL('../public/report/app.js', import.meta.url), 'utf8');
+  assert.match(appSource, /<th>课次<\/th><th>时长<\/th>/);
+  assert.match(appSource, /<span>课次<\/span>/);
+  assert.doesNotMatch(appSource, /<th>课时<\/th><th>时长<\/th>/);
+});
+
 test('summary page compacts and splits by measured A4 content height', async () => {
   const source = await readFile(new URL('../public/report/app.js', import.meta.url), 'utf8');
   const styles = await readFile(new URL('../public/report/styles.css', import.meta.url), 'utf8');
