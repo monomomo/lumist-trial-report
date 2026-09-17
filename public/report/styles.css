@@ -514,7 +514,16 @@ body.modal-open { overflow:hidden; }
 @media screen and (max-width:620px) { .generation-mode-tabs { grid-template-columns:1fr; } }
 .course-plan-upload-panel { margin:18px 0 24px;padding:18px;border:1px solid #dce2ef;border-radius:12px;background:#f8faff; }
 .course-plan-upload-panel p { margin:5px 0 0;color:#68728a;font-size:12px; }
-.course-plan-upload-actions { display:flex;align-items:center;gap:12px;margin-top:14px;flex-wrap:wrap; }
+.course-plan-upload-actions { display:grid;gap:12px;margin-top:14px; }
+.course-plan-dropzone { position:relative;display:grid;justify-items:center;gap:5px;padding:24px 18px;border:1.5px dashed #b9c5df;border-radius:11px;background:#fff;text-align:center;cursor:pointer;transition:border-color .16s,background .16s,box-shadow .16s; }
+.course-plan-dropzone:hover,.course-plan-dropzone.is-dragging { border-color:var(--blue);background:#f1f5ff;box-shadow:0 0 0 3px rgba(33,84,237,.08); }
+.course-plan-dropzone input { position:absolute;width:1px;height:1px;opacity:0;pointer-events:none; }
+.course-plan-dropzone:focus-within { outline:3px solid rgba(33,84,237,.14); }
+.course-plan-drop-icon { display:grid;place-items:center;width:31px;height:31px;border-radius:50%;background:#eaf0ff;color:var(--blue);font-size:19px;font-weight:800; }
+.course-plan-dropzone strong { font-size:13px;color:#34405b; }
+.course-plan-dropzone small { font-size:11px;color:#7b8499;overflow-wrap:anywhere; }
+.course-plan-dropzone.has-file small { color:#177d51;font-weight:700; }
+.course-plan-upload-actions>.secondary-btn { justify-self:start; }
 .course-plan-upload-status { margin-top:12px;font-size:13px;color:#4d5870; }
 .course-plan-upload-status.error { color:#b42318; }
 .course-plan-upload-status.success { color:#177d51; }

@@ -84,6 +84,7 @@ let generationChecklistResolver = null;
 let planningSource = 'ai';
 let uploadedCoursePlan = null;
 let uploadedCoursePlanConfirmed = false;
+let selectedCoursePlanFile = null;
 const UPLOAD_REPORT_NOTE = '老师已上传并确认完整课程规划，本报告仅对老师提供的原规划进行结构化整理与排版。';
 
 function populateSubjectSelect() {
@@ -1194,7 +1195,7 @@ function collectUploadedCoursePlan() {
 }
 
 async function parseUploadedCoursePlan() {
-  const file = $('#course-plan-file').files[0];
+  const file = selectedCoursePlanFile || $('#course-plan-file').files[0];
   const status = $('#course-plan-upload-status');
   if (!file) {
     status.className = 'course-plan-upload-status error';
@@ -1220,6 +1221,28 @@ async function parseUploadedCoursePlan() {
   } finally {
     $('#parse-course-plan').disabled = false;
   }
+}
+
+function selectCoursePlanFile(file) {
+  const status = $('#course-plan-upload-status');
+  const validExtension = /\.(docx|xlsx|pdf)$/i.test(file?.name || '');
+  if (!file || !validExtension || file.size > 8 * 1024 * 1024) {
+    selectedCoursePlanFile = null;
+    $('#course-plan-dropzone').classList.remove('has-file');
+    $('#course-plan-file-name').textContent = '尚未选择文件';
+    status.className = 'course-plan-upload-status error';
+    status.textContent = !validExtension ? '仅支持 DOCX、XLSX 或 PDF 文件。' : '文件不能超过 8MB。';
+    return;
+  }
+  selectedCoursePlanFile = file;
+  uploadedCoursePlan = null;
+  uploadedCoursePlanConfirmed = false;
+  $('#course-plan-upload-review').classList.add('hidden');
+  $('#course-plan-upload-review').innerHTML = '';
+  $('#course-plan-dropzone').classList.add('has-file');
+  $('#course-plan-file-name').textContent = `${file.name} · ${(file.size / 1024 / 1024).toFixed(2)}MB`;
+  status.className = 'course-plan-upload-status';
+  status.textContent = '文件已选择，点击“读取并整理课程规划”继续。';
 }
 
 function getSelectedPlanningFocusAreas() {
@@ -1648,6 +1671,19 @@ $('#lesson-count').addEventListener('input', (event) => {
 });
 $('#planning-focus-options').addEventListener('change', updatePlanningFocusState);
 document.querySelectorAll('[name="planning-source"]').forEach((input) => input.addEventListener('change', (event) => setPlanningSource(event.target.value)));
+$('#course-plan-file').addEventListener('change', (event) => selectCoursePlanFile(event.target.files[0]));
+['dragenter', 'dragover'].forEach((eventName) => $('#course-plan-dropzone').addEventListener(eventName, (event) => {
+  event.preventDefault();
+  $('#course-plan-dropzone').classList.add('is-dragging');
+}));
+$('#course-plan-dropzone').addEventListener('dragleave', (event) => {
+  if (!$('#course-plan-dropzone').contains(event.relatedTarget)) $('#course-plan-dropzone').classList.remove('is-dragging');
+});
+$('#course-plan-dropzone').addEventListener('drop', (event) => {
+  event.preventDefault();
+  $('#course-plan-dropzone').classList.remove('is-dragging');
+  selectCoursePlanFile(event.dataTransfer.files[0]);
+});
 $('#parse-course-plan').addEventListener('click', parseUploadedCoursePlan);
 $('#course-plan-upload-review').addEventListener('input', () => {
   if (!uploadedCoursePlanConfirmed) return;

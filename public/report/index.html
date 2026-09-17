@@ -107,8 +107,13 @@
                   <p>支持 DOCX、XLSX 和文本型 PDF，单个文件不超过 8MB。文件仅用于本次解析，不会保存。</p>
                 </div>
                 <div class="course-plan-upload-actions">
-                  <input id="course-plan-file" type="file" accept=".docx,.xlsx,.pdf" />
-                  <button id="parse-course-plan" type="button" class="secondary-btn">解析课程规划</button>
+                  <label id="course-plan-dropzone" class="course-plan-dropzone" for="course-plan-file">
+                    <input id="course-plan-file" type="file" accept=".docx,.xlsx,.pdf" />
+                    <span class="course-plan-drop-icon">⇧</span>
+                    <strong>拖拽文件到这里，或点击选择文件</strong>
+                    <small id="course-plan-file-name">尚未选择文件</small>
+                  </label>
+                  <button id="parse-course-plan" type="button" class="secondary-btn">读取并整理课程规划</button>
                 </div>
                 <div id="course-plan-upload-status" class="course-plan-upload-status" aria-live="polite"></div>
                 <div id="course-plan-upload-review" class="course-plan-upload-review hidden"></div>
