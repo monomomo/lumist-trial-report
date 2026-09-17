@@ -329,7 +329,12 @@ test('teacher-uploaded course plans require review and are sent as a locked plan
   const appSource = await readFile(new URL('../public/report/app.js', import.meta.url), 'utf8');
   const htmlSource = await readFile(new URL('../public/report/index.html', import.meta.url), 'utf8');
   assert.match(htmlSource, /name="planning-source" value="upload"/);
+  assert.match(htmlSource, /AI 主导生成/);
+  assert.match(htmlSource, /老师上传已有规划/);
+  assert.match(htmlSource, /id="ai-generation-fields"/);
   assert.match(htmlSource, /accept="\.docx,\.xlsx,\.pdf"/);
+  assert.match(appSource, /ai-generation-fields/);
+  assert.match(appSource, /UPLOAD_REPORT_NOTE/);
   assert.match(appSource, /uploadedCoursePlanConfirmed/);
   assert.match(appSource, /lockedCoursePlan: uploadedCoursePlan/);
   assert.match(appSource, /确认使用此规划/);

@@ -32,11 +32,15 @@
           </header>
           <div class="workspace">
             <form id="report-form" class="input-card">
+              <div class="generation-mode-tabs" role="tablist" aria-label="报告生成方式">
+                <label role="tab"><input type="radio" name="planning-source" value="ai" checked /><span><b>AI 主导生成</b><small>根据试听记录生成总结与课程规划</small></span></label>
+                <label role="tab"><input type="radio" name="planning-source" value="upload" /><span><b>老师上传已有规划</b><small>忠实整理文件并生成排版报告</small></span></label>
+              </div>
               <div class="section-heading">
                 <span>01</span>
                 <div>
                   <h2>学生基本信息</h2>
-                  <p>只填写 AI 无法从课堂描述中可靠获取的信息。</p>
+                  <p id="student-info-hint">只填写 AI 无法从课堂描述中可靠获取的信息。</p>
                 </div>
               </div>
               <div class="field-grid">
@@ -70,19 +74,14 @@
                     required
                   ></select
                 ></label>
-                <label
+                <label class="ai-workflow-only"
                   >辅导场景（必填）<select id="planning-scenario" required>
                     <option value="preview">预习</option>
                     <option value="synchronous" selected>同步</option>
                     <option value="intensive">冲刺</option>
                   </select></label
                 >
-                <fieldset class="planning-source-selector">
-                  <legend>课程规划来源</legend>
-                  <label><input type="radio" name="planning-source" value="ai" checked />AI 帮我生成</label>
-                  <label><input type="radio" name="planning-source" value="upload" />上传已有规划</label>
-                </fieldset>
-                <label
+                <label class="ai-workflow-only"
                   >总课时（必填）<input
                     id="total-hours"
                     type="number"
@@ -91,7 +90,7 @@
                     step="0.5"
                     required
                 /></label>
-                <label
+                <label class="ai-workflow-only"
                   >预计课次（必填）<input
                     id="lesson-count"
                     type="number"
@@ -114,36 +113,38 @@
                 <div id="course-plan-upload-status" class="course-plan-upload-status" aria-live="polite"></div>
                 <div id="course-plan-upload-review" class="course-plan-upload-review hidden"></div>
               </section>
-              <div class="section-heading spacing">
-                <span>02</span>
-                <div>
-                  <h2>学生背景与试听课反馈</h2>
-                  <p>
-                    像写微信反馈一样描述即可。系统会整理成报告与销售跟进话术。
-                  </p>
+              <div id="ai-generation-fields">
+                <div class="section-heading spacing">
+                  <span>02</span>
+                  <div>
+                    <h2>学生背景与试听课反馈</h2>
+                    <p>
+                      像写微信反馈一样描述即可。系统会整理成报告与销售跟进话术。
+                    </p>
+                  </div>
                 </div>
-              </div>
-              <fieldset class="planning-focus-selector">
-                <legend>课程规划侧重点（选填，最多 3 项）</legend>
-                <div id="planning-focus-options" class="planning-focus-options"></div>
-                <small id="planning-focus-hint">未选择时，系统将根据课堂记录安排课程重点</small>
-              </fieldset>
-              <label class="textarea-label"
-                >老师自然语言记录<textarea id="teacher-notes"
-                  rows="14"
-                  minlength="20"
-                  maxlength="6000"
-                  required
-                ></textarea>
-              </label>
-              <div class="quick-actions">
-                <button type="button" class="text-btn" data-scenario-sample="preview">
-                  载入“预习”样例</button
-                ><button type="button" class="text-btn" data-scenario-sample="synchronous">
-                  载入“同步”样例</button
-                ><button type="button" class="text-btn" data-scenario-sample="intensive">
-                  载入“冲刺”样例
-                </button>
+                <fieldset class="planning-focus-selector">
+                  <legend>课程规划侧重点（选填，最多 3 项）</legend>
+                  <div id="planning-focus-options" class="planning-focus-options"></div>
+                  <small id="planning-focus-hint">未选择时，系统将根据课堂记录安排课程重点</small>
+                </fieldset>
+                <label class="textarea-label"
+                  >老师自然语言记录<textarea id="teacher-notes"
+                    rows="14"
+                    minlength="20"
+                    maxlength="6000"
+                    required
+                  ></textarea>
+                </label>
+                <div class="quick-actions">
+                  <button type="button" class="text-btn" data-scenario-sample="preview">
+                    载入“预习”样例</button
+                  ><button type="button" class="text-btn" data-scenario-sample="synchronous">
+                    载入“同步”样例</button
+                  ><button type="button" class="text-btn" data-scenario-sample="intensive">
+                    载入“冲刺”样例
+                  </button>
+                </div>
               </div>
               <div class="notice" id="generation-notice">
                 <strong>生成原则：</strong>总课时由老师决定，AI
@@ -159,7 +160,7 @@
 
             <aside class="workflow-card">
               <p class="eyebrow">老师只需 3 步</p>
-              <ol>
+              <ol id="workflow-steps">
                 <li><b>自然语言记录</b><span>无需填写冗长表单</span></li>
                 <li>
                   <b>确认 AI 整理结果</b><span>可逐段编辑，避免虚构</span>
@@ -167,8 +168,8 @@
                 <li><b>导出并交付</b><span>家长报告与销售卡分开</span></li>
               </ol>
               <div class="callout">
-                <strong>本版功能</strong
-                ><span
+                <strong id="workflow-title">本版功能</strong
+                ><span id="workflow-description"
                   >支持 SAT、AP 等 32
                   个考试科目；动态课程规划与路觅数据页。</span
                 >

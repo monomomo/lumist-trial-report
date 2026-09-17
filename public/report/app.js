@@ -84,6 +84,7 @@ let generationChecklistResolver = null;
 let planningSource = 'ai';
 let uploadedCoursePlan = null;
 let uploadedCoursePlanConfirmed = false;
+const UPLOAD_REPORT_NOTE = '老师已上传并确认完整课程规划，本报告仅对老师提供的原规划进行结构化整理与排版。';
 
 function populateSubjectSelect() {
   const select = $('#subject-select');
@@ -1087,7 +1088,7 @@ async function saveReport({ automatic = false } = {}) {
     currentScore: $('#current-score').value.trim(),
     targetScore: resolveTargetScore(currentSubjectCode, $('#target-score').value),
     examDate: getSelectedExamDate(),
-    teacherNotes: $('#teacher-notes').value.trim(),
+    teacherNotes: planningSource === 'upload' ? UPLOAD_REPORT_NOTE : $('#teacher-notes').value.trim(),
     subject: createSubjectViewModel(currentSubjectCode).displayName,
     reportData,
     coursePlan,
@@ -1127,20 +1128,37 @@ function collectFormData() {
     lessonCount: $('#lesson-count').value,
     planningScenario: resolvePlanningScenario($('#planning-scenario').value),
     planningFocusAreas: getSelectedPlanningFocusAreas(),
-    teacherNotes: $('#teacher-notes').value.trim(),
+    teacherNotes: planningSource === 'upload' ? UPLOAD_REPORT_NOTE : $('#teacher-notes').value.trim(),
     ...(planningSource === 'upload' && uploadedCoursePlanConfirmed ? { lockedCoursePlan: uploadedCoursePlan } : {}),
   };
 }
 
 function setPlanningSource(value) {
   planningSource = value === 'upload' ? 'upload' : 'ai';
+  document.querySelectorAll('[name="planning-source"]').forEach((input) => { input.checked = input.value === planningSource; });
   $('#course-plan-upload-panel').classList.toggle('hidden', planningSource !== 'upload');
+  $('#ai-generation-fields').classList.toggle('hidden', planningSource === 'upload');
+  document.querySelectorAll('.ai-workflow-only').forEach((element) => element.classList.toggle('hidden', planningSource === 'upload'));
+  $('#teacher-notes').required = planningSource === 'ai';
+  $('#planning-scenario').required = planningSource === 'ai';
+  $('#total-hours').required = planningSource === 'ai';
+  $('#lesson-count').required = planningSource === 'ai';
   $('#total-hours').readOnly = planningSource === 'upload' && uploadedCoursePlanConfirmed;
   $('#lesson-count').readOnly = planningSource === 'upload' && uploadedCoursePlanConfirmed;
   $('#generation-notice').innerHTML = planningSource === 'upload'
-    ? '<strong>生成原则：</strong>AI 只整理试听总结，课程规划严格使用老师确认的上传内容。'
+    ? '<strong>上传模式：</strong>无需填写试听记录。系统只整理文件格式，课程规划严格使用老师确认的内容。'
     : '<strong>生成原则：</strong>总课时由老师决定，AI 仅负责规划内容与课时分配。';
-  $('#generate-report').innerHTML = planningSource === 'upload' ? '生成完整报告 <span>→</span>' : 'AI 生成个性化报告 <span>→</span>';
+  $('#generate-report').innerHTML = planningSource === 'upload' ? '生成课程规划报告 <span>→</span>' : 'AI 生成个性化报告 <span>→</span>';
+  $('#student-info-hint').textContent = planningSource === 'upload'
+    ? '填写报告封面信息，课时和课次将从上传文件中自动读取。'
+    : '只填写 AI 无法从课堂描述中可靠获取的信息。';
+  $('#workflow-steps').innerHTML = planningSource === 'upload'
+    ? '<li><b>上传已有规划</b><span>支持 DOCX、XLSX 和文本型 PDF</span></li><li><b>核对解析结果</b><span>确认课次、顺序、时长与文字</span></li><li><b>导出并交付</b><span>生成完整品牌报告与 PDF</span></li>'
+    : '<li><b>自然语言记录</b><span>无需填写冗长表单</span></li><li><b>确认 AI 整理结果</b><span>可逐段编辑，避免虚构</span></li><li><b>导出并交付</b><span>家长报告与销售卡分开</span></li>';
+  $('#workflow-title').textContent = planningSource === 'upload' ? '上传模式' : '本版功能';
+  $('#workflow-description').textContent = planningSource === 'upload'
+    ? '不要求试听记录，不重新设计课程，只对老师已有规划进行整理和排版。'
+    : '支持 SAT、AP 等 32 个考试科目；动态课程规划与路觅数据页。';
 }
 
 function renderUploadedCoursePlan(result) {
@@ -1264,7 +1282,7 @@ function getGenerationChecklistItems() {
   const focusLabels = getPlanningFocusOptions(currentSubjectCode)
     .filter((option) => formData.planningFocusAreas.includes(option.code))
     .map((option) => option.label);
-  return buildGenerationChecklist({
+  const items = buildGenerationChecklist({
     studentName: formData.studentName,
     subjectName: createSubjectViewModel(currentSubjectCode).displayName,
     currentScore: formData.currentScore,
@@ -1277,6 +1295,11 @@ function getGenerationChecklistItems() {
     teacherName: teacher?.displayName || '',
     notesLength: formData.teacherNotes.length,
   });
+  if (planningSource !== 'upload') return items;
+  return [
+    ...items.filter((item) => !['辅导场景', '课程侧重点', '试听记录'].includes(item.label)),
+    { label: '生成方式', value: '老师上传已有规划', status: 'ready' },
+  ];
 }
 
 function closeGenerationChecklist(confirmed) {
@@ -1492,10 +1515,10 @@ $('#report-form').addEventListener('submit', async (event) => {
   if (!validateGenerationInputs()) return;
   if (!await openGenerationChecklist()) return;
   button.disabled = true;
-  button.textContent = planningSource === 'upload' ? 'AI 正在整理试听总结…' : 'AI 正在分析并生成课程规划…';
+  button.textContent = planningSource === 'upload' ? '正在生成课程规划报告…' : 'AI 正在分析并生成课程规划…';
   notice.classList.remove('error');
     notice.innerHTML = planningSource === 'upload'
-      ? '<strong>正在生成：</strong>课程规划已锁定，AI 只整理试听总结，请不要重复提交或关闭页面。'
+      ? '<strong>正在生成：</strong>课程规划已锁定，系统正在整理完整报告，请不要重复提交或关闭页面。'
       : '<strong>正在生成：</strong>通常需要 30–90 秒，详细课时规划可能更久，请不要重复提交或关闭页面。';
   try {
     currentReportData = await generateAiReport();
@@ -1511,7 +1534,7 @@ $('#report-form').addEventListener('submit', async (event) => {
     $('#save-report').textContent = '保存报告';
     await saveReport({ automatic: true });
     notice.innerHTML = planningSource === 'upload'
-      ? '<strong>生成原则：</strong>课程规划来自老师确认的上传文件，AI 未改动课次、顺序和时长。'
+      ? '<strong>上传模式：</strong>课程规划来自老师确认的上传文件，系统未改动课次、顺序和时长。'
       : '<strong>生成原则：</strong>总课时由老师决定，AI 仅负责规划内容与课时分配。';
   } catch (error) {
     if (error.message === 'INVALID_INPUT') {
@@ -1542,7 +1565,7 @@ $('#report-form').addEventListener('submit', async (event) => {
     notice.innerHTML = `<strong>生成失败：</strong>${escapeHtml(reason)}${suggestion}${reference}`;
   } finally {
     button.disabled = false;
-    button.innerHTML = planningSource === 'upload' ? '生成完整报告 <span>→</span>' : 'AI 生成个性化报告 <span>→</span>';
+    button.innerHTML = planningSource === 'upload' ? '生成课程规划报告 <span>→</span>' : 'AI 生成个性化报告 <span>→</span>';
   }
 });
 document.querySelectorAll('[data-scenario-sample]').forEach((button) => button.addEventListener('click', () => {
