@@ -325,6 +325,17 @@ test('lesson durations are computed before generation and attached after validat
   assert.match(source, /goal: z\.string\(\)\.min\(8\)\.max\(80\)/);
 });
 
+test('teacher-uploaded course plans require review and are sent as a locked plan', async () => {
+  const appSource = await readFile(new URL('../public/report/app.js', import.meta.url), 'utf8');
+  const htmlSource = await readFile(new URL('../public/report/index.html', import.meta.url), 'utf8');
+  assert.match(htmlSource, /name="planning-source" value="upload"/);
+  assert.match(htmlSource, /accept="\.docx,\.xlsx,\.pdf"/);
+  assert.match(appSource, /uploadedCoursePlanConfirmed/);
+  assert.match(appSource, /lockedCoursePlan: uploadedCoursePlan/);
+  assert.match(appSource, /确认使用此规划/);
+  assert.match(appSource, /生成报告时不会交给 AI 改写/);
+});
+
 test('priority areas preserve complete bilingual subject terms', async () => {
   const routeSource = await readFile(new URL('../app/api/generate-report/route.ts', import.meta.url), 'utf8');
   const styles = await readFile(new URL('../public/report/styles.css', import.meta.url), 'utf8');

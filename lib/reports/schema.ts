@@ -7,10 +7,10 @@ const subjectSchema = z.enum(subjectNames);
 
 const lessonSchema = z.object({
   duration: z.union([z.literal(0.5), z.literal(1), z.literal(1.5), z.literal(2)]),
-  theme: z.string().trim().min(1).max(60),
-  content: z.string().trim().min(1).max(300),
-  difficulty: z.string().trim().min(1).max(180),
-  goal: z.string().trim().min(1).max(180),
+  theme: z.string().trim().min(1).max(120),
+  content: z.string().trim().max(600),
+  difficulty: z.string().trim().max(180),
+  goal: z.string().trim().max(180),
   unitCodes: z.array(z.string().trim().min(1).max(20)).max(10).optional(),
 }).strict();
 
@@ -18,10 +18,10 @@ const coursePlanSchema = z.object({
   totalHours: z.number().min(2).max(60).multipleOf(0.5),
   rationale: z.string().trim().min(1).max(180),
   stages: z.array(z.object({
-    title: z.string().trim().min(1).max(50),
-    description: z.string().trim().max(160),
-    lessons: z.array(lessonSchema).min(1).max(30),
-  }).strict()).min(1).max(12),
+    title: z.string().trim().min(1).max(100),
+    description: z.string().trim().max(300),
+    lessons: z.array(lessonSchema).min(1).max(60),
+  }).strict()).min(1).max(20),
 }).strict().superRefine((plan, context) => {
   const plannedHours = plan.stages.reduce(
     (total, stage) => total + stage.lessons.reduce((stageTotal, lesson) => stageTotal + lesson.duration, 0),
@@ -50,6 +50,7 @@ const reportDataSchema = z.object({
     scenario: z.enum(PLANNING_SCENARIO_CODES as [string, ...string[]]),
     lessonCount: z.number().int().min(1).max(60),
     focusAreas: z.array(z.enum(PLANNING_FOCUS_AREA_CODES as [string, ...string[]])).max(3).optional(),
+    source: z.enum(['ai', 'upload']).optional(),
   }).strict().optional(),
   teacherNotice: z.string().trim().max(500).optional(),
   qualityReview: z.object({

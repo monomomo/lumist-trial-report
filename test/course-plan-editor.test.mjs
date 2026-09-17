@@ -61,6 +61,16 @@ test('validateCoursePlan allows an optional stage description', () => {
   assert.equal(result.errors.some((item) => item.path === 'stages.0.description'), false);
 });
 
+test('validateCoursePlan allows sparse uploaded lessons while still requiring a theme', () => {
+  const uploaded = cloneCoursePlan(plan);
+  uploaded.stages[0].lessons[0].content = '';
+  uploaded.stages[0].lessons[0].goal = '';
+  uploaded.stages[0].lessons[0].difficulty = '';
+  assert.equal(validateCoursePlan(uploaded, { allowSparseLessons: true }).valid, true);
+  uploaded.stages[0].lessons[0].theme = '';
+  assert.equal(validateCoursePlan(uploaded, { allowSparseLessons: true }).valid, false);
+});
+
 test('validateCoursePlan uses exact warning boundaries for every editable text field', () => {
   const boundaries = [
     ['stages.0.title', 50],

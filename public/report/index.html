@@ -77,6 +77,11 @@
                     <option value="intensive">冲刺</option>
                   </select></label
                 >
+                <fieldset class="planning-source-selector">
+                  <legend>课程规划来源</legend>
+                  <label><input type="radio" name="planning-source" value="ai" checked />AI 帮我生成</label>
+                  <label><input type="radio" name="planning-source" value="upload" />上传已有规划</label>
+                </fieldset>
                 <label
                   >总课时（必填）<input
                     id="total-hours"
@@ -97,6 +102,18 @@
                   /><small id="lesson-count-hint">填写总课时后自动建议，可继续修改</small></label
                 >
               </div>
+              <section id="course-plan-upload-panel" class="course-plan-upload-panel hidden">
+                <div>
+                  <strong>上传老师已有课程规划</strong>
+                  <p>支持 DOCX、XLSX 和文本型 PDF，单个文件不超过 8MB。文件仅用于本次解析，不会保存。</p>
+                </div>
+                <div class="course-plan-upload-actions">
+                  <input id="course-plan-file" type="file" accept=".docx,.xlsx,.pdf" />
+                  <button id="parse-course-plan" type="button" class="secondary-btn">解析课程规划</button>
+                </div>
+                <div id="course-plan-upload-status" class="course-plan-upload-status" aria-live="polite"></div>
+                <div id="course-plan-upload-review" class="course-plan-upload-review hidden"></div>
+              </section>
               <div class="section-heading spacing">
                 <span>02</span>
                 <div>

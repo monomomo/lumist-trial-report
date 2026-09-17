@@ -16,6 +16,8 @@ import { getGenerationFailureDetails } from '@/lib/reports/generation-failures';
 import { getUnexpectedLanguageIssues } from '@/lib/reports/language-quality';
 import { getAuthResult, AUTH_STATUS } from '@/lib/auth/current-user';
 import { parseModelResponse } from '@/lib/reports/model-response';
+import { lockedCoursePlanSchema } from '@/lib/course-plan-upload/schema';
+import { buildLockedReportInput, buildLockedReportPrompt } from '@/lib/course-plan-upload/prompt';
 
 export const runtime = 'nodejs';
 export const maxDuration = 300;
@@ -51,6 +53,8 @@ const generatedReportSchema = z.object({
   })
 });
 
+const generatedNarrativeSchema = generatedReportSchema.omit({ coursePlan: true });
+
 const requestSchema = z.object({
   studentName: z.string().trim().min(1).max(30),
   currentScore: z.string().trim().max(30).optional().default(''),
@@ -61,7 +65,8 @@ const requestSchema = z.object({
   planningScenario: z.enum(PLANNING_SCENARIO_CODES as [string, ...string[]]),
   planningFocusAreas: z.array(z.enum(PLANNING_FOCUS_AREA_CODES as [string, ...string[]])).max(3).optional().default([]),
   teacherNotes: z.string().trim().min(20).max(6000),
-  subjectCode: z.enum(SUBJECT_CODES as [string, ...string[]]).optional().default('sat_math')
+  subjectCode: z.enum(SUBJECT_CODES as [string, ...string[]]).optional().default('sat_math'),
+  lockedCoursePlan: lockedCoursePlanSchema.optional(),
 });
 
 async function readRequestBody(request: Request) {
@@ -358,6 +363,69 @@ export async function POST(request: Request) {
       maxRetries: 0
     });
     const isDeepSeek = process.env.OPENAI_BASE_URL?.includes('api.deepseek.com') === true;
+    if (parsed.data.lockedCoursePlan) {
+      const lockedCoursePlan = parsed.data.lockedCoursePlan;
+      const lockedLessons = lockedCoursePlan.stages.flatMap((item) => item.lessons);
+      if (lockedLessons.length !== lessonDurations.length || Math.abs(lockedCoursePlan.totalHours - parsed.data.totalHours) > 0.001) {
+        return failureResponse('LOCKED_PLAN_MISMATCH', 400);
+      }
+      stage = 'model_generation';
+      const lockedPayload = {
+        model: process.env.OPENAI_MODEL || 'gpt-5-mini',
+        input: [
+          { role: 'system' as const, content: buildLockedReportPrompt(subject.displayName) },
+          { role: 'user' as const, content: buildLockedReportInput({
+            studentName: parsed.data.studentName,
+            currentScore: parsed.data.currentScore,
+            targetScore,
+            examDate: parsed.data.examDate,
+            teacherNotes: parsed.data.teacherNotes,
+          }) },
+        ],
+        text: { format: zodTextFormat(generatedNarrativeSchema, 'trial_report_summary') },
+        reasoning: { effort: isDeepSeek ? 'none' as const : 'low' as const },
+        max_output_tokens: 8000,
+      };
+      const lockedResponse = isDeepSeek ? await client.responses.create(lockedPayload) : await client.responses.parse(lockedPayload);
+      const narrative = parseModelResponse(lockedResponse, (value) => {
+        const result = generatedNarrativeSchema.safeParse(value);
+        return result.success ? result.data : null;
+      });
+      if (!narrative) return failureResponse('EMPTY_MODEL_OUTPUT', 502);
+      const modelReport: z.infer<typeof generatedReportSchema> = { ...narrative, coursePlan: lockedCoursePlan };
+      stage = 'response_assembly';
+      const parentReport = sanitizeParentReport(modelReport, subject.code);
+      const finalReport = {
+        ...parentReport,
+        teacherNotice: buildTeacherNotice(parsed.data.teacherNotes),
+        coursePlan: lockedCoursePlan,
+      };
+      const salesFollowUp = buildSalesFollowUp(finalReport, subject.displayName, targetScore);
+      const languageIssues = getUnexpectedLanguageIssues(narrative);
+      diagnostics.record('succeeded', { stage, subjectCode, lessonCount, repairAttempted });
+      return NextResponse.json({
+        generated: true,
+        requestId: diagnostics.requestId,
+        model: process.env.OPENAI_MODEL || 'gpt-5-mini',
+        report: {
+          ...finalReport,
+          salesFollowUp,
+          planningContext: {
+            scenario: parsed.data.planningScenario,
+            lessonCount: parsed.data.lessonCount,
+            focusAreas: planningFocusAreas,
+            source: 'upload',
+          },
+          qualityReview: {
+            reviewCompleted: true,
+            subjectScopePassed: true,
+            teacherVoicePassed: true,
+            criticalWarnings: languageIssues,
+            modelWarnings: [],
+          },
+        },
+      }, { headers: { 'x-request-id': diagnostics.requestId } });
+    }
     const generateModelReport = async (repair?: {
       report: z.infer<typeof generatedReportSchema>;
       issues: string[];

@@ -21,10 +21,13 @@
   "dependencies": {
     "@supabase/ssr": "^0.7.0",
     "@supabase/supabase-js": "^2.57.4",
-    "next": "15.5.21",
+    "mammoth": "^1.12.3",
+    "next": "15.5.25",
     "openai": "^6.48.0",
+    "pdfjs-dist": "^6.3.289",
     "react": "19.1.1",
     "react-dom": "19.1.1",
+    "read-excel-file": "^9.3.10",
     "zod": "^4.4.3"
   },
   "devDependencies": {
@@ -36,6 +39,6 @@
   "overrides": {
     "nanoid": "3.3.18",
     "postcss": "8.5.23",
-    "sharp": "0.35.0"
+    "sharp": "0.35.4"
   }
 }

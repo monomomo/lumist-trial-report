@@ -13,6 +13,8 @@ export function getGenerationFailureDetails(errorCode: string, issues: readonly 
       return { reason: '预计课次与总课时无法组成每节 0.5–2 小时的课程。', suggestion: '请调整预计课次或总课时后重新生成。' };
     case 'INVALID_PLANNING_FOCUS':
       return { reason: '所选课程侧重点不适用于当前科目。', suggestion: '请重新选择科目对应的侧重点，最多选择 3 项。' };
+    case 'LOCKED_PLAN_MISMATCH':
+      return { reason: '老师确认的课程规划与表单中的总课时或课次数不一致。', suggestion: '请重新确认上传规划，系统会按逐节时长自动回填总课时和课次。' };
     case 'COURSE_PLAN_STYLE_REPETITION':
       return { reason: issue || '连续课时使用了重复的大纲式句型。', suggestion: '系统已经自动修复一次仍未通过，请重新生成；如果反复出现，请把参考编号发给管理员。' };
     case 'SYLLABUS_COVERAGE_VIOLATION':

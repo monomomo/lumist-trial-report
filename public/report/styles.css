@@ -501,7 +501,28 @@ body.modal-open { overflow:hidden; }
 .subject-option-group button span { font-size:13px;line-height:1.35; }
 .subject-option-group button small { color:#8a92a5;font-size:11px;white-space:nowrap; }
 .subject-empty { margin:0;padding:22px 12px;text-align:center;color:#858da0;font-size:12px; }
+.planning-source-selector { border:0;padding:0;margin:0;display:flex;flex-wrap:wrap;align-items:center;gap:8px 14px; }
+.planning-source-selector legend { width:100%;font-size:12px;font-weight:800;color:#4e5870;margin-bottom:4px; }
+.planning-source-selector label { display:flex;align-items:center;gap:6px;font-size:13px; }
+.course-plan-upload-panel { margin:18px 0 24px;padding:18px;border:1px solid #dce2ef;border-radius:12px;background:#f8faff; }
+.course-plan-upload-panel p { margin:5px 0 0;color:#68728a;font-size:12px; }
+.course-plan-upload-actions { display:flex;align-items:center;gap:12px;margin-top:14px;flex-wrap:wrap; }
+.course-plan-upload-status { margin-top:12px;font-size:13px;color:#4d5870; }
+.course-plan-upload-status.error { color:#b42318; }
+.course-plan-upload-status.success { color:#177d51; }
+.course-plan-upload-review { margin-top:16px;border-top:1px solid #dce2ef;padding-top:16px; }
+.course-plan-upload-review>header { display:flex;justify-content:space-between;gap:16px;align-items:flex-start;margin-bottom:12px; }
+.course-plan-upload-review h3 { margin:0 0 5px;font-size:16px; }
+.course-plan-upload-warnings { margin:10px 0;padding-left:20px;color:#9a5b00;font-size:12px; }
+.uploaded-stage { padding:14px;background:#fff;border:1px solid #e0e5ef;border-radius:10px;margin-top:12px; }
+.uploaded-stage>input,.uploaded-stage>textarea { width:100%;box-sizing:border-box;margin-top:7px; }
+.uploaded-lessons { display:grid;gap:8px;margin-top:12px; }
+.uploaded-lesson { display:grid;grid-template-columns:68px minmax(150px,.8fr) minmax(220px,1.6fr);gap:8px;align-items:start; }
+.uploaded-lesson input,.uploaded-lesson textarea,.uploaded-lesson select { width:100%;box-sizing:border-box; }
+.uploaded-lesson textarea { min-height:58px;resize:vertical; }
+.course-plan-upload-confirmed { color:#177d51;font-weight:800; }
 @media screen and (max-width:900px) { .subject-options { width:100%;min-width:0;max-height:320px; }.subject-option-group button { align-items:flex-start;flex-direction:column;gap:3px; }.subject-option-group button small { white-space:normal; } }
+@media screen and (max-width:900px) { .uploaded-lesson { grid-template-columns:1fr; } }
 
 .field-grid select { border:1px solid #dfe3ed;border-radius:8px;padding:10px 11px;color:var(--ink);outline:none;background:#fff; }
 .field-grid select:focus { border-color:var(--blue);box-shadow:0 0 0 3px rgba(33,84,237,.1); }

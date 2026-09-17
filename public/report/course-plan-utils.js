@@ -8,7 +8,7 @@ function calculateTotalHours(coursePlan) {
   return coursePlan.stages.reduce((total, stage) => total + stage.lessons.reduce((stageTotal, lesson) => stageTotal + Number(lesson.duration || 0), 0), 0);
 }
 
-function validateCoursePlan(coursePlan) {
+function validateCoursePlan(coursePlan, { allowSparseLessons = false } = {}) {
   const errors = [];
   const warnings = [];
   const lessonLimits = { theme: 60, content: 300, goal: 180, difficulty: 180 };
@@ -25,7 +25,7 @@ function validateCoursePlan(coursePlan) {
       Object.entries(lessonLimits).forEach(([field, limit]) => {
         const value = String(lesson[field] || '');
         const path = `stages.${stageIndex}.lessons.${lessonIndex}.${field}`;
-        if (!value.trim()) errors.push({ path, message: `请填写${{ theme: '课时主题', content: '课堂内容', goal: '当课目标', difficulty: '重难点' }[field]}` });
+        if (!value.trim() && (!allowSparseLessons || field === 'theme')) errors.push({ path, message: `请填写${{ theme: '课时主题', content: '课堂内容', goal: '当课目标', difficulty: '重难点' }[field]}` });
         if (value.length > limit) warnings.push({ path, message: `${{ theme: '课时主题', content: '课堂内容', goal: '当课目标', difficulty: '重难点' }[field]}超过 ${limit} 字，可能影响报告排版` });
       });
     });
