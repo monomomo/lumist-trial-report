@@ -38,9 +38,16 @@ export function reconcileCoursePlanLessonCount<T extends CoursePlanStage>(stages
       throw new RangeError('COURSE_PLAN_STAGE_MISSING');
     }
     for (let index = 0; index < missingCount; index += 1) {
-      const targetStage = [...normalizedStages].reverse().find((stage) => stage.lessons.length < 12);
+      let targetStage = [...normalizedStages].reverse().find((stage) => stage.lessons.length < 12);
       if (!targetStage) {
-        throw new RangeError('COURSE_PLAN_STAGE_CAPACITY_EXCEEDED');
+        const templateStage = normalizedStages.at(-1) as T;
+        targetStage = {
+          ...templateStage,
+          title: `补充阶段 ${normalizedStages.length + 1}`,
+          description: 'AI 原规划的阶段容量不足，系统已新增阶段以保留完整课时安排。',
+          lessons: [],
+        };
+        normalizedStages.push(targetStage);
       }
       targetStage.lessons.push({
         theme: `待老师补充：第 ${actualCount + index + 1} 节课`,

@@ -50,6 +50,26 @@ test('missing generated lessons become explicit teacher placeholders', () => {
   assert.equal(stages[0].lessons.length, 1);
 });
 
+test('long plans add a stage when every generated stage is already full', () => {
+  const stages = Array.from({ length: 4 }, (_, stageIndex) => ({
+    title: `阶段${stageIndex + 1}`,
+    description: '长课时规划',
+    lessons: Array.from({ length: 12 }, (_, lessonIndex) => ({
+      theme: `课程 ${stageIndex * 12 + lessonIndex + 1}`,
+      content: '具体内容',
+      difficulty: '具体难点',
+      goal: '可核对目标',
+      unitCodes: ['precalc_u1'],
+    })),
+  }));
+  const result = reconcileCoursePlanLessonCount(stages, 50);
+  assert.equal(result.stages.length, 5);
+  assert.equal(result.stages.flatMap((stage) => stage.lessons).length, 50);
+  assert.equal(result.stages[4].lessons.length, 2);
+  assert.match(result.stages[4].title, /补充阶段/);
+  assert.match(result.warning, /补入 2 节/);
+});
+
 test('extra generated lessons are merged without discarding their unit coverage', () => {
   const stages = [
     {
