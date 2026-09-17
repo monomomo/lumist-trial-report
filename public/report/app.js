@@ -1151,6 +1151,9 @@ function setPlanningSource(value) {
     ? '<strong>上传模式：</strong>无需填写试听记录。系统只整理文件格式，课程规划严格使用老师确认的内容。'
     : '<strong>生成原则：</strong>总课时由老师决定，AI 仅负责规划内容与课时分配。';
   $('#generate-report').innerHTML = planningSource === 'upload' ? '生成课程规划报告 <span>→</span>' : 'AI 生成个性化报告 <span>→</span>';
+  $('#generate-report').classList.toggle('hidden', planningSource === 'upload');
+  $('#quick-preview-report').classList.toggle('hidden', planningSource === 'upload');
+  $('#generation-notice').classList.toggle('hidden', planningSource === 'upload');
   $('#student-info-hint').textContent = planningSource === 'upload'
     ? '填写报告封面信息，课时和课次将从上传文件中自动读取。'
     : '只填写 AI 无法从课堂描述中可靠获取的信息。';
@@ -1167,12 +1170,35 @@ function renderUploadedCoursePlan(result) {
   const warnings = Array.isArray(result.warnings) ? result.warnings : [];
   const corrections = Array.isArray(result.extraction?.corrections) ? result.extraction.corrections : [];
   const stages = Array.isArray(result.extraction?.stages) ? result.extraction.stages : [];
-  $('#course-plan-upload-review').innerHTML = `<header><div><p class="eyebrow">AI 解析完成</p><h3>调整课程规划</h3><p>${escapeHtml(result.extraction?.title || result.fileName || '已解析课程规划')} · 请核对课次、顺序、时长和文字。</p></div><div class="course-plan-review-actions"><button type="button" class="secondary-btn" data-upload-action="reselect">重新上传</button><button type="button" class="primary-btn" data-upload-action="confirm">确认使用此规划</button></div></header>${warnings.length ? `<ul class="course-plan-upload-warnings">${warnings.map((item) => `<li>${escapeHtml(item)}</li>`).join('')}</ul>` : ''}${corrections.length ? `<details><summary>查看 ${corrections.length} 项文字修正</summary><ul class="course-plan-upload-warnings">${corrections.map((item) => `<li>${escapeHtml(item.original)} → ${escapeHtml(item.corrected)}</li>`).join('')}</ul></details>` : ''}<div>${stages.map((stage, stageIndex) => `<section class="uploaded-stage" data-upload-stage="${stageIndex}"><input aria-label="阶段名称" value="${escapeHtml(stage.title)}" maxlength="100" required><textarea aria-label="阶段说明" maxlength="300">${escapeHtml(stage.description || '')}</textarea><div class="uploaded-lessons">${stage.lessons.map((lesson, lessonIndex) => `<div class="uploaded-lesson" data-upload-lesson="${lessonIndex}"><select aria-label="课时时长"><option value="">未填写</option>${[0.5, 1, 1.5, 2].map((duration) => `<option value="${duration}"${Number(lesson.duration) === duration ? ' selected' : ''}>${duration}h</option>`).join('')}</select><input aria-label="课程主题" value="${escapeHtml(lesson.theme)}" maxlength="120" required><textarea aria-label="课程内容" maxlength="600">${escapeHtml(lesson.content || '')}</textarea></div>`).join('')}</div></section>`).join('')}</div>`;
+  $('#course-plan-upload-review').innerHTML = `<header><div><p class="eyebrow">需要补充信息</p><h3>调整课程规划</h3><p>${escapeHtml(result.extraction?.title || result.fileName || '已解析课程规划')} · AI 未能确认部分时长，请补全后进入学习报告。</p></div><div class="course-plan-review-actions"><button type="button" class="secondary-btn" data-upload-action="reselect">重新上传</button><button type="button" class="primary-btn" data-upload-action="confirm">补全后进入学习报告</button></div></header>${warnings.length ? `<ul class="course-plan-upload-warnings">${warnings.map((item) => `<li>${escapeHtml(item)}</li>`).join('')}</ul>` : ''}${corrections.length ? `<details><summary>查看 ${corrections.length} 项文字修正</summary><ul class="course-plan-upload-warnings">${corrections.map((item) => `<li>${escapeHtml(item.original)} → ${escapeHtml(item.corrected)}</li>`).join('')}</ul></details>` : ''}<div>${stages.map((stage, stageIndex) => `<section class="uploaded-stage" data-upload-stage="${stageIndex}"><input aria-label="阶段名称" value="${escapeHtml(stage.title)}" maxlength="100" required><textarea aria-label="阶段说明" maxlength="300">${escapeHtml(stage.description || '')}</textarea><div class="uploaded-lessons">${stage.lessons.map((lesson, lessonIndex) => `<div class="uploaded-lesson" data-upload-lesson="${lessonIndex}"><select aria-label="课时时长"><option value="">未填写</option>${[0.5, 1, 1.5, 2].map((duration) => `<option value="${duration}"${Number(lesson.duration) === duration ? ' selected' : ''}>${duration}h</option>`).join('')}</select><input aria-label="课程主题" value="${escapeHtml(lesson.theme)}" maxlength="120" required><textarea aria-label="课程内容" maxlength="600">${escapeHtml(lesson.content || '')}</textarea></div>`).join('')}</div></section>`).join('')}</div>`;
   $('#course-plan-upload-panel').classList.add('is-reviewing');
   $('#course-plan-upload-review').classList.remove('hidden');
   uploadedCoursePlanConfirmed = false;
   uploadedCoursePlan = null;
   $('#course-plan-upload-review').scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+
+async function openUploadedPlanReport(coursePlan) {
+  uploadedCoursePlan = cloneCoursePlan(coursePlan);
+  uploadedCoursePlanConfirmed = true;
+  const lessonCount = coursePlan.stages.reduce((total, stage) => total + stage.lessons.length, 0);
+  $('#total-hours').value = String(coursePlan.totalHours);
+  $('#lesson-count').value = String(lessonCount);
+  if (!$('#student-name').value.trim()) $('#student-name').value = '学生';
+  $('#course-plan-upload-status').className = 'course-plan-upload-status';
+  $('#course-plan-upload-status').textContent = 'AI 解析完成，正在打开学习报告…';
+  currentReportData = await generateAiReport();
+  currentReportId = null;
+  historicalTeacherProfile = null;
+  isQuickPreview = false;
+  originalAiCoursePlan = cloneCoursePlan(currentReportData.coursePlan);
+  renderReport(currentReportData);
+  setQuickPreviewActions(false);
+  setReportDisplayMode('workspace');
+  changeView('report');
+  document.querySelector('#report-view .eyebrow').textContent = '上传规划已整理 · 可直接调整并导出';
+  $('#save-report').textContent = '保存报告';
+  await saveReport({ automatic: true });
 }
 
 function collectUploadedCoursePlan() {
@@ -1216,9 +1242,13 @@ async function parseUploadedCoursePlan() {
     const result = await response.json();
     if (parseVersion !== coursePlanParseVersion) return;
     if (!response.ok) throw new Error(result.error || 'COURSE_PLAN_PARSE_FAILED');
+    if (result.lockedPlan) {
+      await openUploadedPlanReport(result.lockedPlan);
+      return;
+    }
     renderUploadedCoursePlan(result);
-    status.className = 'course-plan-upload-status success';
-    status.textContent = `已解析 ${result.extraction.stages.flatMap((stage) => stage.lessons).length} 节课，请核对后确认。`;
+    status.className = 'course-plan-upload-status error';
+    status.textContent = '部分课时时长无法确认，请补全后继续。';
   } catch (error) {
     if (parseVersion !== coursePlanParseVersion) return;
     status.className = 'course-plan-upload-status error';
@@ -1361,7 +1391,7 @@ function validateGenerationInputs() {
   }
   if (planningSource === 'upload' && !uploadedCoursePlanConfirmed) {
     notice.classList.add('error');
-    notice.innerHTML = '<strong>课程规划尚未确认：</strong>请上传文件、核对解析结果并点击“确认使用此规划”。';
+    notice.innerHTML = '<strong>课程规划尚未就绪：</strong>请上传文件，AI 解析完成后会自动进入学习报告。';
     $('#course-plan-upload-panel').scrollIntoView({ behavior: 'smooth', block: 'center' });
     return false;
   }
@@ -1697,7 +1727,7 @@ $('#course-plan-upload-review').addEventListener('input', () => {
   $('#course-plan-upload-status').textContent = '规划内容已修改，请重新确认。';
   setPlanningSource('upload');
 });
-$('#course-plan-upload-review').addEventListener('click', (event) => {
+$('#course-plan-upload-review').addEventListener('click', async (event) => {
   if (event.target.dataset.uploadAction === 'reselect') {
     coursePlanParseVersion += 1;
     selectedCoursePlanFile = null;
@@ -1709,15 +1739,7 @@ $('#course-plan-upload-review').addEventListener('click', (event) => {
   }
   if (event.target.dataset.uploadAction !== 'confirm') return;
   try {
-    uploadedCoursePlan = collectUploadedCoursePlan();
-    uploadedCoursePlanConfirmed = true;
-    const lessonCount = uploadedCoursePlan.stages.reduce((total, stage) => total + stage.lessons.length, 0);
-    $('#total-hours').value = String(uploadedCoursePlan.totalHours);
-    $('#lesson-count').value = String(lessonCount);
-    $('#course-plan-upload-status').className = 'course-plan-upload-status success course-plan-upload-confirmed';
-    $('#course-plan-upload-status').textContent = `已锁定 ${lessonCount} 节、${uploadedCoursePlan.totalHours} 小时；生成报告时不会交给 AI 改写。`;
-    setPlanningSource('upload');
-    updateLessonCountHint();
+    await openUploadedPlanReport(collectUploadedCoursePlan());
   } catch (error) {
     $('#course-plan-upload-status').className = 'course-plan-upload-status error';
     $('#course-plan-upload-status').textContent = error.message;
@@ -1786,16 +1808,20 @@ function switchReportImageSources(mode) {
 
 function setReportDisplayMode(mode) {
   const isPreview = mode === 'preview';
+  const isUploadedPlan = currentReportData?.planningContext?.source === 'upload';
   if (isPreview && currentReportData) renderReport(currentReportData);
   if (!isPreview && currentReportData) initializeWorkspaceEditors();
   $('#parent-report').classList.toggle('teacher-workspace-mode', !isPreview);
   $('#parent-report').classList.toggle('parent-preview-mode', isPreview);
   $('#parent-report').classList.toggle('hidden', !isPreview);
   $('#teacher-workspace-editor').classList.toggle('hidden', isPreview);
+  $('#summary-editor-modal').classList.toggle('hidden', !isPreview && isUploadedPlan);
   $('#report-mode-banner').classList.toggle('preview-mode', isPreview);
   $('#report-mode-banner').innerHTML = isPreview
     ? '<div><strong>家长版预览</strong><span>当前展示完整交付版内容，导出的 PDF 将采用相同页面顺序。</span></div><span class="report-mode-status">完整报告</span>'
-    : '<div><strong>老师工作台</strong><span>请重点核对试听反馈与课程规划，品牌包装页将在家长预览和 PDF 中显示。</span></div><span class="report-mode-status">待老师核对</span>';
+    : isUploadedPlan
+      ? '<div><strong>课程规划调整</strong><span>AI 已完成文件解析，请直接调整阶段、课次、时长和文字，修改会同步到报告。</span></div><span class="report-mode-status">可编辑</span>'
+      : '<div><strong>老师工作台</strong><span>请重点核对试听反馈与课程规划，品牌包装页将在家长预览和 PDF 中显示。</span></div><span class="report-mode-status">待老师核对</span>';
   $('#preview-report').textContent = isPreview ? '返回老师工作台' : '预览家长版';
   $('#preview-report').setAttribute('aria-pressed', String(isPreview));
 }

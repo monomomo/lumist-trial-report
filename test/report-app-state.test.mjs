@@ -325,7 +325,7 @@ test('lesson durations are computed before generation and attached after validat
   assert.match(source, /goal: z\.string\(\)\.min\(8\)\.max\(80\)/);
 });
 
-test('teacher-uploaded course plans require review and are sent as a locked plan', async () => {
+test('teacher-uploaded course plans open the report workspace automatically as a locked plan', async () => {
   const appSource = await readFile(new URL('../public/report/app.js', import.meta.url), 'utf8');
   const htmlSource = await readFile(new URL('../public/report/index.html', import.meta.url), 'utf8');
   assert.match(htmlSource, /name="planning-source" value="upload"/);
@@ -342,8 +342,9 @@ test('teacher-uploaded course plans require review and are sent as a locked plan
   assert.match(appSource, /parseUploadedCoursePlan\(\)/);
   assert.match(appSource, /uploadedCoursePlanConfirmed/);
   assert.match(appSource, /lockedCoursePlan: uploadedCoursePlan/);
-  assert.match(appSource, /确认使用此规划/);
-  assert.match(appSource, /生成报告时不会交给 AI 改写/);
+  assert.match(appSource, /result\.lockedPlan[\s\S]*openUploadedPlanReport\(result\.lockedPlan\)/);
+  assert.match(appSource, /AI 解析完成后会自动进入学习报告/);
+  assert.match(appSource, /summary-editor-modal[\s\S]*isUploadedPlan/);
 });
 
 test('priority areas preserve complete bilingual subject terms', async () => {
