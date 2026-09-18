@@ -84,19 +84,17 @@
                 <label class="ai-workflow-only"
                   >总课时（必填）<input
                     id="total-hours"
-                    type="number"
-                    min="2"
-                    max="60"
-                    step="0.5"
+                    type="text"
+                    inputmode="decimal"
+                    placeholder="例如：50"
                     required
                 /></label>
                 <label class="ai-workflow-only"
                   >预计课次（必填）<input
                     id="lesson-count"
-                    type="number"
-                    min="1"
-                    max="60"
-                    step="1"
+                    type="text"
+                    inputmode="numeric"
+                    placeholder="例如：50"
                     required
                   /><small id="lesson-count-hint">填写总课时后自动建议，可继续修改</small></label
                 >
