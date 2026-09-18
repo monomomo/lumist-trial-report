@@ -281,6 +281,26 @@ test('generation handles non-JSON platform timeout pages without exposing parser
   assert.match(appSource, /AI 生成时间超过当前平台限制，本次请求已超时/);
 });
 
+test('AI-led reports generate an exact course plan in validated stage batches', async () => {
+  const appSource = await readFile(new URL('../public/report/app.js', import.meta.url), 'utf8');
+  const routeSource = await readFile(new URL('../app/api/generate-report-batch/route.ts', import.meta.url), 'utf8');
+  assert.match(appSource, /operation: 'outline'/);
+  assert.match(appSource, /operation: 'stage'/);
+  assert.match(appSource, /Math\.min\(2, stages\.length\)/);
+  assert.match(appSource, /retryGenerationStep[\s\S]*STAGE_LESSON_COUNT_MISMATCH/);
+  assert.match(routeSource, /plannedCount !== context\.lessonDurations\.length/);
+  assert.match(routeSource, /stageResult\.lessons\.length !== parsed\.data\.stage\.lessonCount/);
+  assert.match(routeSource, /当前阶段包含无效或缺失的 AP Unit 编码/);
+  assert.doesNotMatch(appSource, /generateAiReport[\s\S]*reconcileCoursePlanLessonCount/);
+});
+
+test('batched generation forbids invented classroom evidence', async () => {
+  const routeSource = await readFile(new URL('../app/api/generate-report-batch/route.ts', import.meta.url), 'utf8');
+  assert.match(routeSource, /都必须能在 teacherNotes 中找到直接依据/);
+  assert.match(routeSource, /不得把未来课程计划改写成已经发生的课堂事实/);
+  assert.match(routeSource, /不得新增或推断学生已经出现过的具体错误、课堂动作、正确率或提示后表现/);
+});
+
 test('displayable content risks do not block generation and render a prominent teacher warning', async () => {
   const htmlSource = await readFile(new URL('../public/report/index.html', import.meta.url), 'utf8');
   const appSource = await readFile(new URL('../public/report/app.js', import.meta.url), 'utf8');

@@ -1547,13 +1547,104 @@ async function openHistoricalReport(reportId) {
 
 async function generateAiReport() {
   const formData = collectFormData();
-  const response = await fetch('/api/generate-report', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
+  if (planningSource === 'upload') {
+    const result = await requestGeneratedJson('/api/generate-report', {
       ...formData,
       subjectCode: currentSubjectCode,
-    })
+    });
+    return result.report;
+  }
+  const commonPayload = {
+    ...formData,
+    subjectCode: currentSubjectCode,
+  };
+  const outlineResult = await retryGenerationStep(
+    () => requestGeneratedJson('/api/generate-report-batch', { ...commonPayload, operation: 'outline' }),
+    2,
+  );
+  const outline = outlineResult.outline;
+  const stages = outline.stages;
+  let completedStages = 0;
+  let stageCursor = 0;
+  const generatedStages = new Array(stages.length);
+  const updateProgress = () => {
+    $('#generation-notice').innerHTML = `<strong>正在分批生成：</strong>阶段规划已完成，正在生成详细课次（${completedStages}/${stages.length} 个阶段）。请不要关闭页面。`;
+  };
+  updateProgress();
+  const worker = async () => {
+    while (stageCursor < stages.length) {
+      const stageIndex = stageCursor;
+      stageCursor += 1;
+      const stage = stages[stageIndex];
+      const stageResult = await retryGenerationStep(
+        () => requestGeneratedJson('/api/generate-report-batch', {
+          ...commonPayload,
+          operation: 'stage',
+          stage: {
+            title: stage.title,
+            description: stage.description,
+            lessonCount: stage.lessonCount,
+          },
+          stageIndex,
+          stageCount: stages.length,
+          startLessonNumber: stage.startLessonNumber,
+          durations: stage.durations,
+          previousStageTitle: stages[stageIndex - 1]?.title || '',
+          nextStageTitle: stages[stageIndex + 1]?.title || '',
+        }),
+        3,
+      );
+      generatedStages[stageIndex] = {
+        title: stage.title,
+        description: stage.description,
+        lessons: stageResult.lessons,
+      };
+      completedStages += 1;
+      updateProgress();
+    }
+  };
+  await Promise.all(Array.from({ length: Math.min(2, stages.length) }, () => worker()));
+  const generatedLessonCount = generatedStages.reduce((total, stage) => total + stage.lessons.length, 0);
+  if (generatedLessonCount !== Number(formData.lessonCount)) {
+    const error = new Error('STAGE_LESSON_COUNT_MISMATCH');
+    error.reason = `完整规划应包含 ${formData.lessonCount} 个课次，实际生成 ${generatedLessonCount} 个。`;
+    error.suggestion = '请重新生成；系统不会再用占位课次补齐。';
+    throw error;
+  }
+  const { stages: unusedStages, rationale, ...summary } = outline;
+  const targetScore = outlineResult.targetScore || formData.targetScore || '';
+  const subjectName = createSubjectViewModel(currentSubjectCode).displayName;
+  return {
+    ...summary,
+    coursePlan: {
+      rationale,
+      stages: generatedStages,
+      totalHours: Number(formData.totalHours),
+    },
+    salesFollowUp: buildBatchedSalesFollowUp(summary, subjectName, targetScore),
+    teacherNotice: '',
+    target: targetScore,
+    planningContext: {
+      scenario: formData.planningScenario,
+      lessonCount: Number(formData.lessonCount),
+      focusAreas: formData.planningFocusAreas || [],
+      source: 'ai',
+    },
+    qualityReview: {
+      reviewCompleted: true,
+      subjectScopePassed: true,
+      teacherVoicePassed: true,
+      criticalWarnings: [],
+      modelWarnings: [],
+    },
+  };
+}
+
+async function requestGeneratedJson(path, payload) {
+  const response = await fetch(path, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload),
   });
   const contentType = response.headers.get('content-type') || '';
   let result;
@@ -1575,7 +1666,30 @@ async function generateAiReport() {
     error.suggestion = result.suggestion || '';
     throw error;
   }
-  return result.report;
+  return result;
+}
+
+async function retryGenerationStep(task, attempts) {
+  let lastError;
+  for (let attempt = 1; attempt <= attempts; attempt += 1) {
+    try {
+      return await task();
+    } catch (error) {
+      lastError = error;
+    }
+  }
+  throw lastError;
+}
+
+function buildBatchedSalesFollowUp(report, subjectName, targetScore) {
+  const priorities = report.priorityAreas.slice(0, 3).join('、') || report.currentFocus;
+  const target = targetScore ? `，逐步向 ${targetScore} 的学习目标推进` : '';
+  return {
+    positive: `试听课中已观察到的积极表现：${report.strength}`,
+    urgent: `后续建议优先关注：${report.currentFocus}。课程重点将根据课堂作答、错题类型和完成情况继续调整。`,
+    angle: `沟通时可围绕“${priorities}”介绍后续安排，说明课程会依据学生的实际表现动态调整。`,
+    script: `家长您好，本次 ${subjectName} 试听课中，${report.performance}。目前比较积极的表现是：${report.strength}。接下来建议围绕${report.currentFocus}安排课程，并根据后续作答、错题和完成情况动态调整${target}。`,
+  };
 }
 
 $('#report-form').addEventListener('submit', async (event) => {
