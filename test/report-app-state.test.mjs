@@ -296,9 +296,13 @@ test('AI-led reports generate an exact course plan in validated stage batches', 
 
 test('batched generation forbids invented classroom evidence', async () => {
   const routeSource = await readFile(new URL('../app/api/generate-report-batch/route.ts', import.meta.url), 'utf8');
+  const guardSource = await readFile(new URL('../lib/reports/classroom-fact-guard.ts', import.meta.url), 'utf8');
   assert.match(routeSource, /都必须能在 teacherNotes 中找到直接依据/);
   assert.match(routeSource, /不得把未来课程计划改写成已经发生的课堂事实/);
   assert.match(routeSource, /不得新增或推断学生已经出现过的具体错误、课堂动作、正确率或提示后表现/);
+  assert.match(routeSource, /applyClassroomFactGuard/);
+  assert.match(routeSource, /applyClassroomFactGuard\(outline/);
+  assert.match(guardSource, /具体作答过程将在后续练习中继续观察/);
 });
 
 test('displayable content risks do not block generation and render a prominent teacher warning', async () => {

@@ -10,6 +10,7 @@ import { buildCalculusSyllabusPrompt } from '@/lib/subjects/ap-calculus-syllabus
 import { buildSystemPrompt, buildUserInput } from '@/lib/subjects/prompt';
 import { buildLessonDurationSlots } from '@/lib/subjects/lesson-slots';
 import { parseModelResponse } from '@/lib/reports/model-response';
+import { applyClassroomFactGuard } from '@/lib/reports/classroom-fact-guard';
 
 export const runtime = 'nodejs';
 export const maxDuration = 300;
@@ -178,18 +179,19 @@ export async function POST(request: Request) {
 请返回摘要字段、coursePlan.rationale，以及只含 title、description、lessonCount 的阶段数组。`;
       const outline = await requestStructuredOutput(client, outlineSchema, 'trial_report_outline', systemPrompt, userPrompt, 9000);
       if (!outline) return jsonError('EMPTY_MODEL_OUTPUT', 502, 'AI 没有返回可用的阶段规划。');
-      const plannedCount = outline.stages.reduce((total, stage) => total + stage.lessonCount, 0);
+      const guardedOutline = applyClassroomFactGuard(outline, context.subject.displayName, parsed.data.teacherNotes);
+      const plannedCount = guardedOutline.stages.reduce((total, stage) => total + stage.lessonCount, 0);
       if (plannedCount !== context.lessonDurations.length) {
         return jsonError('OUTLINE_LESSON_COUNT_MISMATCH', 422, `阶段规划共 ${plannedCount} 个课次，与要求的 ${context.lessonDurations.length} 个课次不一致。`);
       }
       let durationIndex = 0;
-      const stages = outline.stages.map((stage) => {
+      const stages = guardedOutline.stages.map((stage) => {
         const durations = context.lessonDurations.slice(durationIndex, durationIndex + stage.lessonCount);
         const startLessonNumber = durationIndex + 1;
         durationIndex += stage.lessonCount;
         return { ...stage, durations, startLessonNumber };
       });
-      return NextResponse.json({ outline: { ...outline, stages }, targetScore: context.targetScore });
+      return NextResponse.json({ outline: { ...guardedOutline, stages }, targetScore: context.targetScore });
     }
 
     if (parsed.data.stage.lessonCount !== parsed.data.durations.length) {
