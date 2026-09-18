@@ -25,6 +25,7 @@ const baseRequestSchema = z.object({
   lessonCount: z.coerce.number().int().min(1).max(60),
   planningScenario: z.enum(PLANNING_SCENARIO_CODES as [string, ...string[]]),
   planningFocusAreas: z.array(z.enum(PLANNING_FOCUS_AREA_CODES as [string, ...string[]])).max(3).optional().default([]),
+  includeExamTraining: z.boolean().optional().default(false),
   teacherNotes: z.string().trim().min(20).max(6000),
   subjectCode: z.enum(SUBJECT_CODES as [string, ...string[]]),
 });
@@ -173,7 +174,7 @@ export async function POST(request: Request) {
     if (parsed.data.operation === 'outline') {
       const systemPrompt = `${buildSystemPrompt(context.subject)}
 
-本次只生成报告摘要与课程阶段骨架，不生成详细 lessons。所有关于学生课堂行为、答题过程、提示前后变化和已掌握内容的陈述，都必须能在 teacherNotes 中找到直接依据；不得把未来课程计划改写成已经发生的课堂事实。每个阶段最多 10 个课次，所有 stage.lessonCount 之和必须严格等于 ${context.lessonDurations.length}。`;
+本次只生成报告摘要与课程阶段骨架，不生成详细 lessons。所有关于学生课堂行为、答题过程、提示前后变化和已掌握内容的陈述，都必须能在 teacherNotes 中找到直接依据；不得把未来课程计划改写成已经发生的课堂事实。每个阶段最多 10 个课次，所有 stage.lessonCount 之和必须严格等于 ${context.lessonDurations.length}。${parsed.data.includeExamTraining ? `老师已勾选考试训练，课程阶段必须安排 MCQ、FRQ、模考、真题讲评、错题订正或考试策略等考试训练，考试训练时长不少于总课时的 20%。` : '老师未勾选考试训练，不要为了凑结构强行安排模考或考试讲评。'}`;
       const userPrompt = `${buildUserInput(context.subject, context.promptData)}
 
 请返回摘要字段、coursePlan.rationale，以及只含 title、description、lessonCount 的阶段数组。`;
@@ -201,7 +202,7 @@ export async function POST(request: Request) {
     const endLessonNumber = parsed.data.startLessonNumber + parsed.data.stage.lessonCount - 1;
     const systemPrompt = `${buildSystemPrompt(context.subject)}
 
-本次只生成一个课程阶段的详细课次，不生成报告摘要或其他阶段。必须严格返回 ${parsed.data.stage.lessonCount} 个 lessons，对应完整报告第 ${parsed.data.startLessonNumber}–${endLessonNumber} 课。课程规划可以安排未来教学任务，但不得新增或推断学生已经出现过的具体错误、课堂动作、正确率或提示后表现。`;
+本次只生成一个课程阶段的详细课次，不生成报告摘要或其他阶段。必须严格返回 ${parsed.data.stage.lessonCount} 个 lessons，对应完整报告第 ${parsed.data.startLessonNumber}–${endLessonNumber} 课。课程规划可以安排未来教学任务，但不得新增或推断学生已经出现过的具体错误、课堂动作、正确率或提示后表现。${parsed.data.includeExamTraining ? '如果本阶段属于考试训练阶段，明确安排 MCQ、FRQ、模考、真题讲评、错题订正或考试策略；整个规划的考试训练时长需达到总课时的 20%。' : '未勾选考试训练时，按学生同步学习和知识点需要安排课程，不强行加入模考或考试讲评。'}`;
     const userPrompt = `根据老师记录和阶段信息生成这一批课程：
 ${JSON.stringify({
       subject: context.subject.displayName,

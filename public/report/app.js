@@ -1130,6 +1130,7 @@ function collectFormData() {
     lessonCount: $('#lesson-count').value,
     planningScenario: resolvePlanningScenario($('#planning-scenario').value),
     planningFocusAreas: getSelectedPlanningFocusAreas(),
+    includeExamTraining: planningSource === 'ai' && $('#include-exam-training').checked,
     teacherNotes: planningSource === 'upload' ? UPLOAD_REPORT_NOTE : $('#teacher-notes').value.trim(),
     ...(planningSource === 'upload' && uploadedCoursePlanConfirmed ? { lockedCoursePlan: uploadedCoursePlan } : {}),
   };
@@ -1147,6 +1148,7 @@ function setPlanningSource(value) {
   $('#lesson-count').required = planningSource === 'ai';
   $('#total-hours').readOnly = planningSource === 'upload' && uploadedCoursePlanConfirmed;
   $('#lesson-count').readOnly = planningSource === 'upload' && uploadedCoursePlanConfirmed;
+  $('#include-exam-training').disabled = planningSource === 'upload';
   $('#generation-notice').innerHTML = planningSource === 'upload'
     ? '<strong>上传模式：</strong>无需填写试听记录。系统只整理文件格式，课程规划严格使用老师确认的内容。'
     : '<strong>生成原则：</strong>总课时由老师决定，AI 仅负责规划内容与课时分配。';
@@ -1311,6 +1313,7 @@ function buildCurrentPlanningContext(lessonCount) {
     scenario: resolvePlanningScenario(reportContext?.scenario || $('#planning-scenario').value),
     lessonCount,
     focusAreas: normalizePlanningFocusAreas(reportContext?.focusAreas ?? getSelectedPlanningFocusAreas(), currentSubjectCode),
+    includeExamTraining: planningSource === 'ai' && (reportContext?.includeExamTraining === true || $('#include-exam-training').checked),
     source: reportContext?.source === 'upload' || planningSource === 'upload' ? 'upload' : 'ai',
   };
 }
@@ -1500,6 +1503,7 @@ async function openHistoricalReport(reportId) {
   renderPlanningFocusOptions(savedPlanningContext.focusAreas || []);
   const savedLessons = record.course_plan?.stages?.flatMap((stage) => stage.lessons || []) || [];
   $('#lesson-count').value = savedPlanningContext.lessonCount || savedLessons.length || Math.ceil(Number(record.course_plan?.totalHours || 0) / 2) || '';
+  $('#include-exam-training').checked = savedPlanningContext.includeExamTraining === true;
   updateLessonCountHint();
   if (subjectCode.startsWith('ap_')) {
     const examDate = record.exam_date_text || '';
@@ -1611,6 +1615,18 @@ async function generateAiReport() {
     error.suggestion = '请重新生成；系统不会再用占位课次补齐。';
     throw error;
   }
+  if (formData.includeExamTraining) {
+    const examLessonPattern = /模考|考试|真题|MCQ|FRQ|错题|讲评|订正|计时|套题|exam|mock|practice/i;
+    const examLessons = generatedStages.flatMap((stage) => stage.lessons).filter((lesson) => examLessonPattern.test(`${lesson.theme} ${lesson.content} ${lesson.goal}`));
+    const examTrainingHours = examLessons.reduce((total, lesson) => total + Number(lesson.duration || 0), 0);
+    const minimumExamTrainingHours = Number(formData.totalHours) * 0.2;
+    if (examTrainingHours + 0.001 < minimumExamTrainingHours) {
+      const error = new Error('EXAM_TRAINING_LESSON_COUNT_MISMATCH');
+      error.reason = `已勾选考试训练，但规划中只有 ${examTrainingHours}h 考试训练，至少需要 ${minimumExamTrainingHours}h。`;
+      error.suggestion = '请重新生成，系统会补充 MCQ、FRQ、模考或错题讲评安排。';
+      throw error;
+    }
+  }
   const { stages: unusedStages, rationale, ...summary } = outline;
   const targetScore = outlineResult.targetScore || formData.targetScore || '';
   const subjectName = createSubjectViewModel(currentSubjectCode).displayName;
@@ -1628,6 +1644,7 @@ async function generateAiReport() {
       scenario: formData.planningScenario,
       lessonCount: Number(formData.lessonCount),
       focusAreas: formData.planningFocusAreas || [],
+      includeExamTraining: formData.includeExamTraining === true,
       source: 'ai',
     },
     qualityReview: {

@@ -61,6 +61,7 @@ const requestSchema = z.object({
   lessonCount: z.coerce.number().int().min(1).max(60),
   planningScenario: z.enum(PLANNING_SCENARIO_CODES as [string, ...string[]]),
   planningFocusAreas: z.array(z.enum(PLANNING_FOCUS_AREA_CODES as [string, ...string[]])).max(3).optional().default([]),
+  includeExamTraining: z.boolean().optional().default(false),
   teacherNotes: z.string().trim().min(20).max(6000),
   subjectCode: z.enum(SUBJECT_CODES as [string, ...string[]]).optional().default('sat_math'),
   lockedCoursePlan: lockedCoursePlanSchema.optional(),

@@ -50,6 +50,7 @@ const reportDataSchema = z.object({
     scenario: z.enum(PLANNING_SCENARIO_CODES as [string, ...string[]]),
     lessonCount: z.number().int().min(1).max(60),
     focusAreas: z.array(z.enum(PLANNING_FOCUS_AREA_CODES as [string, ...string[]])).max(3).optional(),
+    includeExamTraining: z.boolean().optional(),
     source: z.enum(['ai', 'upload']).optional(),
   }).strict().optional(),
   teacherNotice: z.string().trim().max(500).optional(),
