@@ -1,6 +1,7 @@
 import { getAuthResult, AUTH_STATUS } from '@/lib/auth/current-user';
 import { LoginForm } from '@/components/LoginForm';
 import { Workspace } from '@/components/Workspace';
+import Link from 'next/link';
 
 export default async function Home() {
   const auth = await getAuthResult();
@@ -33,6 +34,7 @@ export default async function Home() {
           <h2>欢迎回来</h2>
           <p>请使用公司分配的老师账号和密码登录。</p>
           <LoginForm />
+          <Link className="auth-link" href="/register">内部人员注册</Link>
         </div>
       </div>
     </main>
