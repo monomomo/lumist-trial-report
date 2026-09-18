@@ -274,6 +274,13 @@ test('generation repairs repeated course wording and preserves remaining issues 
   assert.match(appSource, /建议：\$\{escapeHtml\(error\.suggestion\)\}/);
 });
 
+test('generation handles non-JSON platform timeout pages without exposing parser errors', async () => {
+  const appSource = await readFile(new URL('../public/report/app.js', import.meta.url), 'utf8');
+  assert.match(appSource, /contentType\.includes\('application\/json'\)/);
+  assert.match(appSource, /response\.status === 502 \|\| response\.status === 504/);
+  assert.match(appSource, /AI 生成时间超过当前平台限制，本次请求已超时/);
+});
+
 test('displayable content risks do not block generation and render a prominent teacher warning', async () => {
   const htmlSource = await readFile(new URL('../public/report/index.html', import.meta.url), 'utf8');
   const appSource = await readFile(new URL('../public/report/app.js', import.meta.url), 'utf8');

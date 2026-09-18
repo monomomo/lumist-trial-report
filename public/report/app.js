@@ -1555,7 +1555,19 @@ async function generateAiReport() {
       subjectCode: currentSubjectCode,
     })
   });
-  const result = await response.json();
+  const contentType = response.headers.get('content-type') || '';
+  let result;
+  if (contentType.includes('application/json')) {
+    result = await response.json();
+  } else {
+    const error = new Error('AI_GATEWAY_ERROR');
+    error.requestId = response.headers.get('x-request-id') || '';
+    error.reason = response.status === 502 || response.status === 504
+      ? 'AI 生成时间超过当前平台限制，本次请求已超时。'
+      : 'AI 服务暂时未返回有效结果。';
+    error.suggestion = '请直接重新生成；如果反复出现，请把发生时间发给管理员。';
+    throw error;
+  }
   if (!response.ok) {
     const error = new Error(result.error || 'AI_GENERATION_FAILED');
     error.requestId = result.requestId || response.headers.get('x-request-id') || '';
