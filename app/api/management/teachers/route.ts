@@ -15,7 +15,7 @@ const profileFields = z.object({
   summary: z.string().trim().max(500).default(''),
   bio: z.array(z.string().trim().min(1).max(600)).max(20).default([]),
   subjects: z.array(z.string().trim().min(1).max(80)).max(20).default([]),
-  employmentType: z.enum(['full_time', 'part_time']).nullable().default(null),
+  employmentType: z.enum(['full_time', 'part_time']),
 });
 
 const createSchema = profileFields.extend({
@@ -92,7 +92,7 @@ export async function POST(request: Request) {
   const context = await getManagementContext();
   if ('response' in context) return context.response;
   const parsed = createSchema.safeParse(await readJson(request));
-  if (!parsed.success) return errorResponse('老师姓名和账号名不能为空。', 400);
+  if (!parsed.success) return errorResponse('老师姓名、账号名和任职类型不能为空。', 400);
   if (!isValidUsername(parsed.data.username)) return errorResponse('老师账号格式不正确。', 400);
   const password = parsed.data.password || '123456';
   const publicName = parsed.data.publicName || parsed.data.displayName;

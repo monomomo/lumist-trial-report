@@ -195,7 +195,7 @@ export function ManagementDashboard({ username }: { username: string }) {
               <label className="teacher-search"><span>搜索</span><input type="search" value={query} onChange={(event) => setQuery(event.target.value)} placeholder="姓名、账号、职位或科目" /></label>
               <label><span>账号状态</span><select value={statusFilter} onChange={(event) => setStatusFilter(event.target.value as StatusFilter)}><option value="all">全部状态</option><option value="active">正常</option><option value="inactive">已停用</option></select></label>
               <label><span>擅长科目</span><select value={subjectFilter} onChange={(event) => setSubjectFilter(event.target.value)}><option value="all">全部科目</option>{subjectOptions.map((subject) => <option value={subject} key={subject}>{subject}</option>)}</select></label>
-              <label><span>用工类型</span><select value={employmentFilter} onChange={(event) => setEmploymentFilter(event.target.value as EmploymentFilter)}><option value="all">全部类型</option><option value="full_time">全职</option><option value="part_time">兼职</option><option value="unset">未设置</option></select></label>
+              <label><span>任职类型</span><select value={employmentFilter} onChange={(event) => setEmploymentFilter(event.target.value as EmploymentFilter)}><option value="all">全部类型</option><option value="full_time">全职</option><option value="part_time">兼职</option><option value="unset">待补充</option></select></label>
               <label><span>排序</span><select value={sortBy} onChange={(event) => setSortBy(event.target.value as SortOption)}><option value="name">按展示名</option><option value="username">按账号</option><option value="status">启用优先</option></select></label>
               {hasFilters ? <button type="button" className="teacher-filter-reset" onClick={resetFilters}>清除筛选</button> : null}
             </div>
@@ -207,7 +207,7 @@ export function ManagementDashboard({ username }: { username: string }) {
                     <span className="teacher-list-content">
                       <span className="teacher-list-title"><strong>{teacher.publicName || teacher.displayName}</strong><em className={`teacher-status ${teacher.active ? 'active' : 'inactive'}`}>{teacher.active ? '正常' : '已停用'}</em></span>
                       <small>中文姓名：{chineseName(teacher.displayName) || '未填写'} · 账号：{teacher.username}</small>
-                      <span className="teacher-card-meta"><span>{teacher.employmentType === 'full_time' ? '全职' : teacher.employmentType === 'part_time' ? '兼职' : '未设置类型'}</span>{teacher.title ? <span>{teacher.title}</span> : null}</span>
+                      <span className="teacher-card-meta"><span>{teacher.employmentType === 'full_time' ? '全职' : teacher.employmentType === 'part_time' ? '兼职' : '任职类型待补充'}</span>{teacher.title ? <span>{teacher.title}</span> : null}</span>
                       <span className="teacher-subjects">{teacher.subjects.slice(0, 3).map((subject) => <span key={subject}>{subject}</span>)}{teacher.subjects.length > 3 ? <span>+{teacher.subjects.length - 3}</span> : null}{teacher.subjects.length === 0 ? <span>未填写科目</span> : null}</span>
                     </span>
                   </button>
@@ -226,7 +226,7 @@ export function ManagementDashboard({ username }: { username: string }) {
                 {creating ? <label>初始密码（选填）<input type="password" value={form.password} onChange={(event) => updateField('password', event.target.value)} minLength={6} placeholder="留空时使用 123456" /></label> : null}
                 <label>中文姓名<input value={form.displayName} onChange={(event) => updateField('displayName', event.target.value)} required /></label>
                 <label>报告展示名（选填）<input value={form.publicName} onChange={(event) => updateField('publicName', event.target.value)} placeholder="留空时使用老师姓名" /></label>
-                <label>用工类型<select value={form.employmentType} onChange={(event) => updateField('employmentType', event.target.value)}><option value="">未设置</option><option value="full_time">全职</option><option value="part_time">兼职</option></select></label>
+                <label>任职类型<select value={form.employmentType} onChange={(event) => updateField('employmentType', event.target.value)} required><option value="">请选择</option><option value="full_time">全职</option><option value="part_time">兼职</option></select></label>
                 <label>展示职位<input value={form.title} onChange={(event) => updateField('title', event.target.value)} /></label>
                 <label>简介摘要<textarea value={form.summary} onChange={(event) => updateField('summary', event.target.value)} rows={3} /></label>
                 <label>老师简介（每行一条）<textarea value={form.bio} onChange={(event) => updateField('bio', event.target.value)} rows={6} /></label>

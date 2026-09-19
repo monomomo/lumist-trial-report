@@ -45,6 +45,8 @@ test('management dashboard supports searching filtering sorting and pagination',
   assert.match(dashboard, /chineseName\(teacher\.displayName\) \|\| '未填写'/);
   assert.match(dashboard, /全职/);
   assert.match(dashboard, /兼职/);
+  assert.match(dashboard, /任职类型/);
+  assert.doesNotMatch(dashboard, /用工类型/);
   assert.match(dashboard, /授课视频二维码/);
   assert.match(dashboard, /teacher-editor-backdrop/);
   assert.match(dashboard, /aria-modal="true"/);
@@ -67,11 +69,13 @@ test('management teacher assets are validated and stored privately', async () =>
   assert.match(migration, /employment_type in \('full_time', 'part_time'\)/);
 });
 
-test('teacher creation only requires a username and teacher name', async () => {
+test('teacher creation requires username teacher name and employment type', async () => {
   const route = await readFile(new URL('../app/api/management/teachers/route.ts', import.meta.url), 'utf8');
   const dashboard = await readFile(new URL('../components/ManagementDashboard.tsx', import.meta.url), 'utf8');
   assert.match(route, /const password = parsed\.data\.password \|\| '123456'/);
   assert.match(route, /const publicName = parsed\.data\.publicName \|\| parsed\.data\.displayName/);
   assert.match(dashboard, /初始密码（选填）/);
   assert.match(dashboard, /报告展示名（选填）/);
+  assert.match(dashboard, /任职类型<select[\s\S]*?required/);
+  assert.match(route, /employmentType: z\.enum\(\['full_time', 'part_time'\]\)/);
 });
