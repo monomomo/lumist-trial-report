@@ -46,6 +46,9 @@ test('management dashboard supports searching filtering sorting and pagination',
   assert.match(dashboard, /全职/);
   assert.match(dashboard, /兼职/);
   assert.match(dashboard, /授课视频二维码/);
+  assert.match(dashboard, /teacher-editor-backdrop/);
+  assert.match(dashboard, /aria-modal="true"/);
+  assert.match(dashboard, /event\.key === 'Escape'/);
 });
 
 test('teacher sync stores the Chinese source name separately from the report name', async () => {

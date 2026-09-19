@@ -305,10 +305,6 @@ input {
   gap: 10px;
 }
 
-.management-grid:not(.directory-only) .teacher-list {
-  grid-template-columns: 1fr;
-}
-
 .teacher-list-item {
   display: grid;
   grid-template-columns: auto minmax(0, 1fr);
@@ -467,6 +463,24 @@ input {
   color: #737b8d;
   font-size: 11px;
   font-style: normal;
+}
+
+.teacher-editor-backdrop {
+  position: fixed;
+  z-index: 1000;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  padding: 24px;
+  background: rgba(20, 27, 42, .58);
+  backdrop-filter: blur(3px);
+}
+
+.teacher-editor {
+  width: min(760px, 100%);
+  max-height: calc(100vh - 48px);
+  overflow-y: auto;
+  box-shadow: 0 28px 80px rgba(15, 23, 42, .28);
 }
 
 .teacher-asset-note {
@@ -634,6 +648,17 @@ input {
 
   .teacher-assets {
     grid-template-columns: 1fr;
+  }
+
+  .teacher-editor-backdrop {
+    align-items: end;
+    padding: 0;
+  }
+
+  .teacher-editor {
+    width: 100%;
+    max-height: 92vh;
+    border-radius: 18px 18px 0 0;
   }
 }
 

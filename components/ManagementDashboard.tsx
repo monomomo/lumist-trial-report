@@ -84,6 +84,20 @@ export function ManagementDashboard({ username }: { username: string }) {
   const hasFilters = Boolean(query || statusFilter !== 'all' || subjectFilter !== 'all' || employmentFilter !== 'all' || sortBy !== 'name');
   const editorOpen = creating || Boolean(selected);
 
+  useEffect(() => {
+    if (!editorOpen) return;
+    const previousOverflow = document.body.style.overflow;
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') closeEditor();
+    };
+    document.body.style.overflow = 'hidden';
+    window.addEventListener('keydown', handleKeyDown);
+    return () => {
+      document.body.style.overflow = previousOverflow;
+      window.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [editorOpen]);
+
   function startCreate() {
     setSelected(null);
     setCreating(true);
@@ -174,7 +188,7 @@ export function ManagementDashboard({ username }: { username: string }) {
         </div>
         {message ? <div className="management-success">{message}</div> : null}
         {error ? <div className="management-error">{error}</div> : null}
-        <div className={`management-grid${editorOpen ? '' : ' directory-only'}`}>
+        <div className="management-grid directory-only">
           <section className="management-card teacher-directory">
             <div className="teacher-directory-heading"><div><h2>老师目录</h2><p>共 {teachers.length} 位老师，当前找到 {filteredTeachers.length} 位</p></div></div>
             <div className="teacher-directory-toolbar">
@@ -202,9 +216,11 @@ export function ManagementDashboard({ username }: { username: string }) {
             ) : <div className="teacher-no-results"><strong>没有找到符合条件的老师</strong><p>可以调整搜索词或清除筛选条件。</p>{hasFilters ? <button type="button" onClick={resetFilters}>清除筛选</button> : null}</div>}
             {!loading && filteredTeachers.length > PAGE_SIZE ? <div className="teacher-pagination"><button type="button" disabled={currentPage === 1} onClick={() => setPage((value) => Math.max(1, value - 1))}>上一页</button><span>第 {currentPage} / {totalPages} 页</span><button type="button" disabled={currentPage === totalPages} onClick={() => setPage((value) => Math.min(totalPages, value + 1))}>下一页</button></div> : null}
           </section>
-          {editorOpen ? (
-            <section className="management-card teacher-editor">
-              <div className="teacher-editor-heading"><div><h2>{creating ? '创建老师账号' : '编辑老师资料'}</h2>{selected ? <p>{selected.publicName} · {selected.username}</p> : null}</div><button type="button" onClick={closeEditor}>关闭</button></div>
+        </div>
+        {editorOpen ? (
+          <div className="teacher-editor-backdrop" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) closeEditor(); }}>
+            <section className="management-card teacher-editor" role="dialog" aria-modal="true" aria-labelledby="teacher-editor-title">
+              <div className="teacher-editor-heading"><div><h2 id="teacher-editor-title">{creating ? '创建老师账号' : '编辑老师资料'}</h2>{selected ? <p>{selected.publicName} · {selected.username}</p> : null}</div><button type="button" onClick={closeEditor}>关闭</button></div>
               <form className="management-form" onSubmit={submit}>
                 <label>登录账号<input value={form.username} onChange={(event) => updateField('username', event.target.value)} disabled={!creating} required /></label>
                 {creating ? <label>初始密码<input type="password" value={form.password} onChange={(event) => updateField('password', event.target.value)} minLength={6} required /></label> : null}
@@ -220,8 +236,8 @@ export function ManagementDashboard({ username }: { username: string }) {
                 <div className="management-actions"><button type="submit" className="management-primary">保存</button><button type="button" onClick={closeEditor}>取消</button></div>
               </form>
             </section>
-          ) : null}
-        </div>
+          </div>
+        ) : null}
       </section>
     </main>
   );
