@@ -203,10 +203,10 @@ export function ManagementDashboard({ username }: { username: string }) {
               <div className="teacher-list">
                 {visibleTeachers.map((teacher) => (
                   <button type="button" className={`teacher-list-item${selected?.id === teacher.id ? ' selected' : ''}`} key={teacher.id} onClick={() => startEdit(teacher)}>
-                    <span className="teacher-list-avatar">{(teacher.publicName || teacher.displayName || teacher.username).slice(0, 1)}</span>
+                    <span className="teacher-list-avatar">{chineseName(teacher.displayName).slice(0, 1) || '?'}</span>
                     <span className="teacher-list-content">
-                      <span className="teacher-list-title"><strong>{teacher.publicName || teacher.displayName}</strong><em className={`teacher-status ${teacher.active ? 'active' : 'inactive'}`}>{teacher.active ? '正常' : '已停用'}</em></span>
-                      <small>中文姓名：{chineseName(teacher.displayName) || '未填写'} · 账号：{teacher.username}</small>
+                      <span className="teacher-list-title"><strong>{chineseName(teacher.displayName) || '中文姓名待补充'}</strong><em className={`teacher-status ${teacher.active ? 'active' : 'inactive'}`}>{teacher.active ? '正常' : '已停用'}</em></span>
+                      <small>英文名：{teacher.publicName || '未填写'} · 账号：{teacher.username}</small>
                       <span className="teacher-card-meta"><span>{teacher.employmentType === 'full_time' ? '全职' : teacher.employmentType === 'part_time' ? '兼职' : '任职类型待补充'}</span>{teacher.title ? <span>{teacher.title}</span> : null}</span>
                       <span className="teacher-subjects">{teacher.subjects.slice(0, 3).map((subject) => <span key={subject}>{subject}</span>)}{teacher.subjects.length > 3 ? <span>+{teacher.subjects.length - 3}</span> : null}{teacher.subjects.length === 0 ? <span>未填写科目</span> : null}</span>
                     </span>

@@ -46,7 +46,8 @@ test('management dashboard supports searching filtering sorting and pagination',
   assert.match(dashboard, /按展示名/);
   assert.match(dashboard, /PAGE_SIZE/);
   assert.match(dashboard, /中文姓名/);
-  assert.match(dashboard, /chineseName\(teacher\.displayName\) \|\| '未填写'/);
+  assert.match(dashboard, /chineseName\(teacher\.displayName\) \|\| '中文姓名待补充'/);
+  assert.match(dashboard, /英文名：/);
   assert.match(dashboard, /全职/);
   assert.match(dashboard, /兼职/);
   assert.match(dashboard, /任职类型/);
