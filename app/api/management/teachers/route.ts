@@ -10,7 +10,7 @@ export const dynamic = 'force-dynamic';
 
 const profileFields = z.object({
   displayName: z.string().trim().min(1).max(40),
-  publicName: z.string().trim().min(1).max(60),
+  publicName: z.string().trim().max(60).default(''),
   title: z.string().trim().max(120).default(''),
   summary: z.string().trim().max(500).default(''),
   bio: z.array(z.string().trim().min(1).max(600)).max(20).default([]),
@@ -20,7 +20,7 @@ const profileFields = z.object({
 
 const createSchema = profileFields.extend({
   username: z.string().trim().min(3).max(32),
-  password: z.string().min(6).max(100),
+  password: z.string().max(100).default(''),
 });
 
 const updateSchema = profileFields.extend({
@@ -92,13 +92,15 @@ export async function POST(request: Request) {
   const context = await getManagementContext();
   if ('response' in context) return context.response;
   const parsed = createSchema.safeParse(await readJson(request));
-  if (!parsed.success) return errorResponse('老师账号和资料填写不完整。', 400);
+  if (!parsed.success) return errorResponse('老师姓名和账号名不能为空。', 400);
   if (!isValidUsername(parsed.data.username)) return errorResponse('老师账号格式不正确。', 400);
-  const passwordError = getTeacherPasswordError(parsed.data.password);
+  const password = parsed.data.password || '123456';
+  const publicName = parsed.data.publicName || parsed.data.displayName;
+  const passwordError = getTeacherPasswordError(password);
   if (passwordError) return errorResponse(passwordError, 400);
   const { data, error } = await context.admin.auth.admin.createUser({
     email: usernameToAuthEmail(parsed.data.username),
-    password: parsed.data.password,
+    password,
     email_confirm: true,
     user_metadata: { display_name: parsed.data.displayName },
   });
@@ -106,7 +108,7 @@ export async function POST(request: Request) {
   const { error: profileError } = await context.admin.from('profiles').update({ display_name: parsed.data.displayName, role: 'teacher' }).eq('id', data.user.id);
   const { error: configError } = await context.admin.from('teacher_configs').upsert({
     teacher_id: data.user.id,
-    public_name: parsed.data.publicName,
+    public_name: publicName,
     title: parsed.data.title,
     summary: parsed.data.summary,
     bio: parsed.data.bio,
@@ -127,12 +129,13 @@ export async function PATCH(request: Request) {
   const parsed = updateSchema.safeParse(await readJson(request));
   if (!parsed.success) return errorResponse('老师资料填写不完整。', 400);
   const { teacherId, active, ...profile } = parsed.data;
+  const publicName = profile.publicName || profile.displayName;
   const { error: authError } = await context.admin.auth.admin.updateUserById(teacherId, { ban_duration: active ? 'none' : '876000h' });
   if (authError) return errorResponse('老师账号状态更新失败。', 500);
   const { error: profileError } = await context.admin.from('profiles').update({ display_name: profile.displayName }).eq('id', teacherId);
   const { error: configError } = await context.admin.from('teacher_configs').upsert({
     teacher_id: teacherId,
-    public_name: profile.publicName,
+    public_name: publicName,
     title: profile.title,
     summary: profile.summary,
     bio: profile.bio,

@@ -66,3 +66,12 @@ test('management teacher assets are validated and stored privately', async () =>
   assert.match(route, /3 \* 1024 \* 1024/);
   assert.match(migration, /employment_type in \('full_time', 'part_time'\)/);
 });
+
+test('teacher creation only requires a username and teacher name', async () => {
+  const route = await readFile(new URL('../app/api/management/teachers/route.ts', import.meta.url), 'utf8');
+  const dashboard = await readFile(new URL('../components/ManagementDashboard.tsx', import.meta.url), 'utf8');
+  assert.match(route, /const password = parsed\.data\.password \|\| '123456'/);
+  assert.match(route, /const publicName = parsed\.data\.publicName \|\| parsed\.data\.displayName/);
+  assert.match(dashboard, /初始密码（选填）/);
+  assert.match(dashboard, /报告展示名（选填）/);
+});

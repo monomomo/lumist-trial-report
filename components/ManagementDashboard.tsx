@@ -164,7 +164,7 @@ export function ManagementDashboard({ username }: { username: string }) {
       setError(result.error || '保存失败。');
       return;
     }
-    setMessage(creating ? '老师账号已创建。' : '老师资料已更新。');
+    setMessage(creating ? `老师账号已创建。${form.password ? '' : '初始密码为 123456。'}` : '老师资料已更新。');
     closeEditor();
     await loadTeachers();
   }
@@ -223,9 +223,9 @@ export function ManagementDashboard({ username }: { username: string }) {
               <div className="teacher-editor-heading"><div><h2 id="teacher-editor-title">{creating ? '创建老师账号' : '编辑老师资料'}</h2>{selected ? <p>{selected.publicName} · {selected.username}</p> : null}</div><button type="button" onClick={closeEditor}>关闭</button></div>
               <form className="management-form" onSubmit={submit}>
                 <label>登录账号<input value={form.username} onChange={(event) => updateField('username', event.target.value)} disabled={!creating} required /></label>
-                {creating ? <label>初始密码<input type="password" value={form.password} onChange={(event) => updateField('password', event.target.value)} minLength={6} required /></label> : null}
+                {creating ? <label>初始密码（选填）<input type="password" value={form.password} onChange={(event) => updateField('password', event.target.value)} minLength={6} placeholder="留空时使用 123456" /></label> : null}
                 <label>中文姓名<input value={form.displayName} onChange={(event) => updateField('displayName', event.target.value)} required /></label>
-                <label>报告展示名<input value={form.publicName} onChange={(event) => updateField('publicName', event.target.value)} required /></label>
+                <label>报告展示名（选填）<input value={form.publicName} onChange={(event) => updateField('publicName', event.target.value)} placeholder="留空时使用老师姓名" /></label>
                 <label>用工类型<select value={form.employmentType} onChange={(event) => updateField('employmentType', event.target.value)}><option value="">未设置</option><option value="full_time">全职</option><option value="part_time">兼职</option></select></label>
                 <label>展示职位<input value={form.title} onChange={(event) => updateField('title', event.target.value)} /></label>
                 <label>简介摘要<textarea value={form.summary} onChange={(event) => updateField('summary', event.target.value)} rows={3} /></label>
