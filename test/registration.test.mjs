@@ -22,6 +22,10 @@ test('registration page keeps teacher accounts out of self-service signup', asyn
   assert.match(form, /management/);
   assert.match(form, /sales/);
   assert.doesNotMatch(form, /teacher/);
+  assert.match(form, /role-picker-options/);
+  assert.match(form, /管理老师账号与资料/);
+  assert.match(form, /选择老师并生成报告/);
+  assert.doesNotMatch(form, /<select/);
 });
 
 test('registration API uses server-only invite codes and privileged account creation', async () => {

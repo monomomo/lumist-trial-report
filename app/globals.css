@@ -110,6 +110,139 @@ input {
   font-weight: 700;
 }
 
+.role-picker {
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+
+.role-picker legend {
+  margin-bottom: 8px;
+  color: #41495c;
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.role-picker-options {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
+
+.auth-form .role-option {
+  position: relative;
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 10px;
+  align-items: center;
+  min-height: 88px;
+  padding: 14px;
+  overflow: hidden;
+  border: 1px solid #dfe3ec;
+  border-radius: 12px;
+  background: #fff;
+  cursor: pointer;
+  transition: border-color .18s ease, background .18s ease, box-shadow .18s ease, transform .18s ease;
+}
+
+.auth-form .role-option:hover {
+  border-color: #e1b52b;
+  transform: translateY(-1px);
+}
+
+.auth-form .role-option.selected {
+  border-color: #e3b310;
+  background: #fff9df;
+  box-shadow: 0 0 0 3px rgba(255, 201, 40, .16);
+}
+
+.role-option input {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.role-option:focus-within {
+  outline: 2px solid #d6a500;
+  outline-offset: 2px;
+}
+
+.auth-card .role-option-icon {
+  display: grid;
+  width: 38px;
+  height: 38px;
+  margin: 0;
+  place-items: center;
+  border-radius: 10px;
+  background: #f0f2f6;
+  color: #525b6e;
+  font-size: 15px;
+  font-weight: 900;
+  letter-spacing: 0;
+}
+
+.auth-card .role-option.selected .role-option-icon {
+  background: #ffc928;
+  color: #211b0b;
+}
+
+.auth-card .role-option-copy {
+  display: grid;
+  gap: 4px;
+  min-width: 0;
+  margin: 0;
+  color: #172033;
+  letter-spacing: 0;
+}
+
+.role-option-copy strong,
+.role-option-copy small {
+  display: block;
+}
+
+.role-option-copy strong {
+  font-size: 14px;
+}
+
+.role-option-copy small {
+  color: #7a8295;
+  font-size: 10px;
+  font-weight: 500;
+  line-height: 1.4;
+}
+
+.auth-card .role-option-check {
+  position: absolute;
+  top: 7px;
+  right: 8px;
+  display: grid;
+  width: 18px;
+  height: 18px;
+  margin: 0;
+  place-items: center;
+  border-radius: 50%;
+  background: #17254b;
+  color: #fff;
+  font-size: 10px;
+  letter-spacing: 0;
+  opacity: 0;
+  transform: scale(.7);
+  transition: opacity .18s ease, transform .18s ease;
+}
+
+.auth-card .role-option.selected .role-option-check {
+  opacity: 1;
+  transform: scale(1);
+}
+
+.role-option:has(input:disabled) {
+  cursor: not-allowed;
+  opacity: .65;
+}
+
 .auth-form input {
   height: 46px;
   border: 1px solid #dfe3ec;
@@ -152,6 +285,12 @@ input {
   font-size: 13px;
   text-align: center;
   text-decoration: none;
+}
+
+@media (max-width: 480px) {
+  .role-picker-options {
+    grid-template-columns: 1fr;
+  }
 }
 
 .management-shell {

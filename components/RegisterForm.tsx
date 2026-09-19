@@ -7,7 +7,7 @@ import { isValidUsername } from '@/lib/auth/username';
 
 export function RegisterForm() {
   const router = useRouter();
-  const [role, setRole] = useState('management');
+  const [role, setRole] = useState<'management' | 'sales'>('management');
   const [displayName, setDisplayName] = useState('');
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
@@ -49,7 +49,23 @@ export function RegisterForm() {
 
   return (
     <form className="auth-form" onSubmit={handleSubmit}>
-      <label>注册角色<select value={role} onChange={(event) => setRole(event.target.value)} disabled={loading}><option value="management">师资管理</option><option value="sales">销售</option></select></label>
+      <fieldset className="role-picker">
+        <legend>注册角色</legend>
+        <div className="role-picker-options">
+          <label className={`role-option${role === 'management' ? ' selected' : ''}`}>
+            <input type="radio" name="role" value="management" checked={role === 'management'} onChange={() => setRole('management')} disabled={loading} />
+            <span className="role-option-icon">管</span>
+            <span className="role-option-copy"><strong>师资管理</strong><small>管理老师账号与资料</small></span>
+            <span className="role-option-check" aria-hidden="true">✓</span>
+          </label>
+          <label className={`role-option${role === 'sales' ? ' selected' : ''}`}>
+            <input type="radio" name="role" value="sales" checked={role === 'sales'} onChange={() => setRole('sales')} disabled={loading} />
+            <span className="role-option-icon">销</span>
+            <span className="role-option-copy"><strong>销售</strong><small>选择老师并生成报告</small></span>
+            <span className="role-option-check" aria-hidden="true">✓</span>
+          </label>
+        </div>
+      </fieldset>
       <label>姓名<input type="text" value={displayName} onChange={(event) => setDisplayName(event.target.value)} maxLength={40} required disabled={loading} /></label>
       <label>登录账号<input type="text" value={username} onChange={(event) => setUsername(event.target.value)} autoComplete="username" minLength={3} maxLength={32} required disabled={loading} /></label>
       <label>密码<input type="password" value={password} onChange={(event) => setPassword(event.target.value)} autoComplete="new-password" minLength={6} required disabled={loading} /></label>
