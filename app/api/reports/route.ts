@@ -3,6 +3,7 @@ import { isSupabaseConfigured } from '@/lib/supabase/config';
 import { createClient } from '@/lib/supabase/server';
 import { authEmailToUsername } from '@/lib/auth/username';
 import { getTeacherProfileSnapshot } from '@/lib/teachers/public-profile';
+import { AUTH_STATUS, getAuthResult } from '@/lib/auth/current-user';
 import {
   reportCreateSchema,
   reportUpdateSchema,
@@ -15,11 +16,11 @@ export async function GET(request: Request) {
     return NextResponse.json({ reports: [], demo: true });
   }
 
+  const auth = await getAuthResult();
+  if (auth.status === AUTH_STATUS.NOT_AUTHENTICATED) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  if (auth.status !== AUTH_STATUS.AUTHENTICATED || !auth.user || auth.user.role === 'management') return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+  const user = { id: auth.user.id };
   const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-  }
 
   const reportId = new URL(request.url).searchParams.get('id');
   if (reportId) {
@@ -56,11 +57,11 @@ export async function POST(request: Request) {
     return NextResponse.json({ saved: false, demo: true });
   }
 
+  const auth = await getAuthResult();
+  if (auth.status === AUTH_STATUS.NOT_AUTHENTICATED) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  if (auth.status !== AUTH_STATUS.AUTHENTICATED || !auth.user || auth.user.role === 'management') return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+  const user = { id: auth.user.id, email: `${auth.user.username}@teachers.lumist.internal` };
   const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-  }
 
   const parsed = reportCreateSchema.safeParse(await readRequestBody(request));
   if (!parsed.success) {
@@ -94,11 +95,11 @@ export async function PATCH(request: Request) {
     return NextResponse.json({ saved: false, demo: true });
   }
 
+  const auth = await getAuthResult();
+  if (auth.status === AUTH_STATUS.NOT_AUTHENTICATED) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  if (auth.status !== AUTH_STATUS.AUTHENTICATED || !auth.user || auth.user.role === 'management') return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+  const user = { id: auth.user.id };
   const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-  }
 
   const parsed = reportUpdateSchema.safeParse(await readRequestBody(request));
   if (!parsed.success) {

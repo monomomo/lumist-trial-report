@@ -157,6 +157,7 @@ export async function POST(request: Request) {
   const auth = await getAuthResult();
   if (auth.status === AUTH_STATUS.SUPABASE_NOT_CONFIGURED) return jsonError('SYSTEM_NOT_CONFIGURED', 503, '登录服务尚未配置。');
   if (auth.status === AUTH_STATUS.NOT_AUTHENTICATED) return jsonError('UNAUTHORIZED', 401, '登录已过期。');
+  if (auth.user?.role === 'management') return jsonError('FORBIDDEN', 403, '师资管理账号不能生成报告。');
   let body: unknown;
   try {
     body = await request.json();

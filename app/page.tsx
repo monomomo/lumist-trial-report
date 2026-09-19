@@ -12,7 +12,7 @@ export default async function Home() {
   }
 
   if (auth.status === AUTH_STATUS.AUTHENTICATED) {
-    return <Workspace username={auth.user!.username} />;
+    return <Workspace username={auth.user!.username} role={auth.user!.role} />;
   }
 
   return (

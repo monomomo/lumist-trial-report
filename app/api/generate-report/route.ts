@@ -333,6 +333,9 @@ export async function POST(request: Request) {
     if (auth.status === AUTH_STATUS.NOT_AUTHENTICATED) {
       return failureResponse('UNAUTHORIZED', 401);
     }
+    if (auth.user?.role === 'management') {
+      return failureResponse('FORBIDDEN', 403);
+    }
 
     stage = 'request_validation';
     const parsed = requestSchema.safeParse(await readRequestBody(request));
