@@ -2,6 +2,7 @@ import { getAuthResult, AUTH_STATUS } from '@/lib/auth/current-user';
 import { LoginForm } from '@/components/LoginForm';
 import { Workspace } from '@/components/Workspace';
 import Link from 'next/link';
+import { ManagementDashboard } from '@/components/ManagementDashboard';
 
 export default async function Home() {
   const auth = await getAuthResult();
@@ -12,6 +13,7 @@ export default async function Home() {
   }
 
   if (auth.status === AUTH_STATUS.AUTHENTICATED) {
+    if (auth.user!.role === 'management') return <ManagementDashboard username={auth.user!.username} />;
     return <Workspace username={auth.user!.username} role={auth.user!.role} />;
   }
 
