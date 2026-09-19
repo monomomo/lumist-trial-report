@@ -259,7 +259,7 @@ input {
 
 .teacher-directory-toolbar {
   display: grid;
-  grid-template-columns: minmax(180px, 1.5fr) repeat(3, minmax(120px, 1fr)) auto;
+  grid-template-columns: minmax(180px, 1.5fr) repeat(4, minmax(110px, 1fr)) auto;
   gap: 10px;
   margin: 20px 0;
   padding: 14px;
@@ -315,7 +315,7 @@ input {
   align-items: start;
   gap: 12px;
   width: 100%;
-  min-height: 112px;
+  min-height: 138px;
   padding: 14px;
   border: 1px solid #e7e9ef;
   border-radius: 12px;
@@ -389,6 +389,91 @@ input {
   flex-wrap: wrap;
   gap: 5px;
   margin-top: 10px;
+}
+
+.teacher-card-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 8px;
+  color: #596174;
+  font-size: 11px;
+}
+
+.teacher-card-meta span:not(:last-child)::after {
+  margin-left: 6px;
+  color: #b3b8c3;
+  content: '·';
+}
+
+.teacher-assets {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 14px;
+  padding-top: 4px;
+}
+
+.teacher-asset {
+  display: grid;
+  align-content: start;
+  gap: 7px;
+  padding: 12px;
+  border: 1px solid #e1e5ee;
+  border-radius: 10px;
+  background: #f8f9fb;
+}
+
+.teacher-asset-preview {
+  display: grid;
+  width: 100%;
+  aspect-ratio: 4 / 5;
+  place-items: center;
+  overflow: hidden;
+  border-radius: 8px;
+  background: #e9ecf2;
+  color: #818899;
+  font-size: 12px;
+}
+
+.teacher-asset-preview.qr {
+  aspect-ratio: 1;
+}
+
+.teacher-asset-preview img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.teacher-asset-preview.qr img {
+  object-fit: contain;
+  background: #fff;
+}
+
+.teacher-asset label {
+  display: grid;
+  gap: 6px;
+}
+
+.teacher-asset input {
+  padding: 7px;
+  background: #fff;
+  font-size: 11px;
+}
+
+.teacher-asset small,
+.teacher-asset em,
+.teacher-asset-note {
+  color: #737b8d;
+  font-size: 11px;
+  font-style: normal;
+}
+
+.teacher-asset-note {
+  margin: 0;
+  padding: 12px;
+  border-radius: 8px;
+  background: #f7f8fb;
 }
 
 .teacher-subjects span {
@@ -545,6 +630,10 @@ input {
 
   .teacher-search {
     grid-column: auto;
+  }
+
+  .teacher-assets {
+    grid-template-columns: 1fr;
   }
 }
 

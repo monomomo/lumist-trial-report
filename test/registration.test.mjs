@@ -41,4 +41,18 @@ test('management dashboard supports searching filtering sorting and pagination',
   assert.match(dashboard, /全部科目/);
   assert.match(dashboard, /按展示名/);
   assert.match(dashboard, /PAGE_SIZE/);
+  assert.match(dashboard, /中文姓名/);
+  assert.match(dashboard, /全职/);
+  assert.match(dashboard, /兼职/);
+  assert.match(dashboard, /授课视频二维码/);
+});
+
+test('management teacher assets are validated and stored privately', async () => {
+  const route = await readFile(new URL('../app/api/management/teachers/assets/route.ts', import.meta.url), 'utf8');
+  const migration = await readFile(new URL('../supabase/migrations/202609190001_teacher_employment_type.sql', import.meta.url), 'utf8');
+  assert.match(route, /teacher-assets/);
+  assert.match(route, /image\/jpeg/);
+  assert.match(route, /5 \* 1024 \* 1024/);
+  assert.match(route, /3 \* 1024 \* 1024/);
+  assert.match(migration, /employment_type in \('full_time', 'part_time'\)/);
 });

@@ -15,6 +15,7 @@ const profileFields = z.object({
   summary: z.string().trim().max(500).default(''),
   bio: z.array(z.string().trim().min(1).max(600)).max(20).default([]),
   subjects: z.array(z.string().trim().min(1).max(80)).max(20).default([]),
+  employmentType: z.enum(['full_time', 'part_time']).nullable().default(null),
 });
 
 const createSchema = profileFields.extend({
@@ -52,9 +53,17 @@ export async function GET() {
   const profileMap = new Map((profiles || []).map((profile) => [profile.id, profile]));
   const teacherUsers = users.users.filter((user) => user.email?.endsWith('@teachers.lumist.internal') && profileMap.get(user.id)?.role === 'teacher');
   const teacherIds = teacherUsers.map((user) => user.id);
-  const { data: configs, error: configError } = await context.admin.from('teacher_configs').select('teacher_id,public_name,title,summary,bio,sections,subjects,photo_path,qr_path,updated_at').in('teacher_id', teacherIds);
+  const { data: configs, error: configError } = await context.admin.from('teacher_configs').select('teacher_id,public_name,title,summary,bio,sections,subjects,photo_path,qr_path,employment_type,updated_at').in('teacher_id', teacherIds);
   if (configError) return errorResponse('TEACHER_LIST_FAILED', 500);
   const configMap = new Map((configs || []).map((config) => [config.teacher_id, config]));
+  const assetPaths = (configs || []).flatMap((config) => [config.photo_path, config.qr_path]).filter((path): path is string => Boolean(path));
+  const signedUrlMap = new Map<string, string>();
+  if (assetPaths.length > 0) {
+    const { data: signedAssets } = await context.admin.storage.from('teacher-assets').createSignedUrls(assetPaths, 3600);
+    for (const asset of signedAssets || []) {
+      if (asset.path && asset.signedUrl) signedUrlMap.set(asset.path, asset.signedUrl);
+    }
+  }
   const teachers = teacherUsers.map((user) => {
     const profile = profileMap.get(user.id);
     const config = configMap.get(user.id);
@@ -69,8 +78,11 @@ export async function GET() {
       summary: config?.summary || '',
       bio: Array.isArray(config?.bio) ? config.bio.map(String) : [],
       subjects: Array.isArray(config?.subjects) ? config.subjects.map(String) : [],
+      employmentType: config?.employment_type || null,
       photoPath: config?.photo_path || '',
       qrPath: config?.qr_path || '',
+      photoUrl: config?.photo_path ? signedUrlMap.get(config.photo_path) || '' : '',
+      qrUrl: config?.qr_path ? signedUrlMap.get(config.qr_path) || '' : '',
     };
   });
   return NextResponse.json({ teachers });
@@ -100,6 +112,7 @@ export async function POST(request: Request) {
     bio: parsed.data.bio,
     sections: [],
     subjects: parsed.data.subjects,
+    employment_type: parsed.data.employmentType,
   });
   if (profileError || configError) {
     await context.admin.auth.admin.deleteUser(data.user.id);
@@ -124,6 +137,7 @@ export async function PATCH(request: Request) {
     summary: profile.summary,
     bio: profile.bio,
     subjects: profile.subjects,
+    employment_type: profile.employmentType,
   });
   if (profileError || configError) return errorResponse('老师资料更新失败。', 500);
   return NextResponse.json({ updated: true });
