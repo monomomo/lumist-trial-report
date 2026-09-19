@@ -33,3 +33,12 @@ test('registration API uses server-only invite codes and privileged account crea
   assert.match(route, /email_confirm: true/);
   assert.match(route, /profileRole = role === 'management' \? 'admin' : 'sales'/);
 });
+
+test('management dashboard supports searching filtering sorting and pagination', async () => {
+  const dashboard = await readFile(new URL('../components/ManagementDashboard.tsx', import.meta.url), 'utf8');
+  assert.match(dashboard, /姓名、账号、职位或科目/);
+  assert.match(dashboard, /全部状态/);
+  assert.match(dashboard, /全部科目/);
+  assert.match(dashboard, /按展示名/);
+  assert.match(dashboard, /PAGE_SIZE/);
+});

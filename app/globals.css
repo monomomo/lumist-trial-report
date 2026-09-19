@@ -197,7 +197,12 @@ input {
 }
 
 .management-grid {
-  grid-template-columns: minmax(280px, 0.75fr) minmax(420px, 1.25fr);
+  grid-template-columns: minmax(420px, 1.15fr) minmax(380px, .85fr);
+  align-items: start;
+}
+
+.management-grid.directory-only {
+  grid-template-columns: 1fr;
 }
 
 .management-card {
@@ -215,20 +220,106 @@ input {
   font-size: 19px;
 }
 
+.teacher-directory-heading,
+.teacher-editor-heading,
+.teacher-list-title,
+.teacher-pagination {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.teacher-directory-heading h2,
+.teacher-editor-heading h2 {
+  margin-bottom: 4px;
+}
+
+.teacher-directory-heading p,
+.teacher-editor-heading p {
+  margin: 0;
+  font-size: 13px;
+}
+
+.teacher-editor-heading {
+  margin-bottom: 18px;
+}
+
+.teacher-editor-heading button,
+.teacher-filter-reset,
+.teacher-no-results button,
+.teacher-pagination button {
+  border: 1px solid #dfe3ec;
+  border-radius: 8px;
+  padding: 8px 12px;
+  background: #fff;
+  color: #51596a;
+  cursor: pointer;
+}
+
+.teacher-directory-toolbar {
+  display: grid;
+  grid-template-columns: minmax(180px, 1.5fr) repeat(3, minmax(120px, 1fr)) auto;
+  gap: 10px;
+  margin: 20px 0;
+  padding: 14px;
+  border-radius: 12px;
+  background: #f7f8fb;
+}
+
+.teacher-directory-toolbar label {
+  display: grid;
+  gap: 5px;
+  color: #687083;
+  font-size: 11px;
+  font-weight: 800;
+}
+
+.teacher-directory-toolbar input,
+.teacher-directory-toolbar select {
+  min-width: 0;
+  width: 100%;
+  height: 39px;
+  border: 1px solid #dfe3ec;
+  border-radius: 8px;
+  padding: 0 10px;
+  background: #fff;
+  color: #273044;
+  outline: none;
+}
+
+.teacher-directory-toolbar input:focus,
+.teacher-directory-toolbar select:focus {
+  border-color: #d2a900;
+  box-shadow: 0 0 0 3px rgba(255, 201, 40, .18);
+}
+
+.teacher-filter-reset {
+  align-self: end;
+  height: 39px;
+}
+
 .teacher-list {
   display: grid;
-  gap: 8px;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.management-grid:not(.directory-only) .teacher-list {
+  grid-template-columns: 1fr;
 }
 
 .teacher-list-item {
-  display: flex;
-  align-items: center;
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: start;
   gap: 12px;
   width: 100%;
-  padding: 12px;
-  border: 1px solid transparent;
-  border-radius: 10px;
-  background: #f7f8fb;
+  min-height: 112px;
+  padding: 14px;
+  border: 1px solid #e7e9ef;
+  border-radius: 12px;
+  background: #fff;
   color: #172033;
   text-align: left;
   cursor: pointer;
@@ -245,9 +336,22 @@ input {
   display: block;
 }
 
+.teacher-list-content {
+  min-width: 0;
+}
+
+.teacher-list-title strong {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .teacher-list-item small {
   margin-top: 4px;
   color: #7b8393;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .teacher-list-avatar {
@@ -259,6 +363,65 @@ input {
   background: #ffc928;
   color: #211b0b;
   font-weight: 900;
+}
+
+.teacher-status {
+  flex: none;
+  border-radius: 999px;
+  padding: 3px 7px;
+  font-size: 10px;
+  font-style: normal;
+  font-weight: 800;
+}
+
+.teacher-status.active {
+  background: #e8f6ee;
+  color: #23734a;
+}
+
+.teacher-status.inactive {
+  background: #f1f2f5;
+  color: #777e8d;
+}
+
+.teacher-subjects {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+  margin-top: 10px;
+}
+
+.teacher-subjects span {
+  border-radius: 999px;
+  padding: 3px 7px;
+  background: #f2f3f7;
+  color: #646c7e;
+  font-size: 10px;
+}
+
+.teacher-no-results {
+  display: grid;
+  justify-items: center;
+  padding: 48px 16px;
+  border: 1px dashed #d9dde6;
+  border-radius: 12px;
+  text-align: center;
+}
+
+.teacher-no-results p {
+  margin: 6px 0 14px;
+}
+
+.teacher-pagination {
+  justify-content: center;
+  margin-top: 20px;
+  color: #687083;
+  font-size: 12px;
+}
+
+.teacher-pagination button:disabled {
+  opacity: .45;
+  cursor: not-allowed;
 }
 
 .management-form {
@@ -360,6 +523,28 @@ input {
   .management-header,
   .management-grid {
     grid-template-columns: 1fr;
+  }
+
+  .teacher-directory-toolbar {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .teacher-search {
+    grid-column: 1 / -1;
+  }
+
+  .teacher-list {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 520px) {
+  .teacher-directory-toolbar {
+    grid-template-columns: 1fr;
+  }
+
+  .teacher-search {
+    grid-column: auto;
   }
 }
 

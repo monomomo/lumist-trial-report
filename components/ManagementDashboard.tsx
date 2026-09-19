@@ -1,6 +1,6 @@
 'use client';
 
-import { FormEvent, useEffect, useState } from 'react';
+import { FormEvent, useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { ChangePasswordDialog } from '@/components/ChangePasswordDialog';
 
@@ -16,6 +16,10 @@ type Teacher = {
   subjects: string[];
 };
 
+type StatusFilter = 'all' | 'active' | 'inactive';
+type SortOption = 'name' | 'username' | 'status';
+
+const PAGE_SIZE = 12;
 const emptyForm = { username: '', password: '', displayName: '', publicName: '', title: '', summary: '', bio: '', subjects: '' };
 
 export function ManagementDashboard({ username }: { username: string }) {
@@ -27,6 +31,11 @@ export function ManagementDashboard({ username }: { username: string }) {
   const [loading, setLoading] = useState(true);
   const [message, setMessage] = useState('');
   const [error, setError] = useState('');
+  const [query, setQuery] = useState('');
+  const [statusFilter, setStatusFilter] = useState<StatusFilter>('all');
+  const [subjectFilter, setSubjectFilter] = useState('all');
+  const [sortBy, setSortBy] = useState<SortOption>('name');
+  const [page, setPage] = useState(1);
 
   async function loadTeachers() {
     setLoading(true);
@@ -38,6 +47,29 @@ export function ManagementDashboard({ username }: { username: string }) {
   }
 
   useEffect(() => { void loadTeachers(); }, []);
+  useEffect(() => { setPage(1); }, [query, statusFilter, subjectFilter, sortBy]);
+
+  const subjectOptions = useMemo(() => Array.from(new Set(teachers.flatMap((teacher) => teacher.subjects).filter(Boolean))).sort((a, b) => a.localeCompare(b, 'zh-CN')), [teachers]);
+
+  const filteredTeachers = useMemo(() => {
+    const keyword = query.trim().toLocaleLowerCase();
+    return teachers.filter((teacher) => {
+      const matchesQuery = !keyword || [teacher.publicName, teacher.displayName, teacher.username, teacher.title, ...teacher.subjects].some((value) => value.toLocaleLowerCase().includes(keyword));
+      const matchesStatus = statusFilter === 'all' || (statusFilter === 'active' ? teacher.active : !teacher.active);
+      const matchesSubject = subjectFilter === 'all' || teacher.subjects.includes(subjectFilter);
+      return matchesQuery && matchesStatus && matchesSubject;
+    }).sort((a, b) => {
+      if (sortBy === 'username') return a.username.localeCompare(b.username, 'zh-CN');
+      if (sortBy === 'status') return Number(b.active) - Number(a.active) || a.publicName.localeCompare(b.publicName, 'zh-CN');
+      return a.publicName.localeCompare(b.publicName, 'zh-CN');
+    });
+  }, [teachers, query, statusFilter, subjectFilter, sortBy]);
+
+  const totalPages = Math.max(1, Math.ceil(filteredTeachers.length / PAGE_SIZE));
+  const currentPage = Math.min(page, totalPages);
+  const visibleTeachers = filteredTeachers.slice((currentPage - 1) * PAGE_SIZE, currentPage * PAGE_SIZE);
+  const hasFilters = Boolean(query || statusFilter !== 'all' || subjectFilter !== 'all' || sortBy !== 'name');
+  const editorOpen = creating || Boolean(selected);
 
   function startCreate() {
     setSelected(null);
@@ -59,6 +91,19 @@ export function ManagementDashboard({ username }: { username: string }) {
     setForm((current) => ({ ...current, [field]: value }));
   }
 
+  function closeEditor() {
+    setCreating(false);
+    setSelected(null);
+    setForm(emptyForm);
+  }
+
+  function resetFilters() {
+    setQuery('');
+    setStatusFilter('all');
+    setSubjectFilter('all');
+    setSortBy('name');
+  }
+
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setError('');
@@ -71,19 +116,7 @@ export function ManagementDashboard({ username }: { username: string }) {
       return;
     }
     setMessage(creating ? '老师账号已创建。' : '老师资料已更新。');
-    setCreating(false);
-    setSelected(null);
-    setForm(emptyForm);
-    await loadTeachers();
-  }
-
-  async function toggleActive(teacher: Teacher) {
-    const response = await fetch('/api/management/teachers', { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ teacherId: teacher.id, active: !teacher.active, displayName: teacher.displayName, publicName: teacher.publicName, title: teacher.title, summary: teacher.summary, bio: teacher.bio, subjects: teacher.subjects }) });
-    if (!response.ok) {
-      const result = await response.json();
-      setError(result.error || '账号状态更新失败。');
-      return;
-    }
+    closeEditor();
     await loadTeachers();
   }
 
@@ -93,5 +126,64 @@ export function ManagementDashboard({ username }: { username: string }) {
     router.refresh();
   }
 
-  return <main className="management-shell"><header className="workspace-topbar"><div><strong>路觅教育师资管理</strong><span>账号：{username} · 师资管理</span></div><div className="workspace-actions"><ChangePasswordDialog username={username} /><button type="button" onClick={signOut}>退出登录</button></div></header><section className="management-content"><div className="management-header"><div><span className="management-eyebrow">TEACHER MANAGEMENT</span><h1>老师信息管理</h1><p>创建老师账号，维护报告中展示的老师资料和账号状态。</p></div><button type="button" className="management-primary" onClick={startCreate}>创建老师账号</button></div>{message ? <div className="management-success">{message}</div> : null}{error ? <div className="management-error">{error}</div> : null}<div className="management-grid"><section className="management-card"><h2>老师列表</h2>{loading ? <p>正在读取老师列表…</p> : teachers.length ? <div className="teacher-list">{teachers.map((teacher) => <button type="button" className={`teacher-list-item${selected?.id === teacher.id ? ' selected' : ''}`} key={teacher.id} onClick={() => startEdit(teacher)}><span className="teacher-list-avatar">{teacher.publicName.slice(0, 1)}</span><span><strong>{teacher.publicName}</strong><small>{teacher.username} · {teacher.active ? '正常' : '已停用'}</small></span></button>)}</div> : <p>暂时没有老师账号。</p>}</section>{creating || selected ? <section className="management-card"><h2>{creating ? '创建老师账号' : '编辑老师资料'}</h2><form className="management-form" onSubmit={submit}><label>登录账号<input value={form.username} onChange={(event) => updateField('username', event.target.value)} disabled={!creating} required /></label>{creating ? <label>初始密码<input type="password" value={form.password} onChange={(event) => updateField('password', event.target.value)} minLength={6} required /></label> : null}<label>内部姓名<input value={form.displayName} onChange={(event) => updateField('displayName', event.target.value)} required /></label><label>报告展示名<input value={form.publicName} onChange={(event) => updateField('publicName', event.target.value)} required /></label><label>展示职位<input value={form.title} onChange={(event) => updateField('title', event.target.value)} /></label><label>简介摘要<textarea value={form.summary} onChange={(event) => updateField('summary', event.target.value)} rows={3} /></label><label>老师简介（每行一条）<textarea value={form.bio} onChange={(event) => updateField('bio', event.target.value)} rows={6} /></label><label>擅长科目（每行或逗号分隔）<textarea value={form.subjects} onChange={(event) => updateField('subjects', event.target.value)} rows={3} /></label>{!creating ? <label className="management-checkbox"><input type="checkbox" checked={selected?.active ?? false} onChange={(event) => setSelected((current) => current ? { ...current, active: event.target.checked } : current)} /> 账号启用</label> : null}<div className="management-actions"><button type="submit" className="management-primary">保存</button><button type="button" onClick={() => { setCreating(false); setSelected(null); setForm(emptyForm); }}>取消</button></div></form></section> : <section className="management-card management-empty"><h2>选择老师</h2><p>点击左侧老师查看和编辑资料，或创建新的老师账号。</p></section>}</div></section></main>;
+  return (
+    <main className="management-shell">
+      <header className="workspace-topbar">
+        <div><strong>路觅教育师资管理</strong><span>账号：{username} · 师资管理</span></div>
+        <div className="workspace-actions"><ChangePasswordDialog username={username} /><button type="button" onClick={signOut}>退出登录</button></div>
+      </header>
+      <section className="management-content">
+        <div className="management-header">
+          <div><span className="management-eyebrow">TEACHER MANAGEMENT</span><h1>老师信息管理</h1><p>快速查找老师，维护报告展示资料和账号状态。</p></div>
+          <button type="button" className="management-primary" onClick={startCreate}>创建老师账号</button>
+        </div>
+        {message ? <div className="management-success">{message}</div> : null}
+        {error ? <div className="management-error">{error}</div> : null}
+        <div className={`management-grid${editorOpen ? '' : ' directory-only'}`}>
+          <section className="management-card teacher-directory">
+            <div className="teacher-directory-heading"><div><h2>老师目录</h2><p>共 {teachers.length} 位老师，当前找到 {filteredTeachers.length} 位</p></div></div>
+            <div className="teacher-directory-toolbar">
+              <label className="teacher-search"><span>搜索</span><input type="search" value={query} onChange={(event) => setQuery(event.target.value)} placeholder="姓名、账号、职位或科目" /></label>
+              <label><span>账号状态</span><select value={statusFilter} onChange={(event) => setStatusFilter(event.target.value as StatusFilter)}><option value="all">全部状态</option><option value="active">正常</option><option value="inactive">已停用</option></select></label>
+              <label><span>擅长科目</span><select value={subjectFilter} onChange={(event) => setSubjectFilter(event.target.value)}><option value="all">全部科目</option>{subjectOptions.map((subject) => <option value={subject} key={subject}>{subject}</option>)}</select></label>
+              <label><span>排序</span><select value={sortBy} onChange={(event) => setSortBy(event.target.value as SortOption)}><option value="name">按展示名</option><option value="username">按账号</option><option value="status">启用优先</option></select></label>
+              {hasFilters ? <button type="button" className="teacher-filter-reset" onClick={resetFilters}>清除筛选</button> : null}
+            </div>
+            {loading ? <p>正在读取老师列表…</p> : visibleTeachers.length ? (
+              <div className="teacher-list">
+                {visibleTeachers.map((teacher) => (
+                  <button type="button" className={`teacher-list-item${selected?.id === teacher.id ? ' selected' : ''}`} key={teacher.id} onClick={() => startEdit(teacher)}>
+                    <span className="teacher-list-avatar">{(teacher.publicName || teacher.displayName || teacher.username).slice(0, 1)}</span>
+                    <span className="teacher-list-content">
+                      <span className="teacher-list-title"><strong>{teacher.publicName || teacher.displayName}</strong><em className={`teacher-status ${teacher.active ? 'active' : 'inactive'}`}>{teacher.active ? '正常' : '已停用'}</em></span>
+                      <small>{teacher.username}{teacher.title ? ` · ${teacher.title}` : ''}</small>
+                      <span className="teacher-subjects">{teacher.subjects.slice(0, 3).map((subject) => <span key={subject}>{subject}</span>)}{teacher.subjects.length > 3 ? <span>+{teacher.subjects.length - 3}</span> : null}{teacher.subjects.length === 0 ? <span>未填写科目</span> : null}</span>
+                    </span>
+                  </button>
+                ))}
+              </div>
+            ) : <div className="teacher-no-results"><strong>没有找到符合条件的老师</strong><p>可以调整搜索词或清除筛选条件。</p>{hasFilters ? <button type="button" onClick={resetFilters}>清除筛选</button> : null}</div>}
+            {!loading && filteredTeachers.length > PAGE_SIZE ? <div className="teacher-pagination"><button type="button" disabled={currentPage === 1} onClick={() => setPage((value) => Math.max(1, value - 1))}>上一页</button><span>第 {currentPage} / {totalPages} 页</span><button type="button" disabled={currentPage === totalPages} onClick={() => setPage((value) => Math.min(totalPages, value + 1))}>下一页</button></div> : null}
+          </section>
+          {editorOpen ? (
+            <section className="management-card teacher-editor">
+              <div className="teacher-editor-heading"><div><h2>{creating ? '创建老师账号' : '编辑老师资料'}</h2>{selected ? <p>{selected.publicName} · {selected.username}</p> : null}</div><button type="button" onClick={closeEditor}>关闭</button></div>
+              <form className="management-form" onSubmit={submit}>
+                <label>登录账号<input value={form.username} onChange={(event) => updateField('username', event.target.value)} disabled={!creating} required /></label>
+                {creating ? <label>初始密码<input type="password" value={form.password} onChange={(event) => updateField('password', event.target.value)} minLength={6} required /></label> : null}
+                <label>内部姓名<input value={form.displayName} onChange={(event) => updateField('displayName', event.target.value)} required /></label>
+                <label>报告展示名<input value={form.publicName} onChange={(event) => updateField('publicName', event.target.value)} required /></label>
+                <label>展示职位<input value={form.title} onChange={(event) => updateField('title', event.target.value)} /></label>
+                <label>简介摘要<textarea value={form.summary} onChange={(event) => updateField('summary', event.target.value)} rows={3} /></label>
+                <label>老师简介（每行一条）<textarea value={form.bio} onChange={(event) => updateField('bio', event.target.value)} rows={6} /></label>
+                <label>擅长科目（每行或逗号分隔）<textarea value={form.subjects} onChange={(event) => updateField('subjects', event.target.value)} rows={3} /></label>
+                {!creating ? <label className="management-checkbox"><input type="checkbox" checked={selected?.active ?? false} onChange={(event) => setSelected((current) => current ? { ...current, active: event.target.checked } : current)} /> 账号启用</label> : null}
+                <div className="management-actions"><button type="submit" className="management-primary">保存</button><button type="button" onClick={closeEditor}>取消</button></div>
+              </form>
+            </section>
+          ) : null}
+        </div>
+      </section>
+    </main>
+  );
 }
