@@ -51,6 +51,8 @@ test('management dashboard supports searching filtering sorting and pagination',
   assert.match(dashboard, /teacher-editor-backdrop/);
   assert.match(dashboard, /aria-modal="true"/);
   assert.match(dashboard, /event\.key === 'Escape'/);
+  assert.match(dashboard, /lumist-report-header-black\.png/);
+  assert.match(dashboard, /师资管理工作台/);
 });
 
 test('teacher sync stores the Chinese source name separately from the report name', async () => {

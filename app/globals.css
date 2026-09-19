@@ -159,6 +159,67 @@ input {
   background: #f3f5fa;
 }
 
+.management-topbar {
+  min-height: 72px;
+  padding: 0 28px;
+  border-bottom-color: #e5e7ed;
+  box-shadow: 0 5px 20px rgba(30, 43, 68, .05);
+}
+
+.management-brand {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  min-width: 0;
+}
+
+.management-brand .management-logo-wrap {
+  display: grid;
+  width: 166px;
+  height: 46px;
+  margin: 0;
+  place-items: center;
+  overflow: hidden;
+  border-radius: 10px;
+  background: #ffc928;
+}
+
+.management-brand .management-logo-wrap img {
+  display: block;
+  width: 154px;
+  height: auto;
+}
+
+.management-brand-copy {
+  display: grid;
+  gap: 2px;
+  margin: 0 !important;
+  padding-left: 14px;
+  border-left: 1px solid #dfe2e9;
+}
+
+.management-brand-copy strong {
+  color: #172033;
+  font-size: 14px;
+}
+
+.management-brand-copy small {
+  color: #8a91a0;
+  font-size: 9px;
+  font-weight: 800;
+  letter-spacing: 1.1px;
+  text-transform: uppercase;
+}
+
+.management-account {
+  margin-left: 4px !important;
+  padding: 5px 9px;
+  border-radius: 999px;
+  background: #f1f3f7;
+  color: #687083 !important;
+  white-space: nowrap;
+}
+
 .management-content {
   width: min(1180px, calc(100% - 48px));
   margin: 0 auto;
@@ -634,6 +695,25 @@ input {
 
   .teacher-list {
     grid-template-columns: 1fr;
+  }
+
+  .management-topbar {
+    min-height: 64px;
+    padding: 0 14px;
+  }
+
+  .management-brand .management-logo-wrap {
+    width: 132px;
+    height: 40px;
+  }
+
+  .management-brand .management-logo-wrap img {
+    width: 124px;
+  }
+
+  .management-brand-copy,
+  .management-account {
+    display: none;
   }
 }
 

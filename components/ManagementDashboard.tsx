@@ -177,8 +177,8 @@ export function ManagementDashboard({ username }: { username: string }) {
 
   return (
     <main className="management-shell">
-      <header className="workspace-topbar">
-        <div><strong>路觅教育师资管理</strong><span>账号：{username} · 师资管理</span></div>
+      <header className="workspace-topbar management-topbar">
+        <div className="management-brand"><span className="management-logo-wrap"><img src="/report/assets/lumist-report-header-black.png" alt="Lumi 路觅教育" /></span><span className="management-brand-copy"><strong>师资管理工作台</strong><small>Teacher Management</small></span><span className="management-account">账号：{username}</span></div>
         <div className="workspace-actions"><ChangePasswordDialog username={username} /><button type="button" onClick={signOut}>退出登录</button></div>
       </header>
       <section className="management-content">
