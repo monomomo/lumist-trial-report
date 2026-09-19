@@ -28,6 +28,10 @@ type EmploymentFilter = 'all' | 'full_time' | 'part_time' | 'unset';
 const PAGE_SIZE = 12;
 const emptyForm = { username: '', password: '', displayName: '', publicName: '', title: '', summary: '', bio: '', subjects: '', employmentType: '' };
 
+function chineseName(value: string) {
+  return value.match(/[\u3400-\u9fff]+/g)?.join('') || '';
+}
+
 export function ManagementDashboard({ username }: { username: string }) {
   const router = useRouter();
   const [teachers, setTeachers] = useState<Teacher[]>([]);
@@ -91,7 +95,7 @@ export function ManagementDashboard({ username }: { username: string }) {
   function startEdit(teacher: Teacher) {
     setSelected(teacher);
     setCreating(false);
-    setForm({ username: teacher.username, password: '', displayName: teacher.displayName, publicName: teacher.publicName, title: teacher.title, summary: teacher.summary, bio: teacher.bio.join('\n'), subjects: teacher.subjects.join('\n'), employmentType: teacher.employmentType || '' });
+    setForm({ username: teacher.username, password: '', displayName: chineseName(teacher.displayName), publicName: teacher.publicName, title: teacher.title, summary: teacher.summary, bio: teacher.bio.join('\n'), subjects: teacher.subjects.join('\n'), employmentType: teacher.employmentType || '' });
     setMessage('');
     setError('');
   }
@@ -188,7 +192,7 @@ export function ManagementDashboard({ username }: { username: string }) {
                     <span className="teacher-list-avatar">{(teacher.publicName || teacher.displayName || teacher.username).slice(0, 1)}</span>
                     <span className="teacher-list-content">
                       <span className="teacher-list-title"><strong>{teacher.publicName || teacher.displayName}</strong><em className={`teacher-status ${teacher.active ? 'active' : 'inactive'}`}>{teacher.active ? '正常' : '已停用'}</em></span>
-                      <small>中文姓名：{teacher.displayName} · 账号：{teacher.username}</small>
+                      <small>中文姓名：{chineseName(teacher.displayName) || '未填写'} · 账号：{teacher.username}</small>
                       <span className="teacher-card-meta"><span>{teacher.employmentType === 'full_time' ? '全职' : teacher.employmentType === 'part_time' ? '兼职' : '未设置类型'}</span>{teacher.title ? <span>{teacher.title}</span> : null}</span>
                       <span className="teacher-subjects">{teacher.subjects.slice(0, 3).map((subject) => <span key={subject}>{subject}</span>)}{teacher.subjects.length > 3 ? <span>+{teacher.subjects.length - 3}</span> : null}{teacher.subjects.length === 0 ? <span>未填写科目</span> : null}</span>
                     </span>

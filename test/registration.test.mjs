@@ -42,9 +42,16 @@ test('management dashboard supports searching filtering sorting and pagination',
   assert.match(dashboard, /按展示名/);
   assert.match(dashboard, /PAGE_SIZE/);
   assert.match(dashboard, /中文姓名/);
+  assert.match(dashboard, /chineseName\(teacher\.displayName\) \|\| '未填写'/);
   assert.match(dashboard, /全职/);
   assert.match(dashboard, /兼职/);
   assert.match(dashboard, /授课视频二维码/);
+});
+
+test('teacher sync stores the Chinese source name separately from the report name', async () => {
+  const source = await readFile(new URL('../scripts/sync-feishu-teachers.mjs', import.meta.url), 'utf8');
+  assert.match(source, /display_name: chineseName\(teacher\.name\)/);
+  assert.match(source, /public_name: profile\.publicName/);
 });
 
 test('management teacher assets are validated and stored privately', async () => {
