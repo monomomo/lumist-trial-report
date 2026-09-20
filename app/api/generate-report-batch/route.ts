@@ -11,6 +11,7 @@ import { buildSystemPrompt, buildUserInput } from '@/lib/subjects/prompt';
 import { buildLessonDurationSlots } from '@/lib/subjects/lesson-slots';
 import { parseModelResponse } from '@/lib/reports/model-response';
 import { applyClassroomFactGuard } from '@/lib/reports/classroom-fact-guard';
+import { normalizeOutlineResult, normalizeStageResult } from '@/lib/reports/batch-model-output';
 
 export const runtime = 'nodejs';
 export const maxDuration = 300;
@@ -125,20 +126,6 @@ async function requestStructuredOutput<T>(
   });
 }
 
-function normalizeStageResult(value: unknown) {
-  if (!value || typeof value !== 'object' || !('lessons' in value) || !Array.isArray(value.lessons)) return value;
-  return {
-    ...value,
-    lessons: value.lessons.map((lesson) => {
-      if (!lesson || typeof lesson !== 'object') return lesson;
-      return {
-        ...lesson,
-        unitCodes: 'unitCodes' in lesson && Array.isArray(lesson.unitCodes) ? lesson.unitCodes : [],
-      };
-    }),
-  };
-}
-
 function getAllowedUnitCodes(subjectCode: string, planningScenario: string, teacherNotes: string) {
   const syllabus = buildCalculusSyllabusPrompt(subjectCode, planningScenario, teacherNotes)
     || buildApFrameworkPrompt(subjectCode);
@@ -203,7 +190,7 @@ export async function POST(request: Request) {
       const userPrompt = `${buildUserInput(context.subject, context.promptData)}
 
 请返回摘要字段、coursePlan.rationale，以及只含 title、description、lessonCount 的阶段数组。`;
-      const outline = await requestStructuredOutput(client, outlineSchema, 'trial_report_outline', systemPrompt, userPrompt, 9000);
+      const outline = await requestStructuredOutput(client, outlineSchema, 'trial_report_outline', systemPrompt, userPrompt, 9000, normalizeOutlineResult);
       if (!outline) return jsonError('EMPTY_MODEL_OUTPUT', 502, 'AI 没有返回可用的阶段规划。');
       const guardedOutline = applyClassroomFactGuard(outline, context.subject.displayName, parsed.data.teacherNotes);
       const plannedCount = guardedOutline.stages.reduce((total, stage) => total + stage.lessonCount, 0);
@@ -244,7 +231,7 @@ ${JSON.stringify({
     }, null, 2)}
 
 只返回 lessons 数组。每个 lesson 必须包含 theme、content、difficulty、goal、unitCodes，并保持相邻课次内容递进且不重复。`;
-    const stageResult = await requestStructuredOutput(client, stageResultSchema, 'trial_report_stage', systemPrompt, userPrompt, 8000, normalizeStageResult);
+    const stageResult = await requestStructuredOutput(client, stageResultSchema, 'trial_report_stage', systemPrompt, userPrompt, 8000, (value) => normalizeStageResult(value, allowedUnitCodes));
     if (!stageResult) return jsonError('EMPTY_MODEL_OUTPUT', 502, 'AI 没有返回可用的阶段课次。');
     if (stageResult.lessons.length !== parsed.data.stage.lessonCount) {
       return jsonError('STAGE_LESSON_COUNT_MISMATCH', 422, `当前阶段应生成 ${parsed.data.stage.lessonCount} 个课次，AI 实际返回 ${stageResult.lessons.length} 个。`);
