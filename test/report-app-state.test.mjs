@@ -286,7 +286,7 @@ test('AI-led reports generate an exact course plan in validated stage batches', 
   const routeSource = await readFile(new URL('../app/api/generate-report-batch/route.ts', import.meta.url), 'utf8');
   assert.match(appSource, /operation: 'outline'/);
   assert.match(appSource, /operation: 'stage'/);
-  assert.match(appSource, /Math\.min\(2, stages\.length\)/);
+  assert.match(appSource, /Math\.min\(2, pendingStageIndexes\.length\)/);
   assert.match(appSource, /retryGenerationStep[\s\S]*STAGE_LESSON_COUNT_MISMATCH/);
   assert.match(routeSource, /plannedCount !== context\.lessonDurations\.length/);
   assert.match(routeSource, /stageResult\.lessons\.length !== parsed\.data\.stage\.lessonCount/);

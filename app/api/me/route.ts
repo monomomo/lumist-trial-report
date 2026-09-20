@@ -18,5 +18,5 @@ export async function GET() {
     return NextResponse.json({ error: 'PROFILE_NOT_FOUND' }, { status: 404 });
   }
 
-  return NextResponse.json(profile);
+  return NextResponse.json({ ...profile, accountId: auth.user!.id });
 }

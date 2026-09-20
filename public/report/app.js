@@ -5,6 +5,7 @@ import { SUMMARY_FIELD_RULES, cloneReportSummary, validateReportSummary } from '
 import { buildGenerationChecklist, buildReportQualityChecks, humanizeReportWarning } from './report-quality-utils.js';
 import { PLANNING_SCENARIOS, MAX_PLANNING_FOCUS_AREAS, getPlanningFocusOptions, normalizePlanningFocusAreas, resolvePlanningScenario, getLessonCountRange } from './planning-context.js';
 import { detectInputConflicts } from './input-conflict-utils.js';
+import { FORM_DRAFT_TTL_MS, GENERATION_CHECKPOINT_TTL_MS, createExpiringRecord, readFreshRecord, createGenerationFingerprint, normalizeGeneratedStages, getPendingStageIndexes, countCompletedStages } from './generation-recovery.js';
 
 const $ = (selector) => document.querySelector(selector);
 const setText = (selector, value) => { $(selector).textContent = value; };
@@ -87,7 +88,12 @@ let uploadedCoursePlan = null;
 let uploadedCoursePlanConfirmed = false;
 let selectedCoursePlanFile = null;
 let coursePlanParseVersion = 0;
+let recoveryStorageScope = '';
+let formDraftSaveTimer = null;
+let formHasUserInput = false;
 const UPLOAD_REPORT_NOTE = '老师已上传并确认完整课程规划，本报告仅对老师提供的原规划进行结构化整理与排版。';
+const FORM_DRAFT_STORAGE_KEY = 'lumist-report-form-draft-v1';
+const GENERATION_CHECKPOINT_STORAGE_KEY = 'lumist-report-generation-checkpoint-v1';
 
 function populateSubjectSelect() {
   const select = $('#subject-select');
@@ -243,16 +249,18 @@ let teacherProfile = null;
 async function loadTeacherProfile() {
   try {
     const response = await fetch('/api/me');
-    if (!response.ok) return;
+    if (!response.ok) return false;
     const data = await response.json();
+    recoveryStorageScope = typeof data.accountId === 'string' ? data.accountId : '';
     teacherProfile = normalizeTeacherProfile(data);
     if (teacherProfile) {
       renderSidebarTeacher();
       renderTeacherProfile();
       setText('#info-teacher', getActiveTeacherProfile().displayName);
     }
+    return Boolean(recoveryStorageScope);
   } catch {
-    // 静默忽略，保持默认占位
+    return false;
   }
 }
 
@@ -1137,6 +1145,148 @@ function collectFormData() {
   };
 }
 
+function getRecoveryStorageKey(baseKey) {
+  return recoveryStorageScope ? `${baseKey}:${recoveryStorageScope}` : '';
+}
+
+function readRecoveryRecord(baseKey) {
+  const storageKey = getRecoveryStorageKey(baseKey);
+  if (!storageKey) return null;
+  try {
+    const serialized = window.localStorage.getItem(storageKey);
+    const record = readFreshRecord(serialized, Date.now());
+    if (!record && serialized) window.localStorage.removeItem(storageKey);
+    return record;
+  } catch {
+    return null;
+  }
+}
+
+function writeRecoveryRecord(baseKey, payload, ttl) {
+  const storageKey = getRecoveryStorageKey(baseKey);
+  if (!storageKey) return false;
+  try {
+    window.localStorage.setItem(storageKey, JSON.stringify(createExpiringRecord(payload, Date.now(), ttl)));
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+function clearRecoveryRecord(baseKey) {
+  const storageKey = getRecoveryStorageKey(baseKey);
+  if (!storageKey) return;
+  try {
+    window.localStorage.removeItem(storageKey);
+  } catch {
+    return;
+  }
+}
+
+function collectFormDraft() {
+  return {
+    planningSource,
+    subjectCode: currentSubjectCode,
+    studentName: $('#student-name').value,
+    currentScore: $('#current-score').value,
+    targetScore: $('#target-score').value,
+    examDate: getSelectedExamDate(),
+    totalHours: $('#total-hours').value,
+    lessonCount: $('#lesson-count').value,
+    planningScenario: $('#planning-scenario').value,
+    planningFocusAreas: getSelectedPlanningFocusAreas(),
+    includeExamTraining: $('#include-exam-training').checked,
+    teacherNotes: $('#teacher-notes').value,
+  };
+}
+
+function saveFormDraft() {
+  if (planningSource !== 'ai') return;
+  if (writeRecoveryRecord(FORM_DRAFT_STORAGE_KEY, collectFormDraft(), FORM_DRAFT_TTL_MS)) {
+    $('#draft-status').textContent = '草稿已自动保存';
+  }
+}
+
+function scheduleFormDraftSave() {
+  formHasUserInput = true;
+  window.clearTimeout(formDraftSaveTimer);
+  formDraftSaveTimer = window.setTimeout(saveFormDraft, 400);
+}
+
+function applySavedFormData(data) {
+  if (!data || typeof data !== 'object') return false;
+  const subjectCode = SUBJECT_CODES.includes(data.subjectCode) ? data.subjectCode : currentSubjectCode;
+  applySubjectSelection(subjectCode);
+  setPlanningSource('ai');
+  $('#student-name').value = String(data.studentName || '');
+  $('#current-score').value = String(data.currentScore || '');
+  $('#target-score').value = String(data.targetScore || '');
+  $('#total-hours').value = String(data.totalHours || '');
+  $('#lesson-count').value = String(data.lessonCount || '');
+  $('#planning-scenario').value = resolvePlanningScenario(data.planningScenario);
+  $('#include-exam-training').checked = data.includeExamTraining === true;
+  $('#teacher-notes').value = String(data.teacherNotes || '');
+  renderPlanningFocusOptions(Array.isArray(data.planningFocusAreas) ? data.planningFocusAreas : []);
+  if (subjectCode.startsWith('ap_')) {
+    const examDate = String(data.examDate || '');
+    if (examDate && !Array.from($('#ap-exam-date').options).some((option) => option.value === examDate)) {
+      $('#ap-exam-date').add(new Option(`${examDate} AP 考试`, examDate));
+    }
+    $('#ap-exam-date').value = examDate;
+  } else {
+    $('#exam-date').value = String(data.examDate || '');
+  }
+  updateLessonCountHint();
+  return true;
+}
+
+function loadGenerationCheckpoint(commonPayload) {
+  const record = readRecoveryRecord(GENERATION_CHECKPOINT_STORAGE_KEY);
+  const checkpoint = record?.payload;
+  if (!checkpoint || checkpoint.fingerprint !== createGenerationFingerprint(commonPayload)) return null;
+  const stages = checkpoint.outlineResult?.outline?.stages;
+  if (!Array.isArray(stages) || stages.length < 1) return null;
+  return {
+    ...checkpoint,
+    generatedStages: normalizeGeneratedStages(checkpoint.generatedStages, stages.length),
+  };
+}
+
+function saveGenerationCheckpoint(commonPayload, outlineResult, generatedStages) {
+  writeRecoveryRecord(GENERATION_CHECKPOINT_STORAGE_KEY, {
+    fingerprint: createGenerationFingerprint(commonPayload),
+    commonPayload,
+    outlineResult,
+    generatedStages,
+  }, GENERATION_CHECKPOINT_TTL_MS);
+}
+
+function clearGenerationRecovery() {
+  clearRecoveryRecord(GENERATION_CHECKPOINT_STORAGE_KEY);
+  clearRecoveryRecord(FORM_DRAFT_STORAGE_KEY);
+  window.clearTimeout(formDraftSaveTimer);
+  $('#draft-status').textContent = '草稿自动保存';
+}
+
+function restoreGenerationRecovery() {
+  const formRecord = readRecoveryRecord(FORM_DRAFT_STORAGE_KEY);
+  const checkpointRecord = readRecoveryRecord(GENERATION_CHECKPOINT_STORAGE_KEY);
+  let restored = false;
+  if (formRecord?.payload?.planningSource === 'ai') restored = applySavedFormData(formRecord.payload);
+  if (!restored && checkpointRecord?.payload?.commonPayload) restored = applySavedFormData(checkpointRecord.payload.commonPayload);
+  if (!restored) return;
+  $('#draft-status').textContent = '已恢复上次草稿';
+  const commonPayload = { ...collectFormData(), subjectCode: currentSubjectCode };
+  const checkpoint = loadGenerationCheckpoint(commonPayload);
+  if (checkpoint) {
+    const completed = countCompletedStages(checkpoint.generatedStages);
+    const total = checkpoint.outlineResult.outline.stages.length;
+    $('#generation-notice').innerHTML = `<strong>检测到未完成的生成：</strong>已保留 ${completed}/${total} 个阶段。确认信息后再次生成，将只继续缺失阶段。`;
+  } else {
+    $('#generation-notice').innerHTML = '<strong>已恢复草稿：</strong>请确认信息后继续生成。草稿会在成功生成后自动清除。';
+  }
+}
+
 function setPlanningSource(value) {
   planningSource = value === 'upload' ? 'upload' : 'ai';
   document.querySelectorAll('[name="planning-source"]').forEach((input) => { input.checked = input.value === planningSource; });
@@ -1586,54 +1736,88 @@ async function generateAiReport() {
     ...formData,
     subjectCode: currentSubjectCode,
   };
-  const outlineResult = await retryGenerationStep(
-    () => requestGeneratedJson('/api/generate-report-batch', { ...commonPayload, operation: 'outline' }),
-    2,
-  );
+  let checkpoint = loadGenerationCheckpoint(commonPayload);
+  let outlineResult = checkpoint?.outlineResult;
+  if (!outlineResult) {
+    clearRecoveryRecord(GENERATION_CHECKPOINT_STORAGE_KEY);
+    outlineResult = await retryGenerationStep(
+      () => requestGeneratedJson('/api/generate-report-batch', { ...commonPayload, operation: 'outline' }),
+      2,
+      (attempt, attempts) => {
+        $('#generation-notice').innerHTML = `<strong>正在生成阶段规划：</strong>AI 请求 ${attempt}/${attempts}。完成后会自动保存进度。`;
+      },
+    );
+    checkpoint = null;
+  }
   const outline = outlineResult.outline;
   const stages = outline.stages;
-  let completedStages = 0;
+  const generatedStages = checkpoint
+    ? normalizeGeneratedStages(checkpoint.generatedStages, stages.length)
+    : new Array(stages.length);
+  let completedStages = countCompletedStages(generatedStages);
+  const pendingStageIndexes = getPendingStageIndexes(generatedStages);
   let stageCursor = 0;
-  const generatedStages = new Array(stages.length);
+  const activeStageAttempts = new Map();
+  saveGenerationCheckpoint(commonPayload, outlineResult, generatedStages);
   const updateProgress = () => {
-    $('#generation-notice').innerHTML = `<strong>正在分批生成：</strong>阶段规划已完成，正在生成详细课次（${completedStages}/${stages.length} 个阶段）。请不要关闭页面。`;
+    const activeText = [...activeStageAttempts.entries()]
+      .map(([stageIndex, attempt]) => `第 ${stageIndex + 1} 阶段${attempt > 1 ? `（第 ${attempt}/3 次尝试）` : ''}`)
+      .join('、');
+    const status = activeText ? `当前：${activeText}。` : '';
+    $('#generation-notice').innerHTML = `<strong>正在分批生成：</strong>已完成 ${completedStages}/${stages.length} 个阶段。${status}若页面刷新，再次生成会从已完成阶段继续。`;
   };
   updateProgress();
   const worker = async () => {
-    while (stageCursor < stages.length) {
-      const stageIndex = stageCursor;
+    while (stageCursor < pendingStageIndexes.length) {
+      const stageIndex = pendingStageIndexes[stageCursor];
       stageCursor += 1;
       const stage = stages[stageIndex];
-      const stageResult = await retryGenerationStep(
-        () => requestGeneratedJson('/api/generate-report-batch', {
-          ...commonPayload,
-          operation: 'stage',
-          stage: {
-            title: stage.title,
-            description: stage.description,
-            lessonCount: stage.lessonCount,
+      let stageResult;
+      try {
+        stageResult = await retryGenerationStep(
+          () => requestGeneratedJson('/api/generate-report-batch', {
+            ...commonPayload,
+            operation: 'stage',
+            stage: {
+              title: stage.title,
+              description: stage.description,
+              lessonCount: stage.lessonCount,
+            },
+            stageIndex,
+            stageCount: stages.length,
+            startLessonNumber: stage.startLessonNumber,
+            durations: stage.durations,
+            previousStageTitle: stages[stageIndex - 1]?.title || '',
+            nextStageTitle: stages[stageIndex + 1]?.title || '',
+          }),
+          3,
+          (attempt) => {
+            activeStageAttempts.set(stageIndex, attempt);
+            updateProgress();
           },
-          stageIndex,
-          stageCount: stages.length,
-          startLessonNumber: stage.startLessonNumber,
-          durations: stage.durations,
-          previousStageTitle: stages[stageIndex - 1]?.title || '',
-          nextStageTitle: stages[stageIndex + 1]?.title || '',
-        }),
-        3,
-      );
+        );
+      } catch (error) {
+        activeStageAttempts.delete(stageIndex);
+        updateProgress();
+        throw error;
+      }
       generatedStages[stageIndex] = {
         title: stage.title,
         description: stage.description,
         lessons: stageResult.lessons,
       };
+      activeStageAttempts.delete(stageIndex);
       completedStages += 1;
+      saveGenerationCheckpoint(commonPayload, outlineResult, generatedStages);
       updateProgress();
     }
   };
-  await Promise.all(Array.from({ length: Math.min(2, stages.length) }, () => worker()));
+  const workerResults = await Promise.allSettled(Array.from({ length: Math.min(2, pendingStageIndexes.length) }, () => worker()));
+  const failedWorker = workerResults.find((result) => result.status === 'rejected');
+  if (failedWorker) throw failedWorker.reason;
   const generatedLessonCount = generatedStages.reduce((total, stage) => total + stage.lessons.length, 0);
   if (generatedLessonCount !== Number(formData.lessonCount)) {
+    saveGenerationCheckpoint(commonPayload, outlineResult, new Array(stages.length));
     const error = new Error('STAGE_LESSON_COUNT_MISMATCH');
     error.reason = `完整规划应包含 ${formData.lessonCount} 个课次，实际生成 ${generatedLessonCount} 个。`;
     error.suggestion = '请重新生成；系统不会再用占位课次补齐。';
@@ -1645,6 +1829,7 @@ async function generateAiReport() {
     const examTrainingHours = examLessons.reduce((total, lesson) => total + Number(lesson.duration || 0), 0);
     const minimumExamTrainingHours = Number(formData.totalHours) * 0.2;
     if (examTrainingHours + 0.001 < minimumExamTrainingHours) {
+      saveGenerationCheckpoint(commonPayload, outlineResult, new Array(stages.length));
       const error = new Error('EXAM_TRAINING_LESSON_COUNT_MISMATCH');
       error.reason = `已勾选考试训练，但规划中只有 ${examTrainingHours}h 考试训练，至少需要 ${minimumExamTrainingHours}h。`;
       error.suggestion = '请重新生成，系统会补充 MCQ、FRQ、模考或错题讲评安排。';
@@ -1710,10 +1895,11 @@ async function requestGeneratedJson(path, payload) {
   return result;
 }
 
-async function retryGenerationStep(task, attempts) {
+async function retryGenerationStep(task, attempts, onAttempt = () => {}) {
   let lastError;
   for (let attempt = 1; attempt <= attempts; attempt += 1) {
     try {
+      onAttempt(attempt, attempts);
       return await task();
     } catch (error) {
       lastError = error;
@@ -1742,9 +1928,9 @@ $('#report-form').addEventListener('submit', async (event) => {
   button.disabled = true;
   button.textContent = planningSource === 'upload' ? '正在生成课程规划报告…' : 'AI 正在分析并生成课程规划…';
   notice.classList.remove('error');
-    notice.innerHTML = planningSource === 'upload'
-      ? '<strong>正在生成：</strong>课程规划已锁定，系统正在整理完整报告，请不要重复提交或关闭页面。'
-      : '<strong>正在生成：</strong>通常需要 30–90 秒，详细课时规划可能更久，请不要重复提交或关闭页面。';
+  notice.innerHTML = planningSource === 'upload'
+    ? '<strong>正在生成：</strong>课程规划已锁定，系统正在整理完整报告，请不要重复提交或关闭页面。'
+    : '<strong>正在生成：</strong>通常需要 30–90 秒。每个完成阶段都会自动保存，刷新后可以继续。';
   try {
     currentReportData = await generateAiReport();
     currentReportId = null;
@@ -1757,7 +1943,8 @@ $('#report-form').addEventListener('submit', async (event) => {
     changeView('report');
     document.querySelector('#report-view .eyebrow').textContent = 'AI 报告已生成 · 未云端保存';
     $('#save-report').textContent = '保存报告';
-    await saveReport({ automatic: true });
+    const reportSaved = await saveReport({ automatic: true });
+    if (planningSource === 'ai' && reportSaved) clearGenerationRecovery();
     notice.innerHTML = planningSource === 'upload'
       ? '<strong>上传模式：</strong>课程规划来自老师确认的上传文件，系统未改动课次、顺序和时长。'
       : '<strong>生成原则：</strong>总课时由老师决定，AI 仅负责规划内容与课时分配。';
@@ -1787,7 +1974,13 @@ $('#report-form').addEventListener('submit', async (event) => {
     const reason = error.reason || messages[error.message] || `报告渲染异常（${error.message || 'UNKNOWN_ERROR'}），请重试。`;
     const suggestion = error.suggestion ? `<br><span>建议：${escapeHtml(error.suggestion)}</span>` : '';
     const reference = error.requestId ? ` <span>参考编号：${escapeHtml(error.requestId)}</span>` : '';
-    notice.innerHTML = `<strong>生成失败：</strong>${escapeHtml(reason)}${suggestion}${reference}`;
+    const checkpoint = planningSource === 'ai'
+      ? loadGenerationCheckpoint({ ...collectFormData(), subjectCode: currentSubjectCode })
+      : null;
+    const recovery = checkpoint
+      ? `<br><span>已保存 ${countCompletedStages(checkpoint.generatedStages)}/${checkpoint.outlineResult.outline.stages.length} 个阶段，再次点击生成只会继续缺失阶段。</span>`
+      : '';
+    notice.innerHTML = `<strong>生成失败：</strong>${escapeHtml(reason)}${suggestion}${reference}${recovery}`;
   } finally {
     button.disabled = false;
     button.innerHTML = planningSource === 'upload' ? '生成课程规划报告 <span>→</span>' : 'AI 生成个性化报告 <span>→</span>';
@@ -1797,6 +1990,7 @@ document.querySelectorAll('[data-scenario-sample]').forEach((button) => button.a
   const scenario = resolvePlanningScenario(button.dataset.scenarioSample);
   $('#planning-scenario').value = scenario;
   $('#teacher-notes').value = PLANNING_SCENARIOS[scenario].sample;
+  scheduleFormDraftSave();
 }));
 $('#subject-search').addEventListener('focus', (event) => {
   event.target.select();
@@ -1873,6 +2067,8 @@ $('#lesson-count').addEventListener('input', (event) => {
 });
 $('#planning-focus-options').addEventListener('change', updatePlanningFocusState);
 document.querySelectorAll('[name="planning-source"]').forEach((input) => input.addEventListener('change', (event) => setPlanningSource(event.target.value)));
+$('#report-form').addEventListener('input', scheduleFormDraftSave);
+$('#report-form').addEventListener('change', scheduleFormDraftSave);
 $('#course-plan-file').addEventListener('change', (event) => selectCoursePlanFile(event.target.files[0]));
 ['dragenter', 'dragover'].forEach((eventName) => $('#course-plan-dropzone').addEventListener(eventName, (event) => {
   event.preventDefault();
@@ -2142,13 +2338,25 @@ document.querySelectorAll('.tab').forEach((tab) => tab.addEventListener('click',
 $('#copy-script').addEventListener('click', async () => { await navigator.clipboard.writeText($('#sales-script').textContent); $('#copy-script').textContent = '已复制'; setTimeout(() => { $('#copy-script').textContent = '复制话术'; }, 1200); });
 const defaultCoursePlan = getDefaultCoursePlan();
 
-// 初始化
-populateSubjectSelect();
-loadTeacherProfile();
-const initialData = collectFormData();
-currentReportData = buildFallbackReport(currentSubjectCode, initialData);
-originalAiCoursePlan = cloneCoursePlan(currentReportData.coursePlan);
-mountTeacherWorkspaceEditors();
-renderReport(currentReportData);
-initializeWorkspaceEditors();
-setReportDisplayMode('workspace');
+function initializeApp() {
+  populateSubjectSelect();
+  const initialData = collectFormData();
+  currentReportData = buildFallbackReport(currentSubjectCode, initialData);
+  originalAiCoursePlan = cloneCoursePlan(currentReportData.coursePlan);
+  mountTeacherWorkspaceEditors();
+  renderReport(currentReportData);
+  initializeWorkspaceEditors();
+  setReportDisplayMode('workspace');
+  loadTeacherProfile().then(() => {
+    if (formHasUserInput) {
+      saveFormDraft();
+      return;
+    }
+    restoreGenerationRecovery();
+    currentReportData = buildFallbackReport(currentSubjectCode, collectFormData());
+    originalAiCoursePlan = cloneCoursePlan(currentReportData.coursePlan);
+    renderReport(currentReportData);
+  });
+}
+
+initializeApp();
