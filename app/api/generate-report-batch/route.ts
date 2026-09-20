@@ -51,10 +51,10 @@ const outlineSchema = z.object({
 });
 
 const lessonSchema = z.object({
-  theme: z.string().min(2).max(36),
-  content: z.string().min(8).max(105),
-  difficulty: z.string().min(8).max(105),
-  goal: z.string().min(8).max(80),
+  theme: z.string().trim().min(2).max(80),
+  content: z.string().trim().min(8).max(300),
+  difficulty: z.string().trim().min(8).max(300),
+  goal: z.string().trim().min(8).max(200),
   unitCodes: z.array(z.string().min(1).max(30)).max(10),
 });
 
@@ -95,6 +95,7 @@ async function requestStructuredOutput<T>(
   systemPrompt: string,
   userPrompt: string,
   maxOutputTokens: number,
+  normalizeValue: (value: unknown) => unknown = (value) => value,
 ) {
   const payload = {
     model: process.env.OPENAI_MODEL || 'gpt-5-mini',
@@ -109,10 +110,33 @@ async function requestStructuredOutput<T>(
   const response = process.env.OPENAI_BASE_URL?.includes('api.deepseek.com')
     ? await client.responses.create(payload)
     : await client.responses.parse(payload);
-  return parseModelResponse(response, (value) => {
-    const parsed = schema.safeParse(value);
+  const modelResponse = response as typeof response & { output_parsed?: unknown; output_text?: string };
+  return parseModelResponse(modelResponse, (value) => {
+    const parsed = schema.safeParse(normalizeValue(value));
+    if (!parsed.success) {
+      console.error('AI structured output validation failed', {
+        schemaName,
+        issues: parsed.error.issues.map((issue) => ({ code: issue.code, path: issue.path.join('.') })),
+        hasOutputParsed: modelResponse.output_parsed !== undefined && modelResponse.output_parsed !== null,
+        outputTextLength: modelResponse.output_text?.length || 0,
+      });
+    }
     return parsed.success ? parsed.data : null;
   });
+}
+
+function normalizeStageResult(value: unknown) {
+  if (!value || typeof value !== 'object' || !('lessons' in value) || !Array.isArray(value.lessons)) return value;
+  return {
+    ...value,
+    lessons: value.lessons.map((lesson) => {
+      if (!lesson || typeof lesson !== 'object') return lesson;
+      return {
+        ...lesson,
+        unitCodes: 'unitCodes' in lesson && Array.isArray(lesson.unitCodes) ? lesson.unitCodes : [],
+      };
+    }),
+  };
 }
 
 function getAllowedUnitCodes(subjectCode: string, planningScenario: string, teacherNotes: string) {
@@ -220,17 +244,24 @@ ${JSON.stringify({
     }, null, 2)}
 
 只返回 lessons 数组。每个 lesson 必须包含 theme、content、difficulty、goal、unitCodes，并保持相邻课次内容递进且不重复。`;
-    const stageResult = await requestStructuredOutput(client, stageResultSchema, 'trial_report_stage', systemPrompt, userPrompt, 8000);
+    const stageResult = await requestStructuredOutput(client, stageResultSchema, 'trial_report_stage', systemPrompt, userPrompt, 8000, normalizeStageResult);
     if (!stageResult) return jsonError('EMPTY_MODEL_OUTPUT', 502, 'AI 没有返回可用的阶段课次。');
     if (stageResult.lessons.length !== parsed.data.stage.lessonCount) {
       return jsonError('STAGE_LESSON_COUNT_MISMATCH', 422, `当前阶段应生成 ${parsed.data.stage.lessonCount} 个课次，AI 实际返回 ${stageResult.lessons.length} 个。`);
     }
-    const invalidUnitCode = stageResult.lessons.flatMap((lesson) => lesson.unitCodes).find((code) => !allowedUnitCodes.includes(code));
-    if (invalidUnitCode || (context.subject.code.startsWith('ap_') && stageResult.lessons.some((lesson) => lesson.unitCodes.length === 0))) {
+    const isApSubject = context.subject.code.startsWith('ap_');
+    const invalidUnitCode = isApSubject
+      ? stageResult.lessons.flatMap((lesson) => lesson.unitCodes).find((code) => !allowedUnitCodes.includes(code))
+      : undefined;
+    if (invalidUnitCode || (isApSubject && stageResult.lessons.some((lesson) => lesson.unitCodes.length === 0))) {
       return jsonError('INVALID_UNIT_CODE', 422, '当前阶段包含无效或缺失的 AP Unit 编码。');
     }
     const durations = parsed.data.durations;
-    const lessons = stageResult.lessons.map((lesson, index) => ({ ...lesson, duration: durations[index] }));
+    const lessons = stageResult.lessons.map((lesson, index) => ({
+      ...lesson,
+      unitCodes: isApSubject ? lesson.unitCodes : [],
+      duration: durations[index],
+    }));
     return NextResponse.json({ lessons });
   } catch (error) {
     return jsonError('AI_GENERATION_FAILED', 502, error instanceof Error && error.name === 'APIConnectionTimeoutError' ? 'AI 服务本次响应超时。' : 'AI 服务本次没有完成生成。');

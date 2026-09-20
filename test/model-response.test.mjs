@@ -30,3 +30,22 @@ test('model response accepts a fenced JSON payload and rejects invalid content',
   assert.equal(parseModelResponse({ output_text: 'not json' }, validate), null);
   assert.equal(parseModelResponse({ output_text: '{"missing":"overview"}' }, validate), null);
 });
+
+test('model response extracts JSON surrounded by explanatory text', () => {
+  const output = parseModelResponse({
+    output_text: '以下是生成结果：\n{"overview":"raw"}\n生成完毕。',
+  }, validate);
+
+  assert.deepEqual(output, { overview: 'raw' });
+});
+
+test('model response does not validate an absent parsed result before raw text', () => {
+  let validationCount = 0;
+  const output = parseModelResponse({ output_text: '{"overview":"raw"}' }, (value) => {
+    validationCount += 1;
+    return validate(value);
+  });
+
+  assert.deepEqual(output, { overview: 'raw' });
+  assert.equal(validationCount, 1);
+});
