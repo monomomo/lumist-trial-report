@@ -4,6 +4,7 @@ import { createSubjectViewModel, normalizeTeacherProfile, buildFallbackReport, r
 import { SUMMARY_FIELD_RULES, cloneReportSummary, validateReportSummary } from './summary-editor-utils.js';
 import { buildGenerationChecklist, buildReportQualityChecks, humanizeReportWarning } from './report-quality-utils.js';
 import { PLANNING_SCENARIOS, MAX_PLANNING_FOCUS_AREAS, getPlanningFocusOptions, normalizePlanningFocusAreas, resolvePlanningScenario, getLessonCountRange } from './planning-context.js';
+import { detectInputConflicts } from './input-conflict-utils.js';
 
 const $ = (selector) => document.querySelector(selector);
 const setText = (selector, value) => { $(selector).textContent = value; };
@@ -1363,6 +1364,20 @@ function getGenerationChecklistItems() {
   ];
 }
 
+function getGenerationInputConflicts() {
+  if (planningSource === 'upload') return [];
+  const formData = collectFormData();
+  return detectInputConflicts({
+    teacherNotes: formData.teacherNotes,
+    currentScore: formData.currentScore,
+    targetScore: formData.targetScore,
+    examDate: formData.examDate,
+    totalHours: formData.totalHours,
+    lessonCount: formData.lessonCount,
+    includeExamTraining: formData.includeExamTraining,
+  });
+}
+
 function closeGenerationChecklist(confirmed) {
   $('#generation-checklist-modal').classList.add('hidden');
   document.body.classList.remove('modal-open');
@@ -1374,7 +1389,16 @@ function closeGenerationChecklist(confirmed) {
 function openGenerationChecklist() {
   if (generationChecklistResolver) closeGenerationChecklist(false);
   const items = getGenerationChecklistItems();
-  $('#generation-checklist-content').innerHTML = items.map((item) => `<div class="generation-checklist-item ${escapeHtml(item.status)}"><span>${escapeHtml(item.label)}</span><b>${escapeHtml(item.value)}</b></div>`).join('');
+  const conflicts = getGenerationInputConflicts();
+  $('#generation-conflict-summary').classList.toggle('hidden', conflicts.length === 0);
+  $('#generation-conflict-summary').innerHTML = conflicts.length
+    ? `<strong>发现 ${conflicts.length} 项信息可能冲突</strong><p>自然语言记录与上方字段不一致。建议返回修改；如果继续生成，课程表的课时和课次仍以上方字段为准。</p>`
+    : '';
+  $('#generation-checklist-content').innerHTML = [
+    ...items.map((item) => `<div class="generation-checklist-item ${escapeHtml(item.status)}"><span>${escapeHtml(item.label)}</span><b>${escapeHtml(item.value)}</b></div>`),
+    ...conflicts.map((conflict) => `<div class="generation-checklist-item conflict"><span>${escapeHtml(conflict.label)}冲突</span><b>文字记录：${escapeHtml(conflict.noteValue)}<br>上方填写：${escapeHtml(conflict.formValue)}</b></div>`),
+  ].join('');
+  $('[data-checklist-action="confirm"]').textContent = conflicts.length ? '已知晓，继续生成' : '确认并生成';
   $('#generation-checklist-modal').classList.remove('hidden');
   document.body.classList.add('modal-open');
   window.setTimeout(() => $('[data-checklist-action="confirm"]')?.focus(), 0);
