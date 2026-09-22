@@ -91,6 +91,7 @@ let coursePlanParseVersion = 0;
 let recoveryStorageScope = '';
 let formDraftSaveTimer = null;
 let formHasUserInput = false;
+let activeGenerationSource = null;
 const UPLOAD_REPORT_NOTE = '老师已上传并确认完整课程规划，本报告仅对老师提供的原规划进行结构化整理与排版。';
 const FORM_DRAFT_STORAGE_KEY = 'lumist-report-form-draft-v1';
 const GENERATION_CHECKPOINT_STORAGE_KEY = 'lumist-report-generation-checkpoint-v1';
@@ -1091,7 +1092,8 @@ async function saveReport({ automatic = false } = {}) {
   const reportStatus = document.querySelector('#report-view .eyebrow');
   const saveButton = $('#save-report');
   const lessonCount = currentReportData.coursePlan.stages.reduce((total, stage) => total + stage.lessons.length, 0);
-  currentReportData.planningContext = buildCurrentPlanningContext(lessonCount);
+  const reportSource = currentReportData.planningContext?.source === 'upload' ? 'upload' : 'ai';
+  currentReportData.planningContext = buildCurrentPlanningContext(lessonCount, reportSource);
   const { coursePlan, salesFollowUp, ...reportData } = currentReportData;
   const payload = {
     id: currentReportId,
@@ -1099,7 +1101,7 @@ async function saveReport({ automatic = false } = {}) {
     currentScore: $('#current-score').value.trim(),
     targetScore: resolveTargetScore(currentSubjectCode, $('#target-score').value),
     examDate: getSelectedExamDate(),
-    teacherNotes: planningSource === 'upload' ? UPLOAD_REPORT_NOTE : $('#teacher-notes').value.trim(),
+    teacherNotes: reportSource === 'upload' ? UPLOAD_REPORT_NOTE : $('#teacher-notes').value.trim(),
     subject: createSubjectViewModel(currentSubjectCode).displayName,
     reportData,
     coursePlan,
@@ -1129,7 +1131,7 @@ async function saveReport({ automatic = false } = {}) {
   }
 }
 
-function collectFormData() {
+function collectFormData(source = planningSource) {
   return {
     studentName: $('#student-name').value.trim(),
     currentScore: $('#current-score').value.trim(),
@@ -1139,9 +1141,9 @@ function collectFormData() {
     lessonCount: $('#lesson-count').value,
     planningScenario: resolvePlanningScenario($('#planning-scenario').value),
     planningFocusAreas: getSelectedPlanningFocusAreas(),
-    includeExamTraining: planningSource === 'ai' && $('#include-exam-training').checked,
-    teacherNotes: planningSource === 'upload' ? UPLOAD_REPORT_NOTE : $('#teacher-notes').value.trim(),
-    ...(planningSource === 'upload' && uploadedCoursePlanConfirmed ? { lockedCoursePlan: uploadedCoursePlan } : {}),
+    includeExamTraining: source === 'ai' && $('#include-exam-training').checked,
+    teacherNotes: source === 'upload' ? UPLOAD_REPORT_NOTE : $('#teacher-notes').value.trim(),
+    ...(source === 'upload' && uploadedCoursePlanConfirmed ? { lockedCoursePlan: cloneCoursePlan(uploadedCoursePlan) } : {}),
   };
 }
 
@@ -1319,6 +1321,21 @@ function setPlanningSource(value) {
     : '支持 SAT、AP 等 32 个考试科目；动态课程规划与路觅数据页。';
 }
 
+function setGenerationControlsLocked(locked, source = null) {
+  activeGenerationSource = locked ? source : null;
+  document.querySelectorAll('#report-form input, #report-form select, #report-form textarea').forEach((control) => {
+    if (locked) {
+      control.dataset.disabledBeforeGeneration = String(control.disabled);
+      control.disabled = true;
+      return;
+    }
+    control.disabled = control.dataset.disabledBeforeGeneration === 'true';
+    delete control.dataset.disabledBeforeGeneration;
+  });
+  if (!locked) setPlanningSource(planningSource);
+  $('#report-form').setAttribute('aria-busy', String(locked));
+}
+
 function renderUploadedCoursePlan(result) {
   const warnings = Array.isArray(result.warnings) ? result.warnings : [];
   const corrections = Array.isArray(result.extraction?.corrections) ? result.extraction.corrections : [];
@@ -1340,18 +1357,29 @@ async function openUploadedPlanReport(coursePlan) {
   if (!$('#student-name').value.trim()) $('#student-name').value = '学生';
   $('#course-plan-upload-status').className = 'course-plan-upload-status';
   $('#course-plan-upload-status').textContent = 'AI 解析完成，正在打开学习报告…';
-  currentReportData = await generateAiReport();
-  currentReportId = null;
-  historicalTeacherProfile = null;
-  isQuickPreview = false;
-  originalAiCoursePlan = cloneCoursePlan(currentReportData.coursePlan);
-  renderReport(currentReportData);
-  setQuickPreviewActions(false);
-  setReportDisplayMode('workspace');
-  changeView('report');
-  document.querySelector('#report-view .eyebrow').textContent = '上传规划已整理 · 可直接调整并导出';
-  $('#save-report').textContent = '保存报告';
-  await saveReport({ automatic: true });
+  const generationSource = 'upload';
+  const generationInput = {
+    source: generationSource,
+    subjectCode: currentSubjectCode,
+    formData: collectFormData(generationSource),
+  };
+  setGenerationControlsLocked(true, generationSource);
+  try {
+    currentReportData = await generateAiReport(generationInput);
+    currentReportId = null;
+    historicalTeacherProfile = null;
+    isQuickPreview = false;
+    originalAiCoursePlan = cloneCoursePlan(currentReportData.coursePlan);
+    renderReport(currentReportData);
+    setQuickPreviewActions(false);
+    setReportDisplayMode('workspace');
+    changeView('report');
+    document.querySelector('#report-view .eyebrow').textContent = '上传规划已整理 · 可直接调整并导出';
+    $('#save-report').textContent = '保存报告';
+    await saveReport({ automatic: true });
+  } finally {
+    setGenerationControlsLocked(false);
+  }
 }
 
 function collectUploadedCoursePlan() {
@@ -1458,14 +1486,14 @@ function renderPlanningFocusOptions(selectedValues = []) {
   updatePlanningFocusState();
 }
 
-function buildCurrentPlanningContext(lessonCount) {
+function buildCurrentPlanningContext(lessonCount, source = currentReportData?.planningContext?.source === 'upload' ? 'upload' : planningSource) {
   const reportContext = currentReportData?.planningContext;
   return {
     scenario: resolvePlanningScenario(reportContext?.scenario || $('#planning-scenario').value),
     lessonCount,
     focusAreas: normalizePlanningFocusAreas(reportContext?.focusAreas ?? getSelectedPlanningFocusAreas(), currentSubjectCode),
-    includeExamTraining: planningSource === 'ai' && (reportContext?.includeExamTraining === true || $('#include-exam-training').checked),
-    source: reportContext?.source === 'upload' || planningSource === 'upload' ? 'upload' : 'ai',
+    includeExamTraining: source === 'ai' && (reportContext?.includeExamTraining === true || $('#include-exam-training').checked),
+    source,
   };
 }
 
@@ -1723,18 +1751,19 @@ async function openHistoricalReport(reportId) {
   $('#save-report').textContent = '更新历史报告';
 }
 
-async function generateAiReport() {
-  const formData = collectFormData();
-  if (planningSource === 'upload') {
+async function generateAiReport({ source, formData, subjectCode }) {
+  if (source === 'upload') {
+    if (!formData.lockedCoursePlan) throw new Error('LOCKED_PLAN_REQUIRED');
     const result = await requestGeneratedJson('/api/generate-report', {
       ...formData,
-      subjectCode: currentSubjectCode,
+      subjectCode,
     });
     return result.report;
   }
+  if (formData.lockedCoursePlan) throw new Error('AI_MODE_LOCKED_PLAN_FORBIDDEN');
   const commonPayload = {
     ...formData,
-    subjectCode: currentSubjectCode,
+    subjectCode,
   };
   let checkpoint = loadGenerationCheckpoint(commonPayload);
   let outlineResult = checkpoint?.outlineResult;
@@ -1838,7 +1867,7 @@ async function generateAiReport() {
   }
   const { stages: unusedStages, rationale, ...summary } = outline;
   const targetScore = outlineResult.targetScore || formData.targetScore || '';
-  const subjectName = createSubjectViewModel(currentSubjectCode).displayName;
+  const subjectName = createSubjectViewModel(subjectCode).displayName;
   return {
     ...summary,
     coursePlan: {
@@ -1925,14 +1954,21 @@ $('#report-form').addEventListener('submit', async (event) => {
   const notice = $('#generation-notice');
   if (!validateGenerationInputs()) return;
   if (!await openGenerationChecklist()) return;
+  const generationSource = planningSource;
+  const generationInput = {
+    source: generationSource,
+    subjectCode: currentSubjectCode,
+    formData: collectFormData(generationSource),
+  };
+  setGenerationControlsLocked(true, generationSource);
   button.disabled = true;
-  button.textContent = planningSource === 'upload' ? '正在生成课程规划报告…' : 'AI 正在分析并生成课程规划…';
+  button.textContent = generationSource === 'upload' ? '正在生成课程规划报告…' : 'AI 正在分析并生成课程规划…';
   notice.classList.remove('error');
-  notice.innerHTML = planningSource === 'upload'
+  notice.innerHTML = generationSource === 'upload'
     ? '<strong>正在生成：</strong>课程规划已锁定，系统正在整理完整报告，请不要重复提交或关闭页面。'
     : '<strong>正在生成：</strong>通常需要 30–90 秒。每个完成阶段都会自动保存，刷新后可以继续。';
   try {
-    currentReportData = await generateAiReport();
+    currentReportData = await generateAiReport(generationInput);
     currentReportId = null;
     historicalTeacherProfile = null;
     isQuickPreview = false;
@@ -1944,8 +1980,8 @@ $('#report-form').addEventListener('submit', async (event) => {
     document.querySelector('#report-view .eyebrow').textContent = 'AI 报告已生成 · 未云端保存';
     $('#save-report').textContent = '保存报告';
     const reportSaved = await saveReport({ automatic: true });
-    if (planningSource === 'ai' && reportSaved) clearGenerationRecovery();
-    notice.innerHTML = planningSource === 'upload'
+    if (generationSource === 'ai' && reportSaved) clearGenerationRecovery();
+    notice.innerHTML = generationSource === 'upload'
       ? '<strong>上传模式：</strong>课程规划来自老师确认的上传文件，系统未改动课次、顺序和时长。'
       : '<strong>生成原则：</strong>总课时由老师决定，AI 仅负责规划内容与课时分配。';
   } catch (error) {
@@ -1974,16 +2010,17 @@ $('#report-form').addEventListener('submit', async (event) => {
     const reason = error.reason || messages[error.message] || `报告渲染异常（${error.message || 'UNKNOWN_ERROR'}），请重试。`;
     const suggestion = error.suggestion ? `<br><span>建议：${escapeHtml(error.suggestion)}</span>` : '';
     const reference = error.requestId ? ` <span>参考编号：${escapeHtml(error.requestId)}</span>` : '';
-    const checkpoint = planningSource === 'ai'
-      ? loadGenerationCheckpoint({ ...collectFormData(), subjectCode: currentSubjectCode })
+    const checkpoint = generationSource === 'ai'
+      ? loadGenerationCheckpoint({ ...generationInput.formData, subjectCode: generationInput.subjectCode })
       : null;
     const recovery = checkpoint
       ? `<br><span>已保存 ${countCompletedStages(checkpoint.generatedStages)}/${checkpoint.outlineResult.outline.stages.length} 个阶段，再次点击生成只会继续缺失阶段。</span>`
       : '';
     notice.innerHTML = `<strong>生成失败：</strong>${escapeHtml(reason)}${suggestion}${reference}${recovery}`;
   } finally {
+    setGenerationControlsLocked(false);
     button.disabled = false;
-    button.innerHTML = planningSource === 'upload' ? '生成课程规划报告 <span>→</span>' : 'AI 生成个性化报告 <span>→</span>';
+    button.innerHTML = generationSource === 'upload' ? '生成课程规划报告 <span>→</span>' : 'AI 生成个性化报告 <span>→</span>';
   }
 });
 document.querySelectorAll('[data-scenario-sample]').forEach((button) => button.addEventListener('click', () => {
@@ -2066,7 +2103,13 @@ $('#lesson-count').addEventListener('input', (event) => {
   updateLessonCountHint();
 });
 $('#planning-focus-options').addEventListener('change', updatePlanningFocusState);
-document.querySelectorAll('[name="planning-source"]').forEach((input) => input.addEventListener('change', (event) => setPlanningSource(event.target.value)));
+document.querySelectorAll('[name="planning-source"]').forEach((input) => input.addEventListener('change', (event) => {
+  if (activeGenerationSource) {
+    setPlanningSource(activeGenerationSource);
+    return;
+  }
+  setPlanningSource(event.target.value);
+}));
 $('#report-form').addEventListener('input', scheduleFormDraftSave);
 $('#report-form').addEventListener('change', scheduleFormDraftSave);
 $('#course-plan-file').addEventListener('change', (event) => selectCoursePlanFile(event.target.files[0]));
