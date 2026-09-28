@@ -86,8 +86,11 @@ AP Statistics 规划要求：
     return `${apShared}
 
 AP Computer Science A 规划要求：
+- 严格使用 College Board Fall 2025 CED：Unit 1 Using Objects and Methods（MCQ 15–25%）、Unit 2 Selection and Iteration（25–35%）、Unit 3 Class Creation（10–18%）、Unit 4 Data Collections（30–40%）。不得使用旧版十单元结构或旧单元编号。
+- Inheritance、Polymorphism、extends、super、method overriding 已退出当前 AP CSA 考纲，不得安排为知识课、复习课、练习课或模考考点。即使老师的自然语言中出现，也只能忽略，不能写入规划。
+- FRQ 训练按当前四类组织：Methods and Control Structures、Class Design、Data Analysis with ArrayList、2D Array。旧题只有与当前 CED 对齐的部分才能使用。
 - 每个阶段都要围绕真实 Java 任务安排 code tracing、writing、testing 或 debugging，避免把编程课写成只听概念讲解和刷选择题。
-- difficulty 应写具体程序状态或错误来源，例如 loop boundary、object aliasing、null reference、ArrayList index、inheritance method call 或 recursion base case。
+- difficulty 应写具体程序状态或错误来源，例如 loop boundary、object aliasing、null reference、ArrayList index、2D array traversal 或 recursion base case。
 - goal 应能通过代码、trace table、test case、运行结果或 FRQ 作答核对；“理解面向对象思想”不能单独作为目标。
 - 讲评时区分编译错误、运行错误和逻辑错误，并要求学生解释修改前后的程序行为。`;
   }

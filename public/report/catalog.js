@@ -100,7 +100,7 @@ export const SUBJECT_CATALOG = Object.freeze({
     scoreMax: 5,
     scoreStep: 1,
     modules: ['Using Objects and Methods', 'Selection and Iteration', 'Class Creation', 'Data Collections'],
-    promptContext: 'AP Computer Science A 使用 2025 起生效的四单元框架：Using Objects and Methods、Selection and Iteration、Class Creation、Data Collections，使用 Java 训练代码设计、编写、分析、文档表达与负责任计算，不得混入旧版单元结构或 AP CSP 内容。'
+    promptContext: 'AP Computer Science A 必须使用 College Board Fall 2025 CED 的四单元框架：Unit 1 Using Objects and Methods、Unit 2 Selection and Iteration、Unit 3 Class Creation、Unit 4 Data Collections。使用 Java 训练代码设计、编写、分析、文档表达与负责任计算；Inheritance、Polymorphism 及旧版十单元编号不属于当前 AP 考纲，不得出现在课程规划中，也不得混入 AP CSP 内容。'
   }),
   ap_microeconomics: createSubject({
     code: 'ap_microeconomics',

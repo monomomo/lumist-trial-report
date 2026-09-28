@@ -286,7 +286,7 @@ test('AI-led reports generate an exact course plan in validated stage batches', 
   const routeSource = await readFile(new URL('../app/api/generate-report-batch/route.ts', import.meta.url), 'utf8');
   assert.match(appSource, /operation: 'outline'/);
   assert.match(appSource, /operation: 'stage'/);
-  assert.match(appSource, /Math\.min\(2, stages\.length\)/);
+  assert.match(appSource, /Math\.min\(2, pendingStageIndexes\.length\)/);
   assert.match(appSource, /retryGenerationStep[\s\S]*STAGE_LESSON_COUNT_MISMATCH/);
   assert.match(routeSource, /plannedCount !== context\.lessonDurations\.length/);
   assert.match(routeSource, /stageResult\.lessons\.length !== parsed\.data\.stage\.lessonCount/);
@@ -379,10 +379,24 @@ test('teacher-uploaded course plans open the report workspace automatically as a
   assert.match(appSource, /dataTransfer\.files\[0\]/);
   assert.match(appSource, /parseUploadedCoursePlan\(\)/);
   assert.match(appSource, /uploadedCoursePlanConfirmed/);
-  assert.match(appSource, /lockedCoursePlan: uploadedCoursePlan/);
+  assert.match(appSource, /lockedCoursePlan: cloneCoursePlan\(uploadedCoursePlan\)/);
   assert.match(appSource, /result\.lockedPlan[\s\S]*openUploadedPlanReport\(result\.lockedPlan\)/);
   assert.match(appSource, /AI 解析完成后会自动进入学习报告/);
   assert.match(appSource, /summary-editor-modal[\s\S]*isUploadedPlan/);
+});
+
+test('generation mode stays immutable from request creation through report saving', async () => {
+  const appSource = await readFile(new URL('../public/report/app.js', import.meta.url), 'utf8');
+  assert.match(appSource, /const generationSource = planningSource;/);
+  assert.match(appSource, /formData: collectFormData\(generationSource\)/);
+  assert.match(appSource, /setGenerationControlsLocked\(true, generationSource\)/);
+  assert.match(appSource, /document\.querySelectorAll\('#report-form input, #report-form select, #report-form textarea'\)/);
+  assert.match(appSource, /currentReportData = await generateAiReport\(generationInput\)/);
+  assert.match(appSource, /if \(source === 'upload'\) \{[\s\S]*if \(!formData\.lockedCoursePlan\) throw new Error\('LOCKED_PLAN_REQUIRED'\)/);
+  assert.match(appSource, /if \(formData\.lockedCoursePlan\) throw new Error\('AI_MODE_LOCKED_PLAN_FORBIDDEN'\)/);
+  assert.match(appSource, /const reportSource = currentReportData\.planningContext\?\.source === 'upload' \? 'upload' : 'ai';/);
+  assert.match(appSource, /teacherNotes: reportSource === 'upload' \? UPLOAD_REPORT_NOTE/);
+  assert.doesNotMatch(appSource, /teacherNotes: planningSource === 'upload' \? UPLOAD_REPORT_NOTE/);
 });
 
 test('priority areas preserve complete bilingual subject terms', async () => {

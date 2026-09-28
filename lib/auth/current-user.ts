@@ -14,14 +14,22 @@ export const AUTH_STATUS = {
 
 export type AuthStatusValue = (typeof AUTH_STATUS)[keyof typeof AUTH_STATUS];
 
+export type AppRole = 'teacher' | 'sales' | 'management';
+
+export function normalizeAppRole(value: string | null | undefined): AppRole {
+  if (value === 'sales') return 'sales';
+  if (value === 'admin' || value === 'management') return 'management';
+  return 'teacher';
+}
+
 export interface AuthResultBase {
   status: AuthStatusValue;
-  user: { id: string; username: string } | null;
+  user: { id: string; username: string; role: AppRole } | null;
 }
 
 export interface AuthenticatedResult extends AuthResultBase {
   status: typeof AUTH_STATUS.AUTHENTICATED;
-  user: { id: string; username: string };
+  user: { id: string; username: string; role: AppRole };
 }
 
 export type AuthResult = AuthResultBase | AuthenticatedResult;
@@ -38,8 +46,9 @@ export async function getAuthResult(): Promise<AuthResult> {
     return { status: AUTH_STATUS.NOT_AUTHENTICATED, user: null };
   }
 
+  const { data: profile } = await supabase.from('profiles').select('role').eq('id', user.id).maybeSingle();
   return {
     status: AUTH_STATUS.AUTHENTICATED,
-    user: { id: user.id, username: authEmailToUsername(user.email ?? '') },
+    user: { id: user.id, username: authEmailToUsername(user.email ?? ''), role: normalizeAppRole(profile?.role) },
   };
 }

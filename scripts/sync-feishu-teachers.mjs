@@ -21,6 +21,9 @@ const INITIAL_PASSWORD = process.env.TEACHER_INITIAL_PASSWORD || '123456';
 const usernameOverrides = new Map([
   ['吕静一', 'amberlyu'],
   ['王琪涵', 'qihanwang'],
+  ['马维璐', 'ivyma'],
+  ['李园园Kathy', 'yuanyuanli'],
+  ['李康瑜', 'kangyuli'],
 ]);
 
 const fieldNames = ['导师姓名', '海报用英文名', '所授科目', '导师小简介', '导师职业照片', '导师宣传二维码'];
@@ -62,6 +65,10 @@ function readTeachers() {
 
 function cleanText(value) {
   return typeof value === 'string' ? value.trim() : '';
+}
+
+function chineseName(value) {
+  return value.match(/[\u3400-\u9fff]+/g)?.join('') || value;
 }
 
 function splitSubjects(value) {
@@ -322,7 +329,7 @@ async function applyTeachers(teachers) {
         saveCredentials(credentialsPath, credentials);
       }
     }
-    const { error: profileError } = await supabase.from('profiles').upsert({ id: user.id, display_name: profile.publicName, role: 'teacher' });
+    const { error: profileError } = await supabase.from('profiles').upsert({ id: user.id, display_name: chineseName(teacher.name), role: 'teacher' });
     if (profileError) throw new Error(`${teacher.name} 更新 profiles 失败：${profileError.message}`);
     let photoPath = null;
     if (localPhoto) {

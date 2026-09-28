@@ -4,7 +4,7 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>路觅教育｜试听课报告生成器</title>
-    <link rel="stylesheet" href="styles.css?v=quality-warning-2" />
+    <link rel="stylesheet" href="styles.css?v=generation-recovery-1" />
   </head>
   <body>
     <div class="app-shell">
@@ -28,7 +28,7 @@
               <p class="eyebrow" id="form-eyebrow">SAT 数学试听</p>
               <h1>新建个性化学习报告</h1>
             </div>
-            <span class="status-dot">草稿自动保存</span>
+            <span class="status-dot" id="draft-status">草稿自动保存</span>
           </header>
           <div class="workspace">
             <form id="report-form" class="input-card">
@@ -657,6 +657,7 @@
           <h2 id="generation-checklist-title">请确认本次报告信息</h2>
           <p>确认后才会调用 AI，避免因为科目、分数或课时填写错误而重新生成。</p>
         </header>
+        <section id="generation-conflict-summary" class="generation-conflict-summary hidden"></section>
         <main id="generation-checklist-content"></main>
         <footer>
           <button type="button" class="secondary-btn" data-checklist-action="edit">返回修改</button>
@@ -753,6 +754,6 @@
         </footer>
       </div>
     </div>
-    <script type="module" src="app.js?v=pdf-images-1"></script>
+    <script type="module" src="app.js?v=generation-recovery-1"></script>
   </body>
 </html>

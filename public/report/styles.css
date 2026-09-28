@@ -355,12 +355,18 @@ body.modal-open { overflow:hidden; }
 .generation-checklist-shell>header { padding:25px 28px 20px; border-bottom:1px solid #eadfbf; }
 .generation-checklist-shell h2 { margin:0 0 7px; color:#2c2513; font-size:24px; }
 .generation-checklist-shell>header>p:last-child { margin:0; color:#766d56; font-size:12px; line-height:1.6; }
+.generation-conflict-summary { margin:18px 28px 0; padding:14px 16px; border:1px solid #e49b80; border-radius:10px; background:#fff1ec; color:#7f2f1f; }
+.generation-conflict-summary.hidden { display:none; }
+.generation-conflict-summary strong { display:block; margin-bottom:5px; font-size:14px; }
+.generation-conflict-summary p { margin:0; font-size:12px; line-height:1.6; }
 .generation-checklist-shell>main { display:grid; grid-template-columns:1fr 1fr; gap:10px; padding:22px 28px; background:#fffefa; }
 .generation-checklist-item { min-width:0; border:1px solid #e8dfc4; border-radius:9px; padding:12px 14px; background:#fff; }
 .generation-checklist-item span,.generation-checklist-item b { display:block; }
 .generation-checklist-item span { color:#857a5d; font-size:10px; font-weight:700; margin-bottom:5px; }
 .generation-checklist-item b { color:#332d20; font-size:13px; line-height:1.45; overflow-wrap:anywhere; }
 .generation-checklist-item.warning { border-color:#e8c75b; background:#fff9df; }
+.generation-checklist-item.conflict { border-color:#e49b80; background:#fff4ef; }
+.generation-checklist-item.conflict span { color:#a33e29; }
 .generation-checklist-item.optional b { color:#746d5d; font-weight:600; }
 .generation-checklist-shell>footer { display:flex; justify-content:flex-end; gap:9px; padding:16px 28px 20px; border-top:1px solid #eadfbf; }
 .generation-checklist-shell>footer .primary-btn { width:auto; margin:0; padding:10px 18px; }
@@ -473,6 +479,7 @@ body.modal-open { overflow:hidden; }
   .summary-editor-footer>span { grid-column:1 / -1; }
   .generation-checklist-shell { width:100%; max-height:100dvh; border-radius:0; }
   .generation-checklist-shell>header,.generation-checklist-shell>main,.generation-checklist-shell>footer { padding-left:16px; padding-right:16px; }
+  .generation-conflict-summary { margin-left:16px; margin-right:16px; }
   .generation-checklist-shell>main,.quality-check-list { grid-template-columns:1fr; }
 }
 @media print { body.modal-open { overflow:visible !important; }.report-page.delivery-only { display:block !important; }.reference-plan-page { padding:42px 53px !important; }.reference-plan-page tr { break-inside:avoid !important; page-break-inside:avoid !important; }.plan-editor-modal,#edit-course-plan,#edit-summary { display:none !important; } }

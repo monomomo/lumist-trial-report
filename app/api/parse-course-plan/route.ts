@@ -19,6 +19,7 @@ export async function POST(request: Request) {
     const auth = await getAuthResult();
     if (auth.status === AUTH_STATUS.SUPABASE_NOT_CONFIGURED) return NextResponse.json({ error: 'SYSTEM_NOT_CONFIGURED' }, { status: 503 });
     if (auth.status === AUTH_STATUS.NOT_AUTHENTICATED) return NextResponse.json({ error: 'UNAUTHORIZED' }, { status: 401 });
+    if (auth.user?.role === 'management') return NextResponse.json({ error: 'FORBIDDEN' }, { status: 403 });
     if (!process.env.OPENAI_API_KEY) return NextResponse.json({ error: 'AI_SERVICE_NOT_CONFIGURED' }, { status: 503 });
     const form = await request.formData();
     const file = form.get('file');

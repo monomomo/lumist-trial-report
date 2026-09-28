@@ -1,6 +1,8 @@
 import { getAuthResult, AUTH_STATUS } from '@/lib/auth/current-user';
 import { LoginForm } from '@/components/LoginForm';
 import { Workspace } from '@/components/Workspace';
+import Link from 'next/link';
+import { ManagementDashboard } from '@/components/ManagementDashboard';
 
 export default async function Home() {
   const auth = await getAuthResult();
@@ -11,7 +13,8 @@ export default async function Home() {
   }
 
   if (auth.status === AUTH_STATUS.AUTHENTICATED) {
-    return <Workspace username={auth.user!.username} />;
+    if (auth.user!.role === 'management') return <ManagementDashboard username={auth.user!.username} />;
+    return <Workspace username={auth.user!.username} role={auth.user!.role} />;
   }
 
   return (
@@ -33,6 +36,7 @@ export default async function Home() {
           <h2>欢迎回来</h2>
           <p>请使用公司分配的老师账号和密码登录。</p>
           <LoginForm />
+          <Link className="auth-link" href="/register">内部人员注册</Link>
         </div>
       </div>
     </main>
