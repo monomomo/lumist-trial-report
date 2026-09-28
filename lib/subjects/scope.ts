@@ -19,7 +19,9 @@ const forbiddenPatterns: Record<string, RegExp[]> = {
   ],
   ap_csa: [
     /AP Calculus|AP Microeconomics|AP Macroeconomics|Digital SAT/i,
-    /Parametric Equations|Polar Coordinates|Infinite Sequences and Series|Taylor Series|Maclaurin Series/i
+    /Parametric Equations|Polar Coordinates|Infinite Sequences and Series|Taylor Series|Maclaurin Series/i,
+    /\bInheritance\b|\bPolymorphism\b|\bextends\b|\bsuper\b|method overriding|继承|多态|方法重写/i,
+    /Unit\s*5\s*[:：-]?\s*Writing Classes|Unit\s*6\s*[:：-]?\s*Array|Unit\s*7\s*[:：-]?\s*ArrayList|Unit\s*8\s*[:：-]?\s*2D Array|Unit\s*9\s*[:：-]?\s*Inheritance|Unit\s*10\s*[:：-]?\s*Recursion/i
   ],
   ap_microeconomics: [
     /AP Calculus|AP Computer Science|AP Macroeconomics|Digital SAT/i,

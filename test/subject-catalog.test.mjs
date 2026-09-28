@@ -332,6 +332,10 @@ test('AP prompts share official evidence workflow and preserve discipline-specif
 
   assert.match(buildSystemPrompt(SUBJECT_CATALOG.ap_calculus_ab), /graphical、numerical、analytical 和 verbal representations/);
   assert.match(buildSystemPrompt(SUBJECT_CATALOG.ap_csa), /code tracing、writing、testing 或 debugging/);
+  assert.match(buildSystemPrompt(SUBJECT_CATALOG.ap_csa), /Fall 2025 CED/);
+  assert.match(buildSystemPrompt(SUBJECT_CATALOG.ap_csa), /Inheritance、Polymorphism、extends、super、method overriding 已退出当前 AP CSA 考纲/);
+  assert.match(buildSystemPrompt(SUBJECT_CATALOG.ap_csa), /Methods and Control Structures、Class Design、Data Analysis with ArrayList、2D Array/);
+  assert.doesNotMatch(buildSystemPrompt(SUBJECT_CATALOG.ap_csa), /inheritance method call/);
   assert.match(buildSystemPrompt(SUBJECT_CATALOG.ap_microeconomics), /movement along a curve 与 shift/);
   assert.doesNotMatch(buildSystemPrompt(SUBJECT_CATALOG.ap_microeconomics), /money market/);
   assert.match(buildSystemPrompt(SUBJECT_CATALOG.ap_macroeconomics), /AD-AS 或 money market/);

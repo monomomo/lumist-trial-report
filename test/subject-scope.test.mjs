@@ -20,7 +20,9 @@ test('AP economics subjects reject each other exclusive concepts', () => {
 });
 
 test('AP Computer Science A rejects calculus modules', () => {
-  assert.equal(hasSubjectScopeViolation('ap_csa', { coursePlan: 'Classes, Recursion, Inheritance' }), false);
+  assert.equal(hasSubjectScopeViolation('ap_csa', { coursePlan: 'Classes, Recursion, ArrayList' }), false);
+  assert.equal(hasSubjectScopeViolation('ap_csa', { coursePlan: 'Inheritance and Polymorphism' }), true);
+  assert.equal(hasSubjectScopeViolation('ap_csa', { coursePlan: 'Unit 9: Inheritance' }), true);
   assert.equal(hasSubjectScopeViolation('ap_csa', { coursePlan: 'Polar Coordinates and Taylor Series' }), true);
 });
 
