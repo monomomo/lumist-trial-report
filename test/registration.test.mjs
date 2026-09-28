@@ -71,9 +71,19 @@ test('management teacher assets are validated and stored privately', async () =>
   const migration = await readFile(new URL('../supabase/migrations/202609190001_teacher_employment_type.sql', import.meta.url), 'utf8');
   assert.match(route, /teacher-assets/);
   assert.match(route, /image\/jpeg/);
-  assert.match(route, /5 \* 1024 \* 1024/);
+  assert.match(route, /4 \* 1024 \* 1024/);
   assert.match(route, /3 \* 1024 \* 1024/);
   assert.match(migration, /employment_type in \('full_time', 'part_time'\)/);
+});
+
+test('teacher asset uploads always leave loading state and handle platform errors', async () => {
+  const dashboard = await readFile(new URL('../components/ManagementDashboard.tsx', import.meta.url), 'utf8');
+  assert.match(dashboard, /PHOTO_MAX_BYTES = 4 \* 1024 \* 1024/);
+  assert.match(dashboard, /ASSET_UPLOAD_TIMEOUT_MS = 60_000/);
+  assert.match(dashboard, /response\.status === 413/);
+  assert.match(dashboard, /finally \{[\s\S]*setUploading\(null\)/);
+  assert.match(dashboard, /图片上传超时，请检查网络后重试/);
+  assert.match(dashboard, /最大 4MB/);
 });
 
 test('teacher creation requires username teacher name and employment type', async () => {
