@@ -399,6 +399,13 @@ test('generation mode stays immutable from request creation through report savin
   assert.doesNotMatch(appSource, /teacherNotes: planningSource === 'upload' \? UPLOAD_REPORT_NOTE/);
 });
 
+test('unlocking generation controls preserves the real generation result notice', async () => {
+  const appSource = await readFile(new URL('../public/report/app.js', import.meta.url), 'utf8');
+  assert.match(appSource, /function setPlanningSource\(value, \{ preserveNotice = false \} = \{\}\)/);
+  assert.match(appSource, /if \(!preserveNotice\) \{[\s\S]*generationNotice\.classList\.remove\('error'\)/);
+  assert.match(appSource, /setPlanningSource\(planningSource, \{ preserveNotice: true \}\)/);
+});
+
 test('priority areas preserve complete bilingual subject terms', async () => {
   const routeSource = await readFile(new URL('../app/api/generate-report/route.ts', import.meta.url), 'utf8');
   const styles = await readFile(new URL('../public/report/styles.css', import.meta.url), 'utf8');

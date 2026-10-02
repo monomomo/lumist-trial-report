@@ -62,6 +62,7 @@ AP 课程规划必须符合真实授课流程：
   if (['ap_precalculus', 'ap_calculus_ab', 'ap_calculus_bc'].includes(subject.code)) {
     const progressionGuidance = subject.code === 'ap_precalculus' ? `
 - 可以在学习目标、阶段说明和家长反馈中说明 AP Precalculus 与 AP Calculus AB/BC、SAT 数学的真实衔接，具体落到函数行为、covariation、multiple representations、代数变形和三角函数等可迁移能力。
+- Unit 1–3 属于 AP 统考范围；Unit 4 Functions Involving Parameters, Vectors, and Matrices 不纳入 AP Exam，不得作为统考提分覆盖、模考考点或考试训练重点。
 - 衔接只说明当前 Precalculus 内容的后续用途，不安排 Differentiation、Applications of Derivatives、Integration、Differential Equations 等微积分教学，也不安排 Bluebook、SAT Module 或 Question Bank 等 SAT 专项训练。` : '';
     return `${apShared}
 
@@ -76,6 +77,7 @@ AP 数学课程规划要求：
     return `${apShared}
 
 AP Statistics 规划要求：
+- 严格使用 2026–27 学年起实施的五单元框架；不得安排 analyzing departures from linearity、combining random variables、geometric distribution、chi-square goodness of fit test 或 inference for slopes 作为 AP 统考内容。
 - 每节课明确数据情境、变量、图表、统计方法或推断任务，不把公式记忆当作主要活动。
 - 统计推断必须检查条件、写出 procedure、计算或解释结果，并用题目情境完成 conclusion。
 - difficulty 应具体到 sampling method、bias、random variable、sampling distribution、p-value、confidence interval 或 Type I/II error 等判断。

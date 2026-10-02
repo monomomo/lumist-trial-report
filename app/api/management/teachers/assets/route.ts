@@ -35,8 +35,8 @@ export async function POST(request: Request) {
   if (!parsed.success || !(file instanceof File)) return errorResponse('上传信息不完整。', 400);
   const extension = allowedTypes.get(file.type);
   if (!extension) return errorResponse('只支持 JPG、PNG 或 WebP 图片。', 400);
-  const maxSize = parsed.data.kind === 'photo' ? 5 * 1024 * 1024 : 3 * 1024 * 1024;
-  if (file.size === 0 || file.size > maxSize) return errorResponse(parsed.data.kind === 'photo' ? '职业照不能超过 5MB。' : '二维码图片不能超过 3MB。', 400);
+  const maxSize = parsed.data.kind === 'photo' ? 4 * 1024 * 1024 : 3 * 1024 * 1024;
+  if (file.size === 0 || file.size > maxSize) return errorResponse(parsed.data.kind === 'photo' ? '职业照不能超过 4MB。' : '二维码图片不能超过 3MB。', 400);
 
   const { data: profile } = await admin.from('profiles').select('id,role').eq('id', parsed.data.teacherId).maybeSingle();
   if (!profile || profile.role !== 'teacher') return errorResponse('未找到该老师账号。', 404);

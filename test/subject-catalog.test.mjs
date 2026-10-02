@@ -59,17 +59,24 @@ const UNIQUE_MODULES = {
   ],
   ap_calculus_ab: [
     'Limits and Continuity',
-    'Differentiation',
-    'Applications of Derivatives',
+    'Differentiation: Definition and Fundamental Properties',
+    'Differentiation: Composite, Implicit, and Inverse Functions',
+    'Contextual Applications of Differentiation',
+    'Analytical Applications of Differentiation',
     'Integration and Accumulation of Change',
     'Differential Equations',
     'Applications of Integration'
   ],
   ap_calculus_bc: [
-    'AB Foundations Review',
-    'Parametric Equations',
-    'Polar Coordinates',
-    'Vector-Valued Functions',
+    'Limits and Continuity',
+    'Differentiation: Definition and Fundamental Properties',
+    'Differentiation: Composite, Implicit, and Inverse Functions',
+    'Contextual Applications of Differentiation',
+    'Analytical Applications of Differentiation',
+    'Integration and Accumulation of Change',
+    'Differential Equations',
+    'Applications of Integration',
+    'Parametric Equations, Polar Coordinates, and Vector-Valued Functions',
     'Infinite Sequences and Series'
   ],
   ap_csa: [
@@ -117,6 +124,25 @@ test('AP Precalculus prompt supports bounded Calculus and SAT progression', () =
   assert.match(prompt, /当前 Precalculus 内容的后续用途/);
   assert.match(prompt, /不安排 Differentiation/);
   assert.match(prompt, /不安排 Bluebook/);
+  assert.match(prompt, /Unit 4.+不纳入 AP Exam/);
+});
+
+test('revised AP subjects expose current official framework boundaries', () => {
+  assert.deepEqual(SUBJECT_CATALOG.ap_statistics.modules, [
+    'Exploring One-Variable Data and Collecting Data',
+    'Probability, Random Variables, and Probability Distributions',
+    'Inference for Categorical Data: Proportions',
+    'Inference for Quantitative Data: Means',
+    'Regression Analysis'
+  ]);
+  assert.deepEqual(SUBJECT_CATALOG.ap_csp.modules, ['Creative Development', 'Data', 'Algorithms and Programming', 'Computer Systems and Networks', 'Impact of Computing']);
+  assert.equal(SUBJECT_CATALOG.ap_comparative_government.modules.includes('Comparative Case Studies'), false);
+  assert.deepEqual(SUBJECT_CATALOG.ap_chinese.modules, ['Families and Communities', 'Language and Culture', 'Art and Creativity', 'Science and Technology', 'Contemporary Life', 'Global Contexts']);
+  assert.equal(SUBJECT_CATALOG.ap_latin.modules.length, 6);
+  assert.match(SUBJECT_CATALOG.ap_latin.modules[1], /Pliny/);
+  assert.equal(SUBJECT_CATALOG.ap_music_theory.modules.length, 8);
+  assert.match(SUBJECT_CATALOG.ap_music_theory.modules[6], /Harmony and Voice Leading IV/);
+  assert.deepEqual(SUBJECT_CATALOG.ap_seminar.modules, ['Question and Explore', 'Understand and Analyze', 'Evaluate Multiple Perspectives', 'Synthesize Ideas', 'Team, Transform, and Transmit']);
 });
 
 test('combined AP economics prompt keeps shared foundations and two separate subject tracks', () => {
@@ -369,6 +395,7 @@ test('established subjects exclude other established subject unique modules', ()
     const prompt = buildSystemPrompt(SUBJECT_CATALOG[code]);
     for (const [otherCode, uniqueModules] of Object.entries(UNIQUE_MODULES)) {
       if (otherCode === code) continue;
+      if ([code, otherCode].every((item) => item === 'ap_calculus_ab' || item === 'ap_calculus_bc')) continue;
       for (const module of uniqueModules) {
         assert.equal(prompt.includes(module), false, `${code} must not include ${otherCode} unique module ${module}`);
       }

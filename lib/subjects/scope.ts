@@ -69,7 +69,8 @@ const forbiddenPatterns: Record<string, RegExp[]> = {
     /Electrochemistry|Galvanic Cell|Nernst Equation|Kinematics|Java Fundamentals|DBQ|LEQ/i
   ],
   ap_statistics: [
-    /Differentiation|Integration and Accumulation|Kinematics|Supply and Demand|Java Fundamentals|DBQ|LEQ/i
+    /Differentiation|Integration and Accumulation|Kinematics|Supply and Demand|Java Fundamentals|DBQ|LEQ/i,
+    /Analyzing departures from linearity|Combining random variables|Geometric distribution|Chi-square goodness of fit|Inference for Slopes/i
   ],
   ap_us_history: [
     /Global Tapestry|Land-Based Empires|Renaissance and Exploration|Age of Reformation|Java Fundamentals|Differentiation/i
@@ -99,7 +100,8 @@ const forbiddenPatterns: Record<string, RegExp[]> = {
     /Comparative Case Studies|Political Systems, Regimes|Population and Migration Patterns|Urban Land-Use|Differentiation|Java Fundamentals/i
   ],
   ap_chinese: [
-    /Latin Reading and Translation|Latin Syntax|Sight Reading|Literary Argument|Synthesis Essay|Java Fundamentals|Differentiation/i
+    /Latin Reading and Translation|Latin Syntax|Sight Reading|Literary Argument|Synthesis Essay|Java Fundamentals|Differentiation/i,
+    /Personal and Public Identities|Beauty and Aesthetics|Global Challenges/i
   ],
   ap_seminar: [
     /Bluebook|Desmos|ArrayList|Sight Singing/i

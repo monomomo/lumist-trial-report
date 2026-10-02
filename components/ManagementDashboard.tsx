@@ -26,6 +26,10 @@ type SortOption = 'name' | 'username' | 'status';
 type EmploymentFilter = 'all' | 'full_time' | 'part_time' | 'unset';
 
 const PAGE_SIZE = 12;
+const PHOTO_MAX_BYTES = 4 * 1024 * 1024;
+const QR_MAX_BYTES = 3 * 1024 * 1024;
+const ASSET_UPLOAD_TIMEOUT_MS = 60_000;
+const ALLOWED_ASSET_TYPES = new Set(['image/jpeg', 'image/png', 'image/webp']);
 const emptyForm = { username: '', password: '', displayName: '', publicName: '', title: '', summary: '', bio: '', subjects: '', employmentType: '' };
 
 function chineseName(value: string) {
@@ -134,23 +138,46 @@ export function ManagementDashboard({ username }: { username: string }) {
 
   async function uploadAsset(kind: 'photo' | 'qr', file: File | undefined) {
     if (!selected || !file) return;
+    if (!ALLOWED_ASSET_TYPES.has(file.type)) {
+      setError('只支持 JPG、PNG 或 WebP 图片。');
+      return;
+    }
+    const maxBytes = kind === 'photo' ? PHOTO_MAX_BYTES : QR_MAX_BYTES;
+    if (file.size === 0 || file.size > maxBytes) {
+      setError(kind === 'photo' ? '职业照不能超过 4MB，请压缩后重试。' : '二维码图片不能超过 3MB，请压缩后重试。');
+      return;
+    }
     setUploading(kind);
     setError('');
     setMessage('');
-    const body = new FormData();
-    body.set('teacherId', selected.id);
-    body.set('kind', kind);
-    body.set('file', file);
-    const response = await fetch('/api/management/teachers/assets', { method: 'POST', body });
-    const result = await response.json();
-    if (!response.ok) setError(result.error || '图片上传失败。');
-    else {
+    const controller = new AbortController();
+    const timeoutId = window.setTimeout(() => controller.abort(), ASSET_UPLOAD_TIMEOUT_MS);
+    try {
+      const body = new FormData();
+      body.set('teacherId', selected.id);
+      body.set('kind', kind);
+      body.set('file', file);
+      const response = await fetch('/api/management/teachers/assets', { method: 'POST', body, signal: controller.signal });
+      const responseText = await response.text();
+      let result: { error?: string; path?: string; url?: string } = {};
+      try {
+        result = responseText ? JSON.parse(responseText) : {};
+      } catch {
+        result = { error: response.status === 413 ? '图片体积超过上传服务限制，请压缩后重试。' : `上传服务返回异常（HTTP ${response.status}）。` };
+      }
+      if (!response.ok || !result.path) throw new Error(result.error || '图片上传失败。');
       const nextTeacher = { ...selected, [kind === 'photo' ? 'photoPath' : 'qrPath']: result.path, [kind === 'photo' ? 'photoUrl' : 'qrUrl']: result.url };
       setSelected(nextTeacher);
       setTeachers((current) => current.map((teacher) => teacher.id === selected.id ? nextTeacher : teacher));
       setMessage(kind === 'photo' ? '老师职业照已上传。' : '授课视频二维码已上传。');
+    } catch (uploadError) {
+      setError(uploadError instanceof DOMException && uploadError.name === 'AbortError'
+        ? '图片上传超时，请检查网络后重试。'
+        : uploadError instanceof Error ? uploadError.message : '图片上传失败，请稍后重试。');
+    } finally {
+      window.clearTimeout(timeoutId);
+      setUploading(null);
     }
-    setUploading(null);
   }
 
   async function submit(event: FormEvent<HTMLFormElement>) {
@@ -232,7 +259,7 @@ export function ManagementDashboard({ username }: { username: string }) {
                 <label>老师简介（每行一条）<textarea value={form.bio} onChange={(event) => updateField('bio', event.target.value)} rows={6} /></label>
                 <label>擅长科目（每行或逗号分隔）<textarea value={form.subjects} onChange={(event) => updateField('subjects', event.target.value)} rows={3} /></label>
                 {!creating ? <label className="management-checkbox"><input type="checkbox" checked={selected?.active ?? false} onChange={(event) => setSelected((current) => current ? { ...current, active: event.target.checked } : current)} /> 账号启用</label> : null}
-                {!creating && selected ? <div className="teacher-assets"><div className="teacher-asset"><div className="teacher-asset-preview">{selected.photoUrl ? <img src={selected.photoUrl} alt={`${selected.displayName}职业照`} /> : <span>暂无职业照</span>}</div><label>老师职业照<input type="file" accept="image/jpeg,image/png,image/webp" disabled={uploading !== null} onChange={(event) => void uploadAsset('photo', event.target.files?.[0])} /></label><small>支持 JPG、PNG、WebP，最大 5MB</small>{uploading === 'photo' ? <em>上传中…</em> : null}</div><div className="teacher-asset"><div className="teacher-asset-preview qr">{selected.qrUrl ? <img src={selected.qrUrl} alt={`${selected.displayName}授课视频二维码`} /> : <span>暂无二维码</span>}</div><label>授课视频二维码<input type="file" accept="image/jpeg,image/png,image/webp" disabled={uploading !== null} onChange={(event) => void uploadAsset('qr', event.target.files?.[0])} /></label><small>支持 JPG、PNG、WebP，最大 3MB</small>{uploading === 'qr' ? <em>上传中…</em> : null}</div></div> : creating ? <p className="teacher-asset-note">创建账号后即可上传职业照和授课视频二维码。</p> : null}
+                {!creating && selected ? <div className="teacher-assets"><div className="teacher-asset"><div className="teacher-asset-preview">{selected.photoUrl ? <img src={selected.photoUrl} alt={`${selected.displayName}职业照`} /> : <span>暂无职业照</span>}</div><label>老师职业照<input type="file" accept="image/jpeg,image/png,image/webp" disabled={uploading !== null} onChange={(event) => void uploadAsset('photo', event.target.files?.[0])} /></label><small>支持 JPG、PNG、WebP，最大 4MB</small>{uploading === 'photo' ? <em>上传中…</em> : null}</div><div className="teacher-asset"><div className="teacher-asset-preview qr">{selected.qrUrl ? <img src={selected.qrUrl} alt={`${selected.displayName}授课视频二维码`} /> : <span>暂无二维码</span>}</div><label>授课视频二维码<input type="file" accept="image/jpeg,image/png,image/webp" disabled={uploading !== null} onChange={(event) => void uploadAsset('qr', event.target.files?.[0])} /></label><small>支持 JPG、PNG、WebP，最大 3MB</small>{uploading === 'qr' ? <em>上传中…</em> : null}</div></div> : creating ? <p className="teacher-asset-note">创建账号后即可上传职业照和授课视频二维码。</p> : null}
                 <div className="management-actions"><button type="submit" className="management-primary">保存</button><button type="button" onClick={closeEditor}>取消</button></div>
               </form>
             </section>

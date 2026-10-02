@@ -1289,7 +1289,7 @@ function restoreGenerationRecovery() {
   }
 }
 
-function setPlanningSource(value) {
+function setPlanningSource(value, { preserveNotice = false } = {}) {
   planningSource = value === 'upload' ? 'upload' : 'ai';
   document.querySelectorAll('[name="planning-source"]').forEach((input) => { input.checked = input.value === planningSource; });
   $('#course-plan-upload-panel').classList.toggle('hidden', planningSource !== 'upload');
@@ -1302,13 +1302,17 @@ function setPlanningSource(value) {
   $('#total-hours').readOnly = planningSource === 'upload' && uploadedCoursePlanConfirmed;
   $('#lesson-count').readOnly = planningSource === 'upload' && uploadedCoursePlanConfirmed;
   $('#include-exam-training').disabled = planningSource === 'upload';
-  $('#generation-notice').innerHTML = planningSource === 'upload'
-    ? '<strong>上传模式：</strong>无需填写试听记录。系统只整理文件格式，课程规划严格使用老师确认的内容。'
-    : '<strong>生成原则：</strong>总课时由老师决定，AI 仅负责规划内容与课时分配。';
+  const generationNotice = $('#generation-notice');
+  if (!preserveNotice) {
+    generationNotice.classList.remove('error');
+    generationNotice.innerHTML = planningSource === 'upload'
+      ? '<strong>上传模式：</strong>无需填写试听记录。系统只整理文件格式，课程规划严格使用老师确认的内容。'
+      : '<strong>生成原则：</strong>总课时由老师决定，AI 仅负责规划内容与课时分配。';
+  }
   $('#generate-report').innerHTML = planningSource === 'upload' ? '生成课程规划报告 <span>→</span>' : 'AI 生成个性化报告 <span>→</span>';
   $('#generate-report').classList.toggle('hidden', planningSource === 'upload');
   $('#quick-preview-report').classList.toggle('hidden', planningSource === 'upload');
-  $('#generation-notice').classList.toggle('hidden', planningSource === 'upload');
+  generationNotice.classList.toggle('hidden', planningSource === 'upload');
   $('#student-info-hint').textContent = planningSource === 'upload'
     ? '填写报告封面信息，课时和课次将从上传文件中自动读取。'
     : '只填写 AI 无法从课堂描述中可靠获取的信息。';
@@ -1332,7 +1336,7 @@ function setGenerationControlsLocked(locked, source = null) {
     control.disabled = control.dataset.disabledBeforeGeneration === 'true';
     delete control.dataset.disabledBeforeGeneration;
   });
-  if (!locked) setPlanningSource(planningSource);
+  if (!locked) setPlanningSource(planningSource, { preserveNotice: true });
   $('#report-form').setAttribute('aria-busy', String(locked));
 }
 
