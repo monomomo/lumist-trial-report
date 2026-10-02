@@ -31,7 +31,8 @@ test('AP Calculus AB and BC expose the official unit boundaries and weights', ()
   assert.deepEqual(ab.map((unit) => unit.code), Array.from({ length: 8 }, (_, index) => `calc_u${index + 1}`));
   assert.deepEqual(bc.slice(-2).map((unit) => unit.code), ['calc_u9', 'calc_u10']);
   assert.deepEqual(ab.find((unit) => unit.code === 'calc_u6').examWeight, { minimum: 15, maximum: 20 });
-  assert.deepEqual(bc.find((unit) => unit.code === 'calc_u10').examWeight, { minimum: 17, maximum: 18 });
+  assert.deepEqual(bc.find((unit) => unit.code === 'calc_u1').examWeight, { minimum: 5, maximum: 10 });
+  assert.deepEqual(bc.find((unit) => unit.code === 'calc_u10').examWeight, { minimum: 15, maximum: 20 });
 });
 
 test('scenario requirements use explicit units, preview foundations, and full intensive coverage', () => {
@@ -44,6 +45,10 @@ test('scenario requirements use explicit units, preview foundations, and full in
 test('calculus syllabus prompt lists only units allowed by the selected course', () => {
   const ab = buildCalculusSyllabusPrompt('ap_calculus_ab', 'intensive', '');
   const bc = buildCalculusSyllabusPrompt('ap_calculus_bc', 'intensive', '');
+  assert.equal(ab.effectiveSchoolYear, '2026-27');
+  assert.equal(bc.catalogSnapshot, '2026-10-02');
+  assert.equal(bc.officialSource, 'https://apcentral.collegeboard.org/courses/ap-calculus-bc');
+  assert.equal(bc.practices.length, 4);
   assert.equal(ab.allowedUnits.some((unit) => unit.code === 'calc_u9'), false);
   assert.equal(bc.allowedUnits.some((unit) => unit.code === 'calc_u10'), true);
   assert.equal(buildCalculusSyllabusPrompt('ap_biology', 'intensive', ''), null);

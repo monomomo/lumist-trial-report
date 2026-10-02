@@ -63,22 +63,27 @@ test('newly supported subjects accept representative in-scope plans', () => {
   const validPlans = {
     ap_chemistry: 'Acids and Bases, Equilibrium, Thermodynamics and Electrochemistry',
     ap_biology: 'Cells, Heredity, Natural Selection and Ecology',
-    ap_statistics: 'Sampling Distributions and Inference for Means',
+    ap_statistics: 'Probability, Random Variables, and Probability Distributions; Inference for Quantitative Data: Means',
     ap_us_history: 'sourcing, contextualization, DBQ and LEQ',
     ap_world_history: 'Networks of Exchange, Revolutions and Globalization',
     ap_european_history: 'Renaissance, Industrialization and Cold War',
     ap_psychology: 'Cognition, Development and Learning, research methods',
     ap_human_geography: 'Population, migration, spatial patterns and urban land use',
-    ap_comparative_government: 'Political Institutions and Comparative Case Studies',
+    ap_comparative_government: 'Political Institutions, Country Comparison and Data Analysis',
     ap_art_history: 'visual evidence, comparison and cultural context',
     ap_environmental_science: 'Ecosystems, pollution, energy resources and Global Change',
     ap_us_government: 'Foundations of American Democracy and Civil Rights',
-    ap_chinese: 'Interpretive Communication and cultural comparison',
+    ap_chinese: 'Families and Communities, Language and Culture, Interpretive Communication',
     ap_seminar: 'source credibility, multiple perspectives and argument map',
-    ap_latin: 'Latin Reading and Translation, syntax and textual evidence',
-    ap_music_theory: 'Harmony and Voice Leading, Aural Skills and Sight Singing',
+    ap_latin: 'Pliny’s Letters, Vergil’s Aeneid, Read and Comprehend, Analyze',
+    ap_music_theory: 'Harmony and Voice Leading IV: Secondary Function, Analyze Performed Music',
   };
   for (const [subjectCode, coursePlan] of Object.entries(validPlans)) {
     assert.equal(hasSubjectScopeViolation(subjectCode, { coursePlan }), false, subjectCode);
   }
+});
+
+test('revised AP subjects reject retired framework content', () => {
+  assert.equal(hasSubjectScopeViolation('ap_statistics', { coursePlan: 'Inference for Slopes and chi-square goodness of fit' }), true);
+  assert.equal(hasSubjectScopeViolation('ap_chinese', { coursePlan: 'Personal and Public Identities, Beauty and Aesthetics' }), true);
 });

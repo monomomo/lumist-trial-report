@@ -79,7 +79,7 @@ export const SUBJECT_CATALOG = Object.freeze({
     scoreMin: 1,
     scoreMax: 5,
     scoreStep: 1,
-    modules: ['Limits and Continuity', 'Differentiation', 'Applications of Derivatives', 'Integration and Accumulation of Change', 'Differential Equations', 'Applications of Integration'],
+    modules: ['Limits and Continuity', 'Differentiation: Definition and Fundamental Properties', 'Differentiation: Composite, Implicit, and Inverse Functions', 'Contextual Applications of Differentiation', 'Analytical Applications of Differentiation', 'Integration and Accumulation of Change', 'Differential Equations', 'Applications of Integration'],
     promptContext: 'AP Calculus AB 课程聚焦极限、导数、积分、微分方程及其应用，规划不得混入 BC 专属的参数方程、极坐标和无穷级数内容。'
   }),
   ap_calculus_bc: createSubject({
@@ -89,7 +89,7 @@ export const SUBJECT_CATALOG = Object.freeze({
     scoreMin: 1,
     scoreMax: 5,
     scoreStep: 1,
-    modules: ['AB Foundations Review', 'Parametric Equations', 'Polar Coordinates', 'Vector-Valued Functions', 'Infinite Sequences and Series'],
+    modules: ['Limits and Continuity', 'Differentiation: Definition and Fundamental Properties', 'Differentiation: Composite, Implicit, and Inverse Functions', 'Contextual Applications of Differentiation', 'Analytical Applications of Differentiation', 'Integration and Accumulation of Change', 'Differential Equations', 'Applications of Integration', 'Parametric Equations, Polar Coordinates, and Vector-Valued Functions', 'Infinite Sequences and Series'],
     promptContext: 'AP Calculus BC 课程覆盖 AB 基础并重点处理参数方程、极坐标、向量值函数、无穷数列与级数，所有建议必须保持在微积分 BC 范围内。'
   }),
   ap_csa: createSubject({
@@ -142,7 +142,7 @@ export const SUBJECT_CATALOG = Object.freeze({
     'ap_precalculus',
     'AP Precalculus',
     ['Polynomial and Rational Functions', 'Exponential and Logarithmic Functions', 'Trigonometric and Polar Functions', 'Functions Involving Parameters, Vectors, and Matrices'],
-    'AP Precalculus 聚焦多项式与有理函数、指数与对数函数、三角与极坐标函数，以及含参数、向量和矩阵的函数建模；课程强调 covariation、multiple representations 与真实情境建模。可以说明这些能力如何衔接 AP Calculus AB/BC 或迁移到 SAT 数学，但不得把求导、积分、微分方程或 SAT 专项训练写成本课程内容。'
+    'AP Precalculus 聚焦多项式与有理函数、指数与对数函数、三角与极坐标函数，以及含参数、向量和矩阵的函数建模；Unit 1–3 属于 AP 统考范围，Unit 4 Functions Involving Parameters, Vectors, and Matrices 不纳入 AP 考试。课程强调 covariation、multiple representations 与真实情境建模。可以说明这些能力如何衔接 AP Calculus AB/BC 或迁移到 SAT 数学，但不得把求导、积分、微分方程或 SAT 专项训练写成本课程内容。'
   ),
   ap_physics_1: createApSubject(
     'ap_physics_1',
@@ -183,14 +183,14 @@ export const SUBJECT_CATALOG = Object.freeze({
   ap_statistics: createApSubject(
     'ap_statistics',
     'AP Statistics',
-    ['Exploring One-Variable Data', 'Exploring Two-Variable Data', 'Collecting Data', 'Probability', 'Random Variables and Probability Distributions', 'Sampling Distributions', 'Inference for Proportions', 'Inference for Means', 'Inference for Categorical Data', 'Inference for Slopes'],
-    'AP Statistics 课程覆盖探索数据、数据收集、概率与随机变量、抽样分布和统计推断；所有结论都应包含条件检查、统计量、情境解释与适当的 inference procedure，不得只练公式代入。'
+    ['Exploring One-Variable Data and Collecting Data', 'Probability, Random Variables, and Probability Distributions', 'Inference for Categorical Data: Proportions', 'Inference for Quantitative Data: Means', 'Regression Analysis'],
+    'AP Statistics 使用 2026–27 学年起实施的五单元框架，课程覆盖探索与收集数据、概率和随机变量、比例推断、均值推断与回归分析。Analyzing departures from linearity、combining random variables、geometric distribution、chi-square goodness of fit test 和 inference for slopes 已退出当前考纲，不得安排为 AP 统考内容。所有结论都应包含条件检查、统计量、情境解释与适当的 inference procedure，不得只练公式代入。'
   ),
   ap_csp: createApSubject(
     'ap_csp',
     'AP Computer Science Principles',
-    ['Creative Development', 'Data', 'Algorithms and Programming', 'Computer Systems and Networks', 'Impact of Computing', 'Create Performance Task'],
-    'AP Computer Science Principles 聚焦计算创新、数据、算法与程序设计、计算机系统与网络、计算影响及 Create Performance Task；可使用多种编程语言，不得套用 AP Computer Science A 的 Java 专属课程结构。'
+    ['Creative Development', 'Data', 'Algorithms and Programming', 'Computer Systems and Networks', 'Impact of Computing'],
+    'AP Computer Science Principles 的课程内容由五个 Big Ideas 构成：Creative Development、Data、Algorithms and Programming、Computer Systems and Networks、Impact of Computing。Create Performance Task 是独立的 through-course assessment，不是第六个 Big Idea；可使用多种编程语言，不得套用 AP Computer Science A 的 Java 专属课程结构。'
   ),
   ap_us_history: createApSubject(
     'ap_us_history',
@@ -225,19 +225,19 @@ export const SUBJECT_CATALOG = Object.freeze({
   ap_comparative_government: createApSubject(
     'ap_comparative_government',
     'AP Comparative Government and Politics',
-    ['Political Systems, Regimes, and Governments', 'Political Institutions', 'Political Culture and Participation', 'Party and Electoral Systems and Citizen Organizations', 'Political and Economic Changes and Development', 'Comparative Case Studies'],
-    'AP Comparative Government and Politics 比较中国、伊朗、墨西哥、尼日利亚、俄罗斯和英国的政治制度与过程，要求用课程概念、国家案例和数据完成比较、因果解释与论证。'
+    ['Political Systems, Regimes, and Governments', 'Political Institutions', 'Political Culture and Participation', 'Party and Electoral Systems and Citizen Organizations', 'Political and Economic Changes and Development'],
+    'AP Comparative Government and Politics 由五个官方单元构成，并在各单元中比较中国、伊朗、墨西哥、尼日利亚、俄罗斯和英国；国家案例贯穿五个单元，不单独构成 Comparative Case Studies 第六单元。课程要求用概念、国家案例和数据完成比较、因果解释与论证。'
   ),
   ap_english_literature: createApSubject(
     'ap_english_literature',
     'AP English Literature and Composition',
-    ['Short Fiction', 'Poetry', 'Longer Fiction and Drama', 'Character', 'Setting', 'Structure', 'Narration', 'Figurative Language', 'Literary Argument'],
+    ['Short Fiction I', 'Poetry I', 'Longer Fiction or Drama I', 'Short Fiction II', 'Poetry II', 'Longer Fiction or Drama II', 'Short Fiction III', 'Poetry III', 'Longer Fiction or Drama III'],
     'AP English Literature and Composition 通过小说、诗歌和戏剧训练 close reading、literary analysis 与 evidence-based argument，重点分析人物、结构、叙事视角、语言和复杂意义，不得写成 AP English Language 的修辞非虚构课程。'
   ),
   ap_english_language: createApSubject(
     'ap_english_language',
     'AP English Language and Composition',
-    ['Rhetorical Situation', 'Claims and Evidence', 'Reasoning and Organization', 'Style', 'Synthesis', 'Rhetorical Analysis', 'Argument'],
+    ['Rhetorical Situation: Reading', 'Rhetorical Situation: Writing', 'Claims and Evidence: Reading', 'Claims and Evidence: Writing', 'Reasoning and Organization: Reading', 'Reasoning and Organization: Writing', 'Style: Reading', 'Style: Writing'],
     'AP English Language and Composition 以非虚构文本为主，训练 rhetorical situation、claims and evidence、reasoning、organization、style，以及 synthesis、rhetorical analysis 和 argument writing。'
   ),
   ap_art_history: createApSubject(
@@ -261,26 +261,26 @@ export const SUBJECT_CATALOG = Object.freeze({
   ap_chinese: createApSubject(
     'ap_chinese',
     'AP Chinese Language and Culture',
-    ['Families and Communities', 'Personal and Public Identities', 'Beauty and Aesthetics', 'Science and Technology', 'Contemporary Life', 'Global Challenges', 'Interpretive Communication', 'Interpersonal Communication', 'Presentational Communication'],
-    'AP Chinese Language and Culture 围绕六大主题训练 interpretive、interpersonal 和 presentational communication，并结合真实语料、文化比较、听读理解、口语互动与书面表达，不得只做词汇语法刷题。'
+    ['Families and Communities', 'Language and Culture', 'Art and Creativity', 'Science and Technology', 'Contemporary Life', 'Global Contexts'],
+    'AP Chinese Language and Culture 使用 2026–27 学年起实施的六单元框架：Families and Communities、Language and Culture、Art and Creativity、Science and Technology、Contemporary Life、Global Contexts。课程训练 Interpretive Communication、Interpersonal and Presentational Communication 与 Cultural Understanding，并结合真实语料、课程项目、听读理解、口语互动与书面表达，不得沿用旧版主题名称或只做词汇语法刷题。'
   ),
   ap_seminar: createApSubject(
     'ap_seminar',
     'AP Seminar',
-    ['Question and Explore', 'Understand and Analyze', 'Evaluate Multiple Perspectives', 'Synthesize Ideas', 'Team Project and Presentation', 'Individual Research-Based Essay and Presentation', 'End-of-Course Exam'],
-    'AP Seminar 以跨学科议题为载体训练 source evaluation、multiple perspectives、synthesis、evidence-based argument、team presentation 和 individual research；课程规划不得虚构研究结果或替学生完成 performance task。'
+    ['Question and Explore', 'Understand and Analyze', 'Evaluate Multiple Perspectives', 'Synthesize Ideas', 'Team, Transform, and Transmit'],
+    'AP Seminar 课程框架由五个 Big Ideas 构成：Question and Explore、Understand and Analyze、Evaluate Multiple Perspectives、Synthesize Ideas、Team, Transform, and Transmit。Team Project and Presentation、Individual Research-Based Essay and Presentation 和 End-of-Course Exam 是评估组成，不是额外 Big Ideas；课程规划不得虚构研究结果或替学生完成 performance task。'
   ),
   ap_latin: createApSubject(
     'ap_latin',
     'AP Latin',
-    ['Latin Reading and Translation', 'Vocabulary and Syntax', 'Literary Style and Analysis', 'Historical and Cultural Context', 'Textual Evidence', 'Sight Reading', 'Analytical Essay'],
-    'AP Latin 课程围绕规定拉丁文本与视读材料训练准确翻译、词法句法、文学手法、历史文化语境、文本证据与分析写作，必须区分语言理解和文学论证。'
+    ['Teacher’s Choice – Latin Prose', 'Pliny’s Letters: Eruption of Mt. Vesuvius', 'Pliny’s Letters: Ghosts and Apparitions, Letters to Trajan and Calpurnia, and Teacher’s Choice – Latin Prose', 'Teacher’s Choice – Latin Poetry and Vergil’s Aeneid, Excerpts from Books 1 and 2', 'Vergil’s Aeneid, Excerpts from Books 4, 6, 7, 11, and 12', 'Course Project and Teacher’s Choice – Latin Poetry'],
+    'AP Latin 使用 2025–26 学年起实施的六单元框架，围绕 Teacher’s Choice 拉丁散文与诗歌、Pliny’s Letters、Vergil’s Aeneid 规定选段和 Course Project 展开，训练 Read and Comprehend、Describe Style and Context、Analyze 三类技能。不得沿用旧版 Caesar 与 Vergil 双文本框架。'
   ),
   ap_music_theory: createApSubject(
     'ap_music_theory',
     'AP Music Theory',
-    ['Music Fundamentals', 'Harmony and Voice Leading', 'Chord Progressions and Predominant Function', 'Cadences and Phrase Structure', 'Secondary Function', 'Modes and Form', 'Aural Skills', 'Sight Singing'],
-    'AP Music Theory 课程整合 written analysis、aural analysis、part writing、harmonic progression、form 和 sight singing，训练时必须包含可听辨、可记谱或可演唱的核对任务。'
+    ['Music Fundamentals I: Pitch, Major Scales and Key Signatures, Rhythm, Meter, and Expressive Elements', 'Music Fundamentals II: Minor Scales and Key Signatures, Melody, Timbre, and Texture', 'Music Fundamentals III: Triads and Seventh Chords', 'Harmony and Voice Leading I: Chord Function, Cadence, and Phrase', 'Harmony and Voice Leading II: Chord Progressions and Predominant Function', 'Harmony and Voice Leading III: Embellishments, Motives, and Melodic Devices', 'Harmony and Voice Leading IV: Secondary Function', 'Modes and Form'],
+    'AP Music Theory 使用官方八单元框架，课程整合 Analyze Performed Music、Analyze Notated Music、Convert Between Performed and Notated Music、Complete Based on Cues 四类实践。Aural Skills、part writing 和 sight singing 应贯穿相关单元，不单独冒充官方考纲单元。'
   )
 });
 

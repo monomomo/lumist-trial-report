@@ -8,12 +8,35 @@ const AP_CODES = SUBJECT_CODES.filter((code) => code.startsWith('ap_'));
 test('every supported AP course has a dated catalog snapshot and official source', () => {
   for (const code of AP_CODES) {
     const framework = getApFramework(code);
-    assert.equal(framework.catalogSnapshot, '2026-09-16', code);
+    assert.equal(framework.catalogSnapshot, '2026-10-02', code);
+    assert.equal(framework.effectiveSchoolYear, '2026-27', code);
     assert.match(framework.source, /^https:\/\/apcentral\.collegeboard\.org\/courses\//, code);
+    assert.equal(framework.sources.every((source) => source.startsWith('https://apcentral.collegeboard.org/courses/')), true, code);
     assert.equal(framework.sections.length >= 4, true, code);
     assert.equal(framework.practices.length >= 2, true, code);
     assert.equal(new Set(framework.sections.map((section) => section.code)).size, framework.sections.length, code);
   }
+});
+
+test('revised AP frameworks keep units, practices, and assessment rules separate', () => {
+  const statistics = getApFramework('ap_statistics');
+  assert.equal(statistics.sections.length, 5);
+  assert.deepEqual(statistics.practices, ['Formulate Questions', 'Collect Data', 'Analyze Data', 'Interpret Results']);
+  assert.match(statistics.subjectRules.join('；'), /inference for slopes/i);
+
+  const csp = getApFramework('ap_csp');
+  assert.equal(csp.sections.length, 5);
+  assert.equal(csp.sections.some((section) => /Create Performance Task/.test(section.title)), false);
+  assert.match(csp.subjectRules.join('；'), /through-course assessment/);
+
+  const precalculus = getApFramework('ap_precalculus');
+  assert.match(precalculus.subjectRules.join('；'), /Unit 4.+不纳入 AP Exam/);
+
+  const worldHistory = getApFramework('ap_world_history');
+  assert.equal(worldHistory.source, 'https://apcentral.collegeboard.org/courses/ap-world-history');
+
+  const combinedEconomics = getApFramework('ap_micro_macro_economics');
+  assert.equal(combinedEconomics.sources.length, 2);
 });
 
 test('AP Business with Personal Finance preserves official unit numbering and skill categories', () => {

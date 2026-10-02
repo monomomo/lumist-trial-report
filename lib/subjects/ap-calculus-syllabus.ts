@@ -63,19 +63,19 @@ const SHARED_UNITS: CalculusUnit[] = [
 ];
 
 const BC_UNITS: CalculusUnit[] = [
-  { code: 'calc_u9', number: 9, title: 'Parametric Equations, Polar Coordinates, and Vector-Valued Functions', titleZh: '参数方程、极坐标与向量值函数', examWeight: { minimum: 11, maximum: 12 }, courses: ['ap_calculus_bc'] },
-  { code: 'calc_u10', number: 10, title: 'Infinite Sequences and Series', titleZh: '无穷数列与级数', examWeight: { minimum: 17, maximum: 18 }, courses: ['ap_calculus_bc'] },
+  { code: 'calc_u9', number: 9, title: 'Parametric Equations, Polar Coordinates, and Vector-Valued Functions', titleZh: '参数方程、极坐标与向量值函数', examWeight: { minimum: 10, maximum: 15 }, courses: ['ap_calculus_bc'] },
+  { code: 'calc_u10', number: 10, title: 'Infinite Sequences and Series', titleZh: '无穷数列与级数', examWeight: { minimum: 15, maximum: 20 }, courses: ['ap_calculus_bc'] },
 ];
 
 const BC_WEIGHTS = new Map<number, CalculusUnit['examWeight']>([
-  [1, { minimum: 4, maximum: 7 }],
-  [2, { minimum: 4, maximum: 7 }],
-  [3, { minimum: 4, maximum: 7 }],
-  [4, { minimum: 6, maximum: 9 }],
-  [5, { minimum: 8, maximum: 11 }],
-  [6, { minimum: 17, maximum: 20 }],
-  [7, { minimum: 6, maximum: 9 }],
-  [8, { minimum: 6, maximum: 9 }],
+  [1, { minimum: 5, maximum: 10 }],
+  [2, { minimum: 5, maximum: 10 }],
+  [3, { minimum: 5, maximum: 10 }],
+  [4, { minimum: 5, maximum: 10 }],
+  [5, { minimum: 10, maximum: 15 }],
+  [6, { minimum: 15, maximum: 20 }],
+  [7, { minimum: 5, maximum: 10 }],
+  [8, { minimum: 5, maximum: 10 }],
 ]);
 
 export function isCalculusPilotSubject(subjectCode: string): subjectCode is CalculusSubjectCode {
@@ -121,6 +121,10 @@ export function buildCalculusSyllabusPrompt(subjectCode: string, scenario: strin
   const units = getCalculusUnits(subjectCode);
   if (!units.length) return null;
   return {
+    catalogSnapshot: '2026-10-02',
+    effectiveSchoolYear: '2026-27',
+    officialSource: `https://apcentral.collegeboard.org/courses/${subjectCode === 'ap_calculus_bc' ? 'ap-calculus-bc' : 'ap-calculus-ab'}`,
+    practices: ['Determine expressions and values using mathematical procedures and rules', 'Translate mathematical information within and across representations', 'Justify reasoning and solutions', 'Communicate results using correct notation, language, and mathematical conventions'],
     allowedUnits: units.map((unit) => ({
       code: unit.code,
       number: unit.number,
