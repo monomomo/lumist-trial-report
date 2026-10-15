@@ -43,3 +43,7 @@ test('only valid completed stages are resumed', () => {
   assert.equal(countCompletedStages(generatedStages), 2);
   assert.deepEqual(getPendingStageIndexes(generatedStages), [1, 2]);
 });
+
+test('new sparse stage arrays treat every slot as pending', () => {
+  assert.deepEqual(getPendingStageIndexes(new Array(5)), [0, 1, 2, 3, 4]);
+});

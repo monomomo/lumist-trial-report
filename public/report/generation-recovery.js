@@ -43,7 +43,8 @@ export function normalizeGeneratedStages(value, expectedLength) {
 }
 
 export function getPendingStageIndexes(generatedStages) {
-  return generatedStages.flatMap((stage, index) => stage ? [] : [index]);
+  return Array.from({ length: generatedStages.length }, (_, index) => generatedStages[index] ? null : index)
+    .filter((index) => index !== null);
 }
 
 export function countCompletedStages(generatedStages) {
