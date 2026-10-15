@@ -16,6 +16,19 @@ const SCENARIOS = {
   },
 };
 
+const SUBJECT_SCENARIO_SAMPLES = {
+  sat_math: {
+    preview: '学生计划开始 SAT 数学学习，本节课先完成了基础诊断。学生对一次方程和基础函数的直接计算较熟悉，但把文字条件转化为方程时速度偏慢，对 Desmos 的常用操作也不够熟练。前期建议先梳理 Algebra 与 Advanced Math 的核心关系，穿插 Problem-Solving and Data Analysis 题目，并用短组练习记录正确率、用时和错因，再决定后续模块的课时比例。',
+    synchronous: '学生正在同步准备 SAT 数学，近期 Bluebook 练习反映出 Algebra 基础题整体较稳定，但 Advanced Math 中的非线性函数、参数题和多步骤建模仍容易卡顿。课堂上学生能够在提示后完成关键步骤，但独立识别题型和选择方法还需要加强。后续课程建议跟随当前备考进度查漏补缺，每节课结合错题订正、同类迁移和 Desmos 验证，并根据练习数据动态调整重点。',
+    intensive: '距离 SAT 考试时间较近，学生已经完成主要知识点学习，目前失分集中在 Advanced Math、复杂文字建模和后半段时间分配。课堂限时练习中，基础题完成较快，但遇到陌生表达时会反复读题，影响整体节奏。冲刺阶段建议按薄弱模块安排限时专项与整套模考，逐题记录错因和用时，同时训练 Desmos 策略、跳题顺序和检查流程，让正确率与完成速度逐步稳定。',
+  },
+  sat_english: {
+    preview: '学生计划开始 SAT 英语学习，本节课通过短篇阅读和语法题进行了基础诊断。学生能够理解文章大意，但在 Words in Context、证据定位和长句结构分析上速度偏慢；语法题中对标点和句子边界的判断还不稳定。前期建议先建立 Reading and Writing 四大题型框架，补充高频学术词汇与核心语法规则，再通过短组练习观察正确率和用时。',
+    synchronous: '学生正在同步准备 SAT 英语，近期练习显示 Information and Ideas 的主旨与证据题相对稳定，但 Craft and Structure 中的词义、文本结构以及 Standard English Conventions 仍有波动。课堂上学生能够说出大致含义，但选择答案时对选项差异解释不够完整。后续建议跟随当前备考进度按错因分类训练，要求每道题标注定位依据、排除理由和用时，并定期回看重复错误。',
+    intensive: '距离 SAT 考试时间较近，学生已经熟悉主要题型，目前需要提升阅读速度、难题取舍和语法题稳定性。限时练习中，学生在长句和双文本题上停留时间偏长，后半段容易因时间紧张出现判断失误。冲刺阶段建议交替安排模块限时训练与整套模考，重点复盘证据定位、选项排除、标点规则和时间分配，并用连续多次练习数据确认薄弱点是否真正改善。',
+  },
+};
+
 const FOCUS_AREAS = {
   knowledge_foundation: {
     label: '知识基础',
@@ -77,6 +90,11 @@ export const MAX_PLANNING_FOCUS_AREAS = 3;
 
 export function resolvePlanningScenario(value) {
   return PLANNING_SCENARIO_CODES.includes(value) ? value : DEFAULT_PLANNING_SCENARIO;
+}
+
+export function getPlanningScenarioSample(scenarioCode, subjectCode) {
+  const scenario = resolvePlanningScenario(scenarioCode);
+  return SUBJECT_SCENARIO_SAMPLES[subjectCode]?.[scenario] || PLANNING_SCENARIOS[scenario].sample;
 }
 
 export function getPlanningFocusOptions(subjectCode) {

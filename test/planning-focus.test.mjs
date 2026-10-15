@@ -2,9 +2,20 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {
   MAX_PLANNING_FOCUS_AREAS,
+  getPlanningScenarioSample,
   getPlanningFocusOptions,
   normalizePlanningFocusAreas,
 } from '../public/report/planning-context.js';
+
+test('SAT subjects use subject-specific planning samples while AP keeps the shared samples', () => {
+  assert.match(getPlanningScenarioSample('preview', 'sat_math'), /SAT 数学/);
+  assert.match(getPlanningScenarioSample('synchronous', 'sat_math'), /Advanced Math/);
+  assert.match(getPlanningScenarioSample('intensive', 'sat_math'), /Desmos/);
+  assert.match(getPlanningScenarioSample('preview', 'sat_english'), /SAT 英语/);
+  assert.match(getPlanningScenarioSample('synchronous', 'sat_english'), /Craft and Structure/);
+  assert.match(getPlanningScenarioSample('intensive', 'sat_english'), /Standard English Conventions|语法/);
+  assert.match(getPlanningScenarioSample('preview', 'ap_calculus_ab'), /AP 课程/);
+});
 
 test('planning focus options hide irrelevant experimental fields by subject', () => {
   const calculusCodes = getPlanningFocusOptions('ap_calculus_bc').map((option) => option.code);

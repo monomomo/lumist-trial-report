@@ -558,6 +558,7 @@ body.modal-open { overflow:hidden; }
 .field-grid select:focus { border-color:var(--blue);box-shadow:0 0 0 3px rgba(33,84,237,.1); }
 .field-grid small { color:var(--muted);font-size:10px;font-weight:500;line-height:1.4; }
 .quick-actions { flex-wrap:wrap; }
+.scenario-sample-hint { margin:10px 0 0; color:var(--muted); font-size:10px; line-height:1.4; }
 .planning-focus-selector { margin:20px 0 0; padding:0; border:0; }
 .planning-focus-selector legend { color:#3e4760; font-size:12px; font-weight:700; }
 .planning-focus-options { display:flex; flex-wrap:wrap; gap:8px; margin-top:9px; }

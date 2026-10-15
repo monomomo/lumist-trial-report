@@ -3,7 +3,7 @@ import { SUBJECT_CODES, SUBJECT_CATALOG, resolveSubject, validateSubjectScores }
 import { createSubjectViewModel, normalizeTeacherProfile, buildFallbackReport, resolveTargetScore } from './report-domain.js';
 import { SUMMARY_FIELD_RULES, cloneReportSummary, validateReportSummary } from './summary-editor-utils.js';
 import { buildGenerationChecklist, buildReportQualityChecks, humanizeReportWarning } from './report-quality-utils.js';
-import { PLANNING_SCENARIOS, MAX_PLANNING_FOCUS_AREAS, getPlanningFocusOptions, normalizePlanningFocusAreas, resolvePlanningScenario, getLessonCountRange } from './planning-context.js';
+import { PLANNING_SCENARIOS, MAX_PLANNING_FOCUS_AREAS, getPlanningScenarioSample, getPlanningFocusOptions, normalizePlanningFocusAreas, resolvePlanningScenario, getLessonCountRange } from './planning-context.js';
 import { detectInputConflicts } from './input-conflict-utils.js';
 import { FORM_DRAFT_TTL_MS, GENERATION_CHECKPOINT_TTL_MS, createExpiringRecord, readFreshRecord, createGenerationFingerprint, normalizeGeneratedStages, getPendingStageIndexes, countCompletedStages } from './generation-recovery.js';
 
@@ -234,6 +234,7 @@ function applySubjectSelection(code) {
   configureExamDateField(code);
   applyReportBrandAssets(code);
   renderPlanningFocusOptions(selectedFocusAreas);
+  $('#scenario-sample-hint').textContent = `当前提供 ${getSubjectShortName(code)} 的预习、同步和冲刺样例`;
 }
 
 function refreshPreview() {
@@ -2030,7 +2031,7 @@ $('#report-form').addEventListener('submit', async (event) => {
 document.querySelectorAll('[data-scenario-sample]').forEach((button) => button.addEventListener('click', () => {
   const scenario = resolvePlanningScenario(button.dataset.scenarioSample);
   $('#planning-scenario').value = scenario;
-  $('#teacher-notes').value = PLANNING_SCENARIOS[scenario].sample;
+  $('#teacher-notes').value = getPlanningScenarioSample(scenario, currentSubjectCode);
   scheduleFormDraftSave();
 }));
 $('#subject-search').addEventListener('focus', (event) => {

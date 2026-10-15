@@ -175,6 +175,14 @@ test('new report form starts with empty teacher inputs', async () => {
   assert.equal(source.match(/data-scenario-sample=/g)?.length, 3);
 });
 
+test('scenario samples follow the selected SAT or AP subject', async () => {
+  const appSource = await readFile(new URL('../public/report/app.js', import.meta.url), 'utf8');
+  const htmlSource = await readFile(new URL('../public/report/index.html', import.meta.url), 'utf8');
+  assert.match(appSource, /getPlanningScenarioSample\(scenario, currentSubjectCode\)/);
+  assert.match(appSource, /当前提供 \$\{getSubjectShortName\(code\)\} 的预习、同步和冲刺样例/);
+  assert.match(htmlSource, /id="scenario-sample-hint"/);
+});
+
 test('AP subjects use upcoming May exam options', async () => {
   const appSource = await readFile(new URL('../public/report/app.js', import.meta.url), 'utf8');
   const htmlSource = await readFile(new URL('../public/report/index.html', import.meta.url), 'utf8');
