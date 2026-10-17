@@ -83,7 +83,7 @@
                   </select></label
                 >
                 <label class="ai-workflow-only"
-                  >总课时（必填）<input
+                  ><span id="total-hours-label">总课时（必填）</span><input
                     id="total-hours"
                     type="text"
                     inputmode="decimal"
@@ -124,12 +124,11 @@
                 <div class="subject-context-heading">
                   <div>
                     <h3 id="sat-math-context-title">SAT 数学课时分配</h3>
-                    <p>老师锁定各领域课时，系统据此生成每节教学内容，不会重新分配。</p>
+                    <p>直接填写各领域课时，总课时自动汇总；系统据此生成每节教学内容。</p>
                   </div>
-                  <button id="suggest-sat-math-hours" type="button" class="secondary-btn compact-btn">按官方权重建议</button>
                 </div>
                 <div id="sat-math-hours-grid" class="sat-math-hours-grid"></div>
-                <div id="sat-math-hours-summary" class="sat-math-hours-summary" aria-live="polite">填写总课时后，再分配五项课时。</div>
+                <div id="sat-math-hours-summary" class="sat-math-hours-summary" aria-live="polite">填写各领域课时后，系统自动汇总总课时；不安排的项目请填写 0。</div>
               </section>
               <section id="course-plan-upload-panel" class="course-plan-upload-panel hidden">
                 <div>
@@ -794,6 +793,6 @@
         </footer>
       </div>
     </div>
-    <script type="module" src="app.js?v=stable-plans-1"></script>
+    <script type="module" src="app.js?v=sat-auto-total-1"></script>
   </body>
 </html>

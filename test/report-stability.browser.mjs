@@ -116,6 +116,25 @@ try {
   assert.match(await page.locator('#report-view .eyebrow').first().textContent(), /已打开之前保存的报告/);
   assert.deepEqual(errors, []);
   console.log('PASS: repeated input in a fresh page opens the existing history record');
+  await page.getByRole('button', { name: '新建试听报告', exact: true }).click();
+  await page.locator('#subject-search').fill('SAT 数学');
+  await page.locator('[data-subject-code="sat_math"]').click();
+  assert.equal(await page.locator('#total-hours').getAttribute('readonly'), '');
+  await page.locator('#lesson-count').fill('11');
+  const mathInputs = page.locator('[data-sat-math-hours]');
+  for (const [index, hours] of [5, 6, 3, 4, 2].entries()) await mathInputs.nth(index).fill(String(hours));
+  assert.equal(await page.locator('#total-hours').inputValue(), '20');
+  await mathInputs.nth(0).fill('5.5');
+  assert.equal(await page.locator('#total-hours').inputValue(), '20.5');
+  assert.equal(await page.locator('#lesson-count').inputValue(), '11');
+  await mathInputs.nth(0).fill('');
+  assert.match(await page.locator('#sat-math-hours-summary').textContent(), /填写全部/);
+  await page.locator('#subject-search').fill('AP Calculus AB');
+  await page.locator('[data-subject-code="ap_calculus_ab"]').click();
+  assert.equal(await page.locator('#total-hours').getAttribute('readonly'), null);
+  assert.equal(await page.locator('#total-hours').inputValue(), '');
+  assert.deepEqual(errors, []);
+  console.log('PASS: SAT Math automatically sums area hours, preserves independent lesson counts and restores AP manual entry');
 } catch (error) {
   console.error({ errors, apiRequests: requests.map(({ path, method }) => ({ path, method })), history: await page.locator('#history-list').textContent(), examOptions: await page.locator('#ap-exam-date').innerHTML() });
   throw error;

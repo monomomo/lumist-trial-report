@@ -6,7 +6,7 @@ import { buildGenerationChecklist, buildReportQualityChecks, humanizeReportWarni
 import { PLANNING_SCENARIOS, MAX_PLANNING_FOCUS_AREAS, getPlanningScenarioSample, getPlanningFocusOptions, normalizePlanningFocusAreas, resolvePlanningScenario, getLessonCountRange } from './planning-context.js';
 import { detectInputConflicts } from './input-conflict-utils.js';
 import { FORM_DRAFT_TTL_MS, GENERATION_CHECKPOINT_TTL_MS, createExpiringRecord, readFreshRecord, createGenerationFingerprint, normalizeGeneratedStages, getPendingStageIndexes, countCompletedStages } from './generation-recovery.js';
-import { SAT_MATH_AREA_CONFIG, createEmptySatMathHours, suggestSatMathHours, sumSatMathHours, validateSatEnglishAssessment, validateSatMathHours } from './sat-context.js';
+import { SAT_MATH_AREA_CONFIG, createEmptySatMathHours, sumSatMathHours, validateSatEnglishAssessment, validateSatMathHours } from './sat-context.js';
 import { normalizeGenerationInput, getGenerationAction, sameCoursePlan } from './generation-policy.js';
 
 const $ = (selector) => document.querySelector(selector);
@@ -144,31 +144,45 @@ function updateLanguageAssessmentFields() {
 }
 
 function updateSatMathHoursSummary() {
-  const assigned = sumSatMathHours(collectSatMathHours());
-  const rawTotal = $('#total-hours').value.trim();
-  const total = Number(rawTotal);
+  if (currentSubjectCode !== 'sat_math' || planningSource !== 'ai') return;
+  document.querySelectorAll('[data-sat-math-hours]').forEach((input) => input.setCustomValidity(''));
+  const hours = collectSatMathHours();
+  const assigned = sumSatMathHours(hours);
+  const hasInput = Object.values(hours).some((value) => value !== '');
+  const totalInput = $('#total-hours');
+  totalInput.value = hasInput ? String(assigned) : '';
+  totalInput.setCustomValidity('');
+  $('#lesson-count').setCustomValidity('');
+  updateLessonCountHint();
   const summary = $('#sat-math-hours-summary');
   summary.classList.remove('complete', 'error');
-  if (!rawTotal || !Number.isFinite(total)) {
-    summary.textContent = `已分配 ${assigned}h；请先填写总课时。`;
+  if (!hasInput) {
+    summary.textContent = '填写各领域课时后，系统自动汇总总课时；不安排的项目请填写 0。';
     return;
   }
-  const remaining = total - assigned;
-  if (Math.abs(remaining) < 0.001) {
-    summary.classList.add('complete');
-    summary.textContent = `已分配 ${assigned}h / ${total}h，课时分配完成。`;
+  const validation = validateSatMathHours(hours, assigned);
+  if (!validation.valid) {
+    summary.classList.add('error');
+    summary.textContent = `当前合计 ${assigned}h；${validation.message}。`;
     return;
   }
-  summary.classList.add('error');
-  summary.textContent = remaining > 0
-    ? `已分配 ${assigned}h / ${total}h，还需分配 ${remaining}h。`
-    : `已分配 ${assigned}h / ${total}h，超出 ${Math.abs(remaining)}h。`;
+  if (assigned < 2 || assigned > 60) {
+    summary.classList.add('error');
+    summary.textContent = `当前合计 ${assigned}h；总课时须为 2–60 小时，请调整各领域课时。`;
+    return;
+  }
+  summary.classList.add('complete');
+  summary.textContent = `总课时已自动汇总：${assigned}h。预计课次请按实际授课安排独立填写。`;
 }
 
 function configureSatSubjectContext() {
   const isAi = planningSource === 'ai';
   const isSatEnglish = currentSubjectCode === 'sat_english' && isAi;
   const isSatMath = currentSubjectCode === 'sat_math' && isAi;
+  $('#total-hours-label').textContent = isSatMath ? '总课时（自动汇总）' : '总课时（必填）';
+  $('#total-hours').readOnly = isSatMath || (planningSource === 'upload' && uploadedCoursePlanConfirmed);
+  $('#total-hours').required = isAi && !isSatMath;
+  $('#total-hours').placeholder = isSatMath ? '填写下方各领域课时后自动计算' : '例如：50';
   $('#sat-english-context').classList.toggle('hidden', !isSatEnglish);
   $('#sat-math-context').classList.toggle('hidden', !isSatMath);
   $('#sat-english-context').querySelectorAll('input, select').forEach((control) => { control.disabled = !isSatEnglish; });
@@ -1847,6 +1861,22 @@ function validateGenerationInputs() {
   currentScore.setCustomValidity('');
   targetScore.setCustomValidity('');
   lessonCount.setCustomValidity('');
+  if (planningSource === 'ai' && currentSubjectCode === 'sat_math') {
+    updateSatMathHoursSummary();
+    const mathValidation = validateSatMathHours(collectSatMathHours(), $('#total-hours').value);
+    document.querySelectorAll('[data-sat-math-hours]').forEach((input) => input.setCustomValidity(''));
+    const total = Number($('#total-hours').value);
+    if (!mathValidation.valid || total < 2 || total > 60) {
+      const message = !mathValidation.valid ? mathValidation.message : '总课时须为 2–60 小时，请调整各领域课时';
+      const input = !mathValidation.valid && mathValidation.code !== 'total'
+        ? $(`[data-sat-math-hours="${mathValidation.code}"]`) : $('[data-sat-math-hours]');
+      input?.setCustomValidity(message);
+      notice.classList.add('error');
+      notice.innerHTML = `<strong>数学课时分配有误：</strong>${escapeHtml(message)}`;
+      input?.reportValidity();
+      return false;
+    }
+  }
   const lessonCountRange = getLessonCountRange($('#total-hours').value);
   const requestedLessonCount = Number(lessonCount.value);
   if (!lessonCountRange || !Number.isInteger(requestedLessonCount)
@@ -1857,18 +1887,6 @@ function validateGenerationInputs() {
     notice.innerHTML = `<strong>课次填写有误：</strong>当前总课时下，预计课次应为 ${escapeHtml(rangeText)} 节。`;
     lessonCount.reportValidity();
     return false;
-  }
-  if (planningSource === 'ai' && currentSubjectCode === 'sat_math') {
-    const mathValidation = validateSatMathHours(collectSatMathHours(), $('#total-hours').value);
-    document.querySelectorAll('[data-sat-math-hours]').forEach((input) => input.setCustomValidity(''));
-    if (!mathValidation.valid) {
-      const input = mathValidation.code === 'total' ? $('#total-hours') : $(`[data-sat-math-hours="${mathValidation.code}"]`);
-      input?.setCustomValidity(mathValidation.message);
-      notice.classList.add('error');
-      notice.innerHTML = `<strong>数学课时分配有误：</strong>${escapeHtml(mathValidation.message)}`;
-      input?.reportValidity();
-      return false;
-    }
   }
   if (planningSource === 'ai' && currentSubjectCode === 'sat_english') {
     const languageValidation = validateSatEnglishAssessment(collectSatEnglishAssessment());
@@ -2440,16 +2458,6 @@ $('#language-reading-score').addEventListener('input', (event) => event.target.s
 $('#sat-math-hours-grid').addEventListener('input', (event) => {
   event.target.setCustomValidity('');
   updateSatMathHoursSummary();
-});
-$('#suggest-sat-math-hours').addEventListener('click', () => {
-  const suggestion = suggestSatMathHours($('#total-hours').value);
-  if (!suggestion) {
-    $('#total-hours').setCustomValidity('请先填写 2–60 之间、以 0.5 小时递增的总课时');
-    $('#total-hours').reportValidity();
-    return;
-  }
-  renderSatMathHoursInputs(suggestion);
-  scheduleFormDraftSave();
 });
 $('#planning-focus-options').addEventListener('change', updatePlanningFocusState);
 document.querySelectorAll('[name="planning-source"]').forEach((input) => input.addEventListener('change', (event) => {
