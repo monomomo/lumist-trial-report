@@ -6,6 +6,7 @@ import { SUBJECT_CODES, resolveSubject } from '@/lib/subjects/catalog';
 import { extractCoursePlanText } from '@/lib/course-plan-upload/extract';
 import { buildCoursePlanExtractionInput, buildCoursePlanExtractionPrompt } from '@/lib/course-plan-upload/prompt';
 import { buildLockedPlan, getUploadedPlanWarnings, uploadedPlanExtractionSchema } from '@/lib/course-plan-upload/schema';
+import { getSatUploadedPlanWarnings } from '@/lib/course-plan-upload/sat-review';
 import { parseModelResponse } from '@/lib/reports/model-response';
 
 export const runtime = 'nodejs';
@@ -48,13 +49,14 @@ export async function POST(request: Request) {
     });
     if (!extraction) return NextResponse.json({ error: 'COURSE_PLAN_PARSE_FAILED' }, { status: 502 });
     const warnings = getUploadedPlanWarnings(extraction);
+    const satReviewWarnings = getSatUploadedPlanWarnings(subjectCode, extraction);
     let lockedPlan = null;
     try {
       lockedPlan = buildLockedPlan(extraction);
     } catch {
       warnings.push('存在缺失或不支持的课时时长，请老师修改后再确认');
     }
-    return NextResponse.json({ parsed: true, fileName: file.name, extraction, lockedPlan, warnings: [...new Set(warnings)] });
+    return NextResponse.json({ parsed: true, fileName: file.name, extraction, lockedPlan, warnings: [...new Set(warnings)], satReviewWarnings });
   } catch (error) {
     const code = error instanceof RangeError ? error.message : 'COURSE_PLAN_PARSE_FAILED';
     return NextResponse.json({ error: code }, { status: code === 'COURSE_PLAN_PARSE_FAILED' ? 502 : 400 });

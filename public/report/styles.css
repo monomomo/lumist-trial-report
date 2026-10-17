@@ -543,6 +543,10 @@ body.modal-open { overflow:hidden; }
 .course-plan-review-actions .primary-btn { width:auto;margin-top:0;white-space:nowrap; }
 .course-plan-upload-review h3 { margin:0 0 5px;font-size:16px; }
 .course-plan-upload-warnings { margin:10px 0;padding-left:20px;color:#9a5b00;font-size:12px; }
+.sat-upload-review { margin:12px 0 16px;padding:14px 16px;border:1px solid #f0c56e;border-radius:12px;background:#fff8e8;color:#6f4700; }
+.sat-upload-review strong { display:block;margin-bottom:6px;font-size:14px; }
+.sat-upload-review ul { margin:0;padding-left:20px;font-size:13px;line-height:1.65; }
+.sat-upload-review p { margin:8px 0 0;font-size:12px;color:#805d1d; }
 .uploaded-stage { padding:14px;background:#fff;border:1px solid #e0e5ef;border-radius:10px;margin-top:12px; }
 .uploaded-stage>input,.uploaded-stage>textarea { width:100%;box-sizing:border-box;margin-top:7px; }
 .uploaded-lessons { display:grid;gap:8px;margin-top:12px; }
@@ -567,6 +571,37 @@ body.modal-open { overflow:hidden; }
 .planning-focus-options label:has(input:disabled) { opacity:.45; cursor:not-allowed; }
 .planning-focus-options input { margin:0; accent-color:#2154ed; }
 .planning-focus-selector>small { display:block; margin-top:8px; color:var(--muted); font-size:10px; line-height:1.4; }
+.regeneration-options { margin:18px 0; padding:16px; border:1px solid #dce2ef; border-radius:12px; background:#f8faff; }
+.regeneration-options legend { padding:0 5px; color:#34405b; font-size:13px; font-weight:700; }
+.regeneration-options>label { display:flex; align-items:center; gap:8px; margin:10px 0; font-size:12px; color:#34405b; cursor:pointer; }
+.regeneration-options input { flex:none; margin:0; accent-color:#2154ed; }
+.regeneration-options>p { margin:12px 0 0; color:#68728a; font-size:11px; line-height:1.6; }
+.subject-context-card { margin:18px 0 8px; padding:18px; border:1px solid #dce2ef; border-radius:12px; background:#f8faff; }
+.subject-context-card.hidden { display:none; }
+.subject-context-heading { display:flex; align-items:flex-start; justify-content:space-between; gap:14px; }
+.subject-context-heading h3 { margin:0; color:#2f3b55; font-size:15px; }
+.subject-context-heading p { margin:5px 0 0; color:#68728a; font-size:11px; line-height:1.55; }
+.subject-context-heading>span { flex:none; padding:5px 8px; border-radius:999px; background:#e9efff; color:#3154b5; font-size:10px; font-weight:800; }
+.subject-context-grid { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:13px; margin-top:15px; }
+.subject-context-grid label { display:grid; gap:7px; color:#3e4760; font-size:12px; font-weight:700; }
+.subject-context-grid input,.subject-context-grid select { width:100%; box-sizing:border-box; height:40px; border:1px solid #d7deec; border-radius:8px; padding:0 11px; color:var(--ink); background:#fff; outline:none; }
+.subject-context-grid input:focus,.subject-context-grid select:focus { border-color:var(--blue); box-shadow:0 0 0 3px rgba(33,84,237,.1); }
+.subject-context-grid .hidden { display:none; }
+.subject-context-note { margin:12px 0 0; color:#67738d; font-size:10px; line-height:1.55; }
+.compact-btn { flex:none; padding:8px 11px; font-size:11px; }
+.sat-math-hours-grid { display:grid; gap:9px; margin-top:15px; }
+.sat-math-hours-grid>label { display:grid; grid-template-columns:minmax(0,1fr) 92px; align-items:center; gap:16px; padding:11px 12px; border:1px solid #e1e6f0; border-radius:9px; background:#fff; }
+.sat-math-hours-grid label>span:first-child b,.sat-math-hours-grid label>span:first-child small { display:block; }
+.sat-math-hours-grid label>span:first-child b { color:#34405b; font-size:12px; }
+.sat-math-hours-grid label>span:first-child small { margin-top:4px; color:#7a8499; font-size:10px; line-height:1.4; }
+.sat-math-hour-input { position:relative; }
+.sat-math-hour-input input { width:100%; height:38px; box-sizing:border-box; border:1px solid #d7deec; border-radius:8px; padding:0 28px 0 10px; color:var(--ink); text-align:right; outline:none; }
+.sat-math-hour-input input:focus { border-color:var(--blue); box-shadow:0 0 0 3px rgba(33,84,237,.1); }
+.sat-math-hour-input i { position:absolute; right:10px; top:50%; transform:translateY(-50%); color:#7a8499; font-size:11px; font-style:normal; pointer-events:none; }
+.sat-math-hours-summary { margin-top:11px; padding:9px 11px; border-radius:8px; background:#eef2fa; color:#59657e; font-size:11px; font-weight:700; }
+.sat-math-hours-summary.complete { background:#e8f7ef; color:#1b7850; }
+.sat-math-hours-summary.error { background:#fff0ed; color:#a13a2d; }
+@media screen and (max-width:620px) { .subject-context-heading { flex-direction:column; }.subject-context-grid { grid-template-columns:1fr; }.compact-btn { width:100%; }.sat-math-hours-grid>label { grid-template-columns:minmax(0,1fr) 78px; } }
 
 /* 教师头像不存在时的占位 */
 .avatar-placeholder { width:100%;height:380px;display:grid;place-items:center;background:#e8e1c5;color:#5c5133;font-size:120px;font-weight:800; }

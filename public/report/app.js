@@ -6,6 +6,8 @@ import { buildGenerationChecklist, buildReportQualityChecks, humanizeReportWarni
 import { PLANNING_SCENARIOS, MAX_PLANNING_FOCUS_AREAS, getPlanningScenarioSample, getPlanningFocusOptions, normalizePlanningFocusAreas, resolvePlanningScenario, getLessonCountRange } from './planning-context.js';
 import { detectInputConflicts } from './input-conflict-utils.js';
 import { FORM_DRAFT_TTL_MS, GENERATION_CHECKPOINT_TTL_MS, createExpiringRecord, readFreshRecord, createGenerationFingerprint, normalizeGeneratedStages, getPendingStageIndexes, countCompletedStages } from './generation-recovery.js';
+import { SAT_MATH_AREA_CONFIG, createEmptySatMathHours, suggestSatMathHours, sumSatMathHours, validateSatEnglishAssessment, validateSatMathHours } from './sat-context.js';
+import { normalizeGenerationInput, getGenerationAction, sameCoursePlan } from './generation-policy.js';
 
 const $ = (selector) => document.querySelector(selector);
 const setText = (selector, value) => { $(selector).textContent = value; };
@@ -88,13 +90,94 @@ let uploadedCoursePlan = null;
 let uploadedCoursePlanConfirmed = false;
 let selectedCoursePlanFile = null;
 let coursePlanParseVersion = 0;
+let aiModeDraft = null;
 let recoveryStorageScope = '';
 let formDraftSaveTimer = null;
 let formHasUserInput = false;
 let activeGenerationSource = null;
-const UPLOAD_REPORT_NOTE = '老师已上传并确认完整课程规划，本报告仅对老师提供的原规划进行结构化整理与排版。';
+let pendingRegenerationReportId = null;
+let reportGenerationBaseline = null;
+const LEGACY_UPLOAD_REPORT_NOTE = '老师已上传并确认完整课程规划，本报告仅对老师提供的原规划进行结构化整理与排版。';
 const FORM_DRAFT_STORAGE_KEY = 'lumist-report-form-draft-v1';
 const GENERATION_CHECKPOINT_STORAGE_KEY = 'lumist-report-generation-checkpoint-v1';
+
+function renderSatMathHoursInputs(values = createEmptySatMathHours()) {
+  $('#sat-math-hours-grid').innerHTML = SAT_MATH_AREA_CONFIG.map((item) => `<label><span><b>${escapeHtml(item.label)}</b><small>${escapeHtml(item.description)}</small></span><span class="sat-math-hour-input"><input type="text" inputmode="decimal" data-sat-math-hours="${escapeHtml(item.code)}" value="${escapeHtml(values[item.code] ?? '')}" aria-label="${escapeHtml(item.label)}课时"><i>h</i></span></label>`).join('');
+  updateSatMathHoursSummary();
+}
+
+function collectSatMathHours() {
+  return Object.fromEntries([...document.querySelectorAll('[data-sat-math-hours]')].map((input) => [input.dataset.satMathHours, input.value.trim()]));
+}
+
+function collectSatEnglishAssessment() {
+  const testType = $('#language-test-type').value;
+  if (!testType) return null;
+  return {
+    testType,
+    scoreScale: testType === 'ielts_academic' ? 'ielts_0_9' : $('#language-score-scale').value,
+    overallScore: $('#language-overall-score').value.trim(),
+    readingScore: $('#language-reading-score').value.trim(),
+    testDate: $('#language-test-date').value,
+  };
+}
+
+function updateLanguageAssessmentFields() {
+  const testType = $('#language-test-type').value;
+  const enabled = Boolean(testType);
+  $('#language-score-scale-field').classList.toggle('hidden', testType !== 'toefl_ibt');
+  $('#language-overall-field').classList.toggle('hidden', !enabled);
+  $('#language-reading-field').classList.toggle('hidden', !enabled);
+  $('#language-test-date-field').classList.toggle('hidden', !enabled);
+  $('#language-score-scale').disabled = testType !== 'toefl_ibt';
+  $('#language-overall-score').disabled = !enabled;
+  $('#language-reading-score').disabled = !enabled;
+  $('#language-test-date').disabled = !enabled;
+  $('#language-overall-score').required = enabled;
+  const isIelts = testType === 'ielts_academic';
+  $('#language-overall-label').textContent = isIelts ? 'IELTS 总分' : 'TOEFL 总分';
+  $('#language-reading-label').textContent = isIelts ? 'IELTS 阅读（选填）' : 'TOEFL 阅读（选填）';
+  $('#language-overall-score').placeholder = isIelts ? '例如：7.0' : ($('#language-score-scale').value === 'new_1_6' ? '例如：5.0' : '例如：100');
+  $('#language-reading-score').placeholder = isIelts ? '例如：7.5' : ($('#language-score-scale').value === 'new_1_6' ? '例如：5.0' : '例如：26');
+  $('#language-overall-score').setCustomValidity('');
+  $('#language-reading-score').setCustomValidity('');
+}
+
+function updateSatMathHoursSummary() {
+  const assigned = sumSatMathHours(collectSatMathHours());
+  const rawTotal = $('#total-hours').value.trim();
+  const total = Number(rawTotal);
+  const summary = $('#sat-math-hours-summary');
+  summary.classList.remove('complete', 'error');
+  if (!rawTotal || !Number.isFinite(total)) {
+    summary.textContent = `已分配 ${assigned}h；请先填写总课时。`;
+    return;
+  }
+  const remaining = total - assigned;
+  if (Math.abs(remaining) < 0.001) {
+    summary.classList.add('complete');
+    summary.textContent = `已分配 ${assigned}h / ${total}h，课时分配完成。`;
+    return;
+  }
+  summary.classList.add('error');
+  summary.textContent = remaining > 0
+    ? `已分配 ${assigned}h / ${total}h，还需分配 ${remaining}h。`
+    : `已分配 ${assigned}h / ${total}h，超出 ${Math.abs(remaining)}h。`;
+}
+
+function configureSatSubjectContext() {
+  const isAi = planningSource === 'ai';
+  const isSatEnglish = currentSubjectCode === 'sat_english' && isAi;
+  const isSatMath = currentSubjectCode === 'sat_math' && isAi;
+  $('#sat-english-context').classList.toggle('hidden', !isSatEnglish);
+  $('#sat-math-context').classList.toggle('hidden', !isSatMath);
+  $('#sat-english-context').querySelectorAll('input, select').forEach((control) => { control.disabled = !isSatEnglish; });
+  $('#sat-math-context').querySelectorAll('input, button').forEach((control) => { control.disabled = !isSatMath; });
+  $('.planning-exam-training-toggle').classList.toggle('hidden', !isAi || isSatMath);
+  $('#include-exam-training').disabled = !isAi || isSatMath;
+  if (isSatEnglish) updateLanguageAssessmentFields();
+  if (isSatMath) updateSatMathHoursSummary();
+}
 
 function populateSubjectSelect() {
   const select = $('#subject-select');
@@ -112,6 +195,7 @@ function populateSubjectSelect() {
   configureExamDateField(currentSubjectCode);
   applyReportBrandAssets(currentSubjectCode);
   renderPlanningFocusOptions([]);
+  configureSatSubjectContext();
 }
 
 function normalizeSubjectSearch(value) {
@@ -215,8 +299,59 @@ function onSubjectChange() {
   refreshPreview();
 }
 
-function applySubjectSelection(code) {
+function getSubjectTrack(code) {
+  return code.startsWith('ap_') ? 'ap' : 'sat';
+}
+
+function resetFormForTrackChange({ clearRecovery = true } = {}) {
+  pendingRegenerationReportId = null;
+  reportGenerationBaseline = null;
+  $('#regeneration-options').classList.add('hidden');
+  currentReportId = null;
+  currentReportData = null;
+  historicalTeacherProfile = null;
+  $('#student-name').value = '';
+  $('#current-score').value = '';
+  $('#target-score').value = '';
+  $('#exam-date').value = '';
+  $('#total-hours').value = '';
+  $('#lesson-count').value = '';
+  $('#planning-scenario').value = '';
+  $('#include-exam-training').checked = false;
+  $('#teacher-notes').value = '';
+  $('#language-test-type').value = '';
+  $('#language-score-scale').value = 'new_1_6';
+  $('#language-overall-score').value = '';
+  $('#language-reading-score').value = '';
+  $('#language-test-date').value = '';
+  $('#current-score').setCustomValidity('');
+  $('#target-score').setCustomValidity('');
+  $('#total-hours').setCustomValidity('');
+  $('#lesson-count').setCustomValidity('');
+  $('#language-overall-score').setCustomValidity('');
+  $('#language-reading-score').setCustomValidity('');
+  renderPlanningFocusOptions([]);
+  renderSatMathHoursInputs();
+  uploadedCoursePlan = null;
+  uploadedCoursePlanConfirmed = false;
+  selectedCoursePlanFile = null;
+  aiModeDraft = null;
+  coursePlanParseVersion += 1;
+  $('#course-plan-file').value = '';
+  $('#course-plan-dropzone').classList.remove('has-file');
+  $('#course-plan-file-name').textContent = '尚未选择文件';
+  $('#course-plan-upload-review').classList.add('hidden');
+  $('#course-plan-upload-review').innerHTML = '';
+  $('#course-plan-upload-status').className = 'course-plan-upload-status';
+  $('#course-plan-upload-status').textContent = '';
+  setPlanningSource('ai');
+  if (clearRecovery) clearGenerationRecovery();
+}
+
+function applySubjectSelection(code, options = {}) {
   const selectedFocusAreas = getSelectedPlanningFocusAreas();
+  const trackChanged = getSubjectTrack(currentSubjectCode) !== getSubjectTrack(code);
+  if (trackChanged) resetFormForTrackChange(options);
   currentSubjectCode = code;
   const vm = createSubjectViewModel(code);
   subjectSelectionConfirmed = true;
@@ -233,8 +368,9 @@ function applySubjectSelection(code) {
   $('#target-score').placeholder = code.startsWith('ap_') ? '默认 5 分' : `例如：${vm.scoreMax}`;
   configureExamDateField(code);
   applyReportBrandAssets(code);
-  renderPlanningFocusOptions(selectedFocusAreas);
+  renderPlanningFocusOptions(trackChanged ? [] : selectedFocusAreas);
   $('#scenario-sample-hint').textContent = `当前提供 ${getSubjectShortName(code)} 的预习、同步和冲刺样例`;
+  configureSatSubjectContext();
 }
 
 function refreshPreview() {
@@ -678,7 +814,7 @@ function renderReportQualityNotice(data) {
 }
 
 function setQuickPreviewActions(enabled) {
-  ['#save-report', '#edit-summary', '#edit-course-plan', '#print-report'].forEach((selector) => $(selector).classList.toggle('hidden', enabled));
+  ['#save-report', '#edit-summary', '#edit-course-plan', '#regenerate-report', '#print-report'].forEach((selector) => $(selector).classList.toggle('hidden', enabled));
   $('#back-edit').textContent = enabled ? '返回继续填写' : '返回老师工作台';
 }
 
@@ -1085,7 +1221,10 @@ function restoreOriginalCoursePlan() {
 function scheduleReportAutoSave() {
   if (!currentReportId) return;
   clearTimeout(reportAutoSaveTimer);
-  reportAutoSaveTimer = setTimeout(() => { saveReport({ automatic: true }); }, 900);
+  reportAutoSaveTimer = setTimeout(() => {
+    reportAutoSaveTimer = null;
+    saveReport({ automatic: true });
+  }, 900);
 }
 
 async function saveReport({ automatic = false } = {}) {
@@ -1102,7 +1241,7 @@ async function saveReport({ automatic = false } = {}) {
     currentScore: $('#current-score').value.trim(),
     targetScore: resolveTargetScore(currentSubjectCode, $('#target-score').value),
     examDate: getSelectedExamDate(),
-    teacherNotes: reportSource === 'upload' ? UPLOAD_REPORT_NOTE : $('#teacher-notes').value.trim(),
+    teacherNotes: $('#teacher-notes').value.trim(),
     subject: createSubjectViewModel(currentSubjectCode).displayName,
     reportData,
     coursePlan,
@@ -1133,6 +1272,8 @@ async function saveReport({ automatic = false } = {}) {
 }
 
 function collectFormData(source = planningSource) {
+  const languageAssessment = validateSatEnglishAssessment(collectSatEnglishAssessment());
+  const mathHours = validateSatMathHours(collectSatMathHours(), $('#total-hours').value);
   return {
     studentName: $('#student-name').value.trim(),
     currentScore: $('#current-score').value.trim(),
@@ -1142,8 +1283,10 @@ function collectFormData(source = planningSource) {
     lessonCount: $('#lesson-count').value,
     planningScenario: resolvePlanningScenario($('#planning-scenario').value),
     planningFocusAreas: getSelectedPlanningFocusAreas(),
-    includeExamTraining: source === 'ai' && $('#include-exam-training').checked,
-    teacherNotes: source === 'upload' ? UPLOAD_REPORT_NOTE : $('#teacher-notes').value.trim(),
+    includeExamTraining: source === 'ai' && currentSubjectCode !== 'sat_math' && $('#include-exam-training').checked,
+    teacherNotes: $('#teacher-notes').value.trim(),
+    ...(source === 'ai' && currentSubjectCode === 'sat_english' && languageAssessment.valid && languageAssessment.assessment ? { satEnglishAssessment: languageAssessment.assessment } : {}),
+    ...(source === 'ai' && currentSubjectCode === 'sat_math' && mathHours.valid ? { satMathHours: mathHours.hours } : {}),
     ...(source === 'upload' && uploadedCoursePlanConfirmed ? { lockedCoursePlan: cloneCoursePlan(uploadedCoursePlan) } : {}),
   };
 }
@@ -1199,6 +1342,8 @@ function collectFormDraft() {
     planningScenario: $('#planning-scenario').value,
     planningFocusAreas: getSelectedPlanningFocusAreas(),
     includeExamTraining: $('#include-exam-training').checked,
+    satEnglishAssessment: collectSatEnglishAssessment(),
+    satMathHours: collectSatMathHours(),
     teacherNotes: $('#teacher-notes').value,
   };
 }
@@ -1219,7 +1364,7 @@ function scheduleFormDraftSave() {
 function applySavedFormData(data) {
   if (!data || typeof data !== 'object') return false;
   const subjectCode = SUBJECT_CODES.includes(data.subjectCode) ? data.subjectCode : currentSubjectCode;
-  applySubjectSelection(subjectCode);
+  applySubjectSelection(subjectCode, { clearRecovery: false });
   setPlanningSource('ai');
   $('#student-name').value = String(data.studentName || '');
   $('#current-score').value = String(data.currentScore || '');
@@ -1228,6 +1373,14 @@ function applySavedFormData(data) {
   $('#lesson-count').value = String(data.lessonCount || '');
   $('#planning-scenario').value = resolvePlanningScenario(data.planningScenario);
   $('#include-exam-training').checked = data.includeExamTraining === true;
+  const languageAssessment = data.satEnglishAssessment && typeof data.satEnglishAssessment === 'object' ? data.satEnglishAssessment : {};
+  $('#language-test-type').value = languageAssessment.testType || '';
+  $('#language-score-scale').value = languageAssessment.scoreScale === 'legacy_0_120' ? 'legacy_0_120' : 'new_1_6';
+  $('#language-overall-score').value = languageAssessment.overallScore ?? '';
+  $('#language-reading-score').value = languageAssessment.readingScore ?? '';
+  $('#language-test-date').value = languageAssessment.testDate || '';
+  renderSatMathHoursInputs(data.satMathHours && typeof data.satMathHours === 'object' ? data.satMathHours : createEmptySatMathHours());
+  configureSatSubjectContext();
   $('#teacher-notes').value = String(data.teacherNotes || '');
   renderPlanningFocusOptions(Array.isArray(data.planningFocusAreas) ? data.planningFocusAreas : []);
   if (subjectCode.startsWith('ap_')) {
@@ -1275,7 +1428,7 @@ function restoreGenerationRecovery() {
   const formRecord = readRecoveryRecord(FORM_DRAFT_STORAGE_KEY);
   const checkpointRecord = readRecoveryRecord(GENERATION_CHECKPOINT_STORAGE_KEY);
   let restored = false;
-  if (formRecord?.payload?.planningSource === 'ai') restored = applySavedFormData(formRecord.payload);
+  if (!restored && formRecord?.payload?.planningSource === 'ai') restored = applySavedFormData(formRecord.payload);
   if (!restored && checkpointRecord?.payload?.commonPayload) restored = applySavedFormData(checkpointRecord.payload.commonPayload);
   if (!restored) return;
   $('#draft-status').textContent = '已恢复上次草稿';
@@ -1284,7 +1437,7 @@ function restoreGenerationRecovery() {
   if (checkpoint) {
     const completed = countCompletedStages(checkpoint.generatedStages);
     const total = checkpoint.outlineResult.outline.stages.length;
-    $('#generation-notice').innerHTML = `<strong>检测到未完成的生成：</strong>已保留 ${completed}/${total} 个阶段。确认信息后再次生成，将只继续缺失阶段。`;
+    $('#generation-notice').innerHTML = `<strong>已恢复生成记录：</strong>此前完成 ${completed}/${total} 个阶段。确认信息后再次生成，系统会继续缺失阶段。`;
   } else {
     $('#generation-notice').innerHTML = '<strong>已恢复草稿：</strong>请确认信息后继续生成。草稿会在成功生成后自动清除。';
   }
@@ -1294,36 +1447,103 @@ function setPlanningSource(value, { preserveNotice = false } = {}) {
   planningSource = value === 'upload' ? 'upload' : 'ai';
   document.querySelectorAll('[name="planning-source"]').forEach((input) => { input.checked = input.value === planningSource; });
   $('#course-plan-upload-panel').classList.toggle('hidden', planningSource !== 'upload');
-  $('#ai-generation-fields').classList.toggle('hidden', planningSource === 'upload');
+  $('#ai-generation-fields').classList.remove('hidden');
+  document.querySelectorAll('.ai-planning-only').forEach((element) => element.classList.toggle('hidden', planningSource === 'upload'));
   document.querySelectorAll('.ai-workflow-only').forEach((element) => element.classList.toggle('hidden', planningSource === 'upload'));
-  $('#teacher-notes').required = planningSource === 'ai';
+  $('#teacher-notes').required = true;
   $('#planning-scenario').required = planningSource === 'ai';
   $('#total-hours').required = planningSource === 'ai';
   $('#lesson-count').required = planningSource === 'ai';
   $('#total-hours').readOnly = planningSource === 'upload' && uploadedCoursePlanConfirmed;
   $('#lesson-count').readOnly = planningSource === 'upload' && uploadedCoursePlanConfirmed;
   $('#include-exam-training').disabled = planningSource === 'upload';
+  configureSatSubjectContext();
   const generationNotice = $('#generation-notice');
   if (!preserveNotice) {
     generationNotice.classList.remove('error');
     generationNotice.innerHTML = planningSource === 'upload'
-      ? '<strong>上传模式：</strong>无需填写试听记录。系统只整理文件格式，课程规划严格使用老师确认的内容。'
+      ? uploadedCoursePlanConfirmed
+        ? '<strong>课程规划已锁定：</strong>请填写本次试听课反馈，再统一生成完整报告。AI 不会修改上传规划。'
+        : '<strong>上传模式：</strong>请先上传并确认课程规划，再填写本次试听课反馈。'
       : '<strong>生成原则：</strong>总课时由老师决定，AI 仅负责规划内容与课时分配。';
   }
-  $('#generate-report').innerHTML = planningSource === 'upload' ? '生成课程规划报告 <span>→</span>' : 'AI 生成个性化报告 <span>→</span>';
-  $('#generate-report').classList.toggle('hidden', planningSource === 'upload');
+  $('#generate-report').innerHTML = planningSource === 'upload' ? '生成完整学习报告 <span>→</span>' : 'AI 生成个性化报告 <span>→</span>';
+  $('#generate-report').classList.toggle('hidden', planningSource === 'upload' && !uploadedCoursePlanConfirmed);
   $('#quick-preview-report').classList.toggle('hidden', planningSource === 'upload');
-  generationNotice.classList.toggle('hidden', planningSource === 'upload');
+  $('#regeneration-options').classList.toggle('hidden', planningSource === 'upload' || !reportGenerationBaseline);
+  generationNotice.classList.remove('hidden');
+  $('#feedback-section-title').textContent = planningSource === 'upload' ? '填写试听课反馈' : '学生背景与试听课反馈';
+  $('#feedback-section-description').textContent = planningSource === 'upload'
+    ? '课程规划来自上传文件；请单独记录本次课堂观察，系统会将两部分合并成完整报告。'
+    : '像写微信反馈一样描述即可。系统会整理成报告与销售跟进话术。';
+  $('#teacher-notes-label').textContent = planningSource === 'upload' ? '本次试听课反馈' : '老师自然语言记录';
   $('#student-info-hint').textContent = planningSource === 'upload'
     ? '填写报告封面信息，课时和课次将从上传文件中自动读取。'
     : '只填写 AI 无法从课堂描述中可靠获取的信息。';
   $('#workflow-steps').innerHTML = planningSource === 'upload'
-    ? '<li><b>上传已有规划</b><span>支持 DOCX、XLSX 和文本型 PDF</span></li><li><b>核对解析结果</b><span>确认课次、顺序、时长与文字</span></li><li><b>导出并交付</b><span>生成完整品牌报告与 PDF</span></li>'
+    ? '<li><b>上传并确认规划</b><span>核对课次、顺序、时长与文字</span></li><li><b>填写试听反馈</b><span>独立记录课堂内容与学生表现</span></li><li><b>统一生成报告</b><span>合并课堂总结与锁定课程规划</span></li>'
     : '<li><b>自然语言记录</b><span>无需填写冗长表单</span></li><li><b>确认 AI 整理结果</b><span>可逐段编辑，避免虚构</span></li><li><b>导出并交付</b><span>家长报告与销售卡分开</span></li>';
   $('#workflow-title').textContent = planningSource === 'upload' ? '上传模式' : '本版功能';
   $('#workflow-description').textContent = planningSource === 'upload'
-    ? '不要求试听记录，不重新设计课程，只对老师已有规划进行整理和排版。'
+    ? '课程规划和试听反馈独立录入；AI 只整理课堂总结，不改写老师确认的规划。'
     : '支持 SAT、AP 等 32 个考试科目；动态课程规划与路觅数据页。';
+}
+
+function clearCoursePlanUploadState() {
+  coursePlanParseVersion += 1;
+  selectedCoursePlanFile = null;
+  uploadedCoursePlan = null;
+  uploadedCoursePlanConfirmed = false;
+  $('#course-plan-file').value = '';
+  $('#course-plan-dropzone').classList.remove('has-file', 'is-dragging');
+  $('#course-plan-file-name').textContent = '尚未选择文件';
+  $('#course-plan-upload-panel').classList.remove('is-reviewing');
+  $('#course-plan-upload-review').classList.add('hidden');
+  $('#course-plan-upload-review').innerHTML = '';
+  $('#course-plan-upload-status').className = 'course-plan-upload-status';
+  $('#course-plan-upload-status').textContent = '';
+}
+
+function restoreAiModeDraft(draft) {
+  const data = draft?.subjectCode === currentSubjectCode ? draft : {};
+  $('#student-name').value = String(data.studentName || '');
+  $('#current-score').value = String(data.currentScore || '');
+  $('#target-score').value = String(data.targetScore || '');
+  $('#total-hours').value = String(data.totalHours || '');
+  $('#lesson-count').value = String(data.lessonCount || '');
+  $('#planning-scenario').value = PLANNING_SCENARIOS[data.planningScenario] ? data.planningScenario : '';
+  $('#include-exam-training').checked = data.includeExamTraining === true;
+  $('#teacher-notes').value = String(data.teacherNotes || '');
+  const languageAssessment = data.satEnglishAssessment && typeof data.satEnglishAssessment === 'object' ? data.satEnglishAssessment : {};
+  $('#language-test-type').value = languageAssessment.testType || '';
+  $('#language-score-scale').value = languageAssessment.scoreScale === 'legacy_0_120' ? 'legacy_0_120' : 'new_1_6';
+  $('#language-overall-score').value = languageAssessment.overallScore ?? '';
+  $('#language-reading-score').value = languageAssessment.readingScore ?? '';
+  $('#language-test-date').value = languageAssessment.testDate || '';
+  renderSatMathHoursInputs(data.satMathHours && typeof data.satMathHours === 'object' ? data.satMathHours : createEmptySatMathHours());
+  renderPlanningFocusOptions(Array.isArray(data.planningFocusAreas) ? data.planningFocusAreas : []);
+  if (!currentSubjectCode.startsWith('ap_')) $('#exam-date').value = String(data.examDate || '');
+  updateLanguageAssessmentFields();
+  updateLessonCountHint();
+  configureSatSubjectContext();
+}
+
+function switchPlanningSource(value) {
+  const nextSource = value === 'upload' ? 'upload' : 'ai';
+  if (nextSource === planningSource) {
+    setPlanningSource(nextSource);
+    return;
+  }
+  if (planningSource === 'ai' && nextSource === 'upload') {
+    aiModeDraft = collectFormDraft();
+    setPlanningSource('upload');
+    return;
+  }
+  clearCoursePlanUploadState();
+  setPlanningSource('ai');
+  restoreAiModeDraft(aiModeDraft);
+  aiModeDraft = null;
+  scheduleFormDraftSave();
 }
 
 function setGenerationControlsLocked(locked, source = null) {
@@ -1343,9 +1563,17 @@ function setGenerationControlsLocked(locked, source = null) {
 
 function renderUploadedCoursePlan(result) {
   const warnings = Array.isArray(result.warnings) ? result.warnings : [];
+  const satReviewWarnings = Array.isArray(result.satReviewWarnings) ? result.satReviewWarnings : [];
   const corrections = Array.isArray(result.extraction?.corrections) ? result.extraction.corrections : [];
   const stages = Array.isArray(result.extraction?.stages) ? result.extraction.stages : [];
-  $('#course-plan-upload-review').innerHTML = `<header><div><p class="eyebrow">需要补充信息</p><h3>调整课程规划</h3><p>${escapeHtml(result.extraction?.title || result.fileName || '已解析课程规划')} · AI 未能确认部分时长，请补全后进入学习报告。</p></div><div class="course-plan-review-actions"><button type="button" class="secondary-btn" data-upload-action="reselect">重新上传</button><button type="button" class="primary-btn" data-upload-action="confirm">补全后进入学习报告</button></div></header>${warnings.length ? `<ul class="course-plan-upload-warnings">${warnings.map((item) => `<li>${escapeHtml(item)}</li>`).join('')}</ul>` : ''}${corrections.length ? `<details><summary>查看 ${corrections.length} 项文字修正</summary><ul class="course-plan-upload-warnings">${corrections.map((item) => `<li>${escapeHtml(item.original)} → ${escapeHtml(item.corrected)}</li>`).join('')}</ul></details>` : ''}<div>${stages.map((stage, stageIndex) => `<section class="uploaded-stage" data-upload-stage="${stageIndex}"><input aria-label="阶段名称" value="${escapeHtml(stage.title)}" maxlength="100" required><textarea aria-label="阶段说明" maxlength="300">${escapeHtml(stage.description || '')}</textarea><div class="uploaded-lessons">${stage.lessons.map((lesson, lessonIndex) => `<div class="uploaded-lesson" data-upload-lesson="${lessonIndex}"><select aria-label="课时时长"><option value="">未填写</option>${[0.5, 1, 1.5, 2].map((duration) => `<option value="${duration}"${Number(lesson.duration) === duration ? ' selected' : ''}>${duration}h</option>`).join('')}</select><input aria-label="课程主题" value="${escapeHtml(lesson.theme)}" maxlength="120" required><textarea aria-label="课程内容" maxlength="600">${escapeHtml(lesson.content || '')}</textarea></div>`).join('')}</div></section>`).join('')}</div>`;
+  const needsDurationFix = !result.lockedPlan;
+  const eyebrow = needsDurationFix ? '需要补充信息' : 'SAT 专项复核';
+  const heading = needsDurationFix ? '调整课程规划' : '确认课程范围';
+  const description = needsDurationFix
+    ? `${result.extraction?.title || result.fileName || '已解析课程规划'} · AI 未能确认部分时长，请补全后填写试听反馈。`
+    : `${result.extraction?.title || result.fileName || '已解析课程规划'} · 以下提示仅供老师复核，系统不会修改原文件。`;
+  const confirmLabel = needsDurationFix ? '补全并确认课程规划' : '确认原课程规划';
+  $('#course-plan-upload-review').innerHTML = `<header><div><p class="eyebrow">${eyebrow}</p><h3>${heading}</h3><p>${escapeHtml(description)}</p></div><div class="course-plan-review-actions"><button type="button" class="secondary-btn" data-upload-action="reselect">重新上传</button><button type="button" class="primary-btn" data-upload-action="confirm">${confirmLabel}</button></div></header>${satReviewWarnings.length ? `<section class="sat-upload-review"><strong>SAT 课程范围提示</strong><ul>${satReviewWarnings.map((item) => `<li>${escapeHtml(item)}</li>`).join('')}</ul><p>提示不会阻止使用原规划，也不会自动补课或删改内容。</p></section>` : ''}${warnings.length ? `<ul class="course-plan-upload-warnings">${warnings.map((item) => `<li>${escapeHtml(item)}</li>`).join('')}</ul>` : ''}${corrections.length ? `<details><summary>查看 ${corrections.length} 项文字修正</summary><ul class="course-plan-upload-warnings">${corrections.map((item) => `<li>${escapeHtml(item.original)} → ${escapeHtml(item.corrected)}</li>`).join('')}</ul></details>` : ''}<div>${stages.map((stage, stageIndex) => `<section class="uploaded-stage" data-upload-stage="${stageIndex}"><input aria-label="阶段名称" value="${escapeHtml(stage.title)}" maxlength="100" required><textarea aria-label="阶段说明" maxlength="300">${escapeHtml(stage.description || '')}</textarea><div class="uploaded-lessons">${stage.lessons.map((lesson, lessonIndex) => `<div class="uploaded-lesson" data-upload-lesson="${lessonIndex}"><select aria-label="课时时长"><option value="">未填写</option>${[0.5, 1, 1.5, 2].map((duration) => `<option value="${duration}"${Number(lesson.duration) === duration ? ' selected' : ''}>${duration}h</option>`).join('')}</select><input aria-label="课程主题" value="${escapeHtml(lesson.theme)}" maxlength="120" required><textarea aria-label="课程内容" maxlength="600">${escapeHtml(lesson.content || '')}</textarea></div>`).join('')}</div></section>`).join('')}</div>`;
   $('#course-plan-upload-panel').classList.add('is-reviewing');
   $('#course-plan-upload-review').classList.remove('hidden');
   uploadedCoursePlanConfirmed = false;
@@ -1353,38 +1581,18 @@ function renderUploadedCoursePlan(result) {
   $('#course-plan-upload-review').scrollIntoView({ behavior: 'smooth', block: 'start' });
 }
 
-async function openUploadedPlanReport(coursePlan) {
+function confirmUploadedCoursePlan(coursePlan) {
   uploadedCoursePlan = cloneCoursePlan(coursePlan);
   uploadedCoursePlanConfirmed = true;
   const lessonCount = coursePlan.stages.reduce((total, stage) => total + stage.lessons.length, 0);
   $('#total-hours').value = String(coursePlan.totalHours);
   $('#lesson-count').value = String(lessonCount);
-  if (!$('#student-name').value.trim()) $('#student-name').value = '学生';
-  $('#course-plan-upload-status').className = 'course-plan-upload-status';
-  $('#course-plan-upload-status').textContent = 'AI 解析完成，正在打开学习报告…';
-  const generationSource = 'upload';
-  const generationInput = {
-    source: generationSource,
-    subjectCode: currentSubjectCode,
-    formData: collectFormData(generationSource),
-  };
-  setGenerationControlsLocked(true, generationSource);
-  try {
-    currentReportData = await generateAiReport(generationInput);
-    currentReportId = null;
-    historicalTeacherProfile = null;
-    isQuickPreview = false;
-    originalAiCoursePlan = cloneCoursePlan(currentReportData.coursePlan);
-    renderReport(currentReportData);
-    setQuickPreviewActions(false);
-    setReportDisplayMode('workspace');
-    changeView('report');
-    document.querySelector('#report-view .eyebrow').textContent = '上传规划已整理 · 可直接调整并导出';
-    $('#save-report').textContent = '保存报告';
-    await saveReport({ automatic: true });
-  } finally {
-    setGenerationControlsLocked(false);
-  }
+  $('#course-plan-upload-status').className = 'course-plan-upload-status success';
+  $('#course-plan-upload-status').textContent = `课程规划已确认：${lessonCount} 节，共 ${coursePlan.totalHours} 小时。请继续填写试听课反馈。`;
+  const confirmButton = $('#course-plan-upload-review [data-upload-action="confirm"]');
+  if (confirmButton) confirmButton.textContent = '课程规划已确认';
+  setPlanningSource('upload');
+  $('#teacher-notes').scrollIntoView({ behavior: 'smooth', block: 'center' });
 }
 
 function collectUploadedCoursePlan() {
@@ -1428,13 +1636,14 @@ async function parseUploadedCoursePlan() {
     const result = await response.json();
     if (parseVersion !== coursePlanParseVersion) return;
     if (!response.ok) throw new Error(result.error || 'COURSE_PLAN_PARSE_FAILED');
-    if (result.lockedPlan) {
-      await openUploadedPlanReport(result.lockedPlan);
+    const satReviewWarnings = Array.isArray(result.satReviewWarnings) ? result.satReviewWarnings : [];
+    if (result.lockedPlan && !satReviewWarnings.length) {
+      confirmUploadedCoursePlan(result.lockedPlan);
       return;
     }
     renderUploadedCoursePlan(result);
-    status.className = 'course-plan-upload-status error';
-    status.textContent = '部分课时时长无法确认，请补全后继续。';
+    status.className = `course-plan-upload-status ${result.lockedPlan ? '' : 'error'}`.trim();
+    status.textContent = result.lockedPlan ? '请复核 SAT 课程范围提示，确认后继续。' : '部分课时时长无法确认，请补全后继续。';
   } catch (error) {
     if (parseVersion !== coursePlanParseVersion) return;
     status.className = 'course-plan-upload-status error';
@@ -1493,28 +1702,28 @@ function renderPlanningFocusOptions(selectedValues = []) {
 
 function buildCurrentPlanningContext(lessonCount, source = currentReportData?.planningContext?.source === 'upload' ? 'upload' : planningSource) {
   const reportContext = currentReportData?.planningContext;
+  const formData = collectFormData(source);
   return {
     scenario: resolvePlanningScenario(reportContext?.scenario || $('#planning-scenario').value),
     lessonCount,
     focusAreas: normalizePlanningFocusAreas(reportContext?.focusAreas ?? getSelectedPlanningFocusAreas(), currentSubjectCode),
     includeExamTraining: source === 'ai' && (reportContext?.includeExamTraining === true || $('#include-exam-training').checked),
+    ...(source === 'ai' && currentSubjectCode === 'sat_english' && (reportContext?.satEnglishAssessment || formData.satEnglishAssessment) ? { satEnglishAssessment: reportContext?.satEnglishAssessment || formData.satEnglishAssessment } : {}),
+    ...(source === 'ai' && currentSubjectCode === 'sat_math' && (reportContext?.satMathHours || formData.satMathHours) ? { satMathHours: reportContext?.satMathHours || formData.satMathHours } : {}),
     source,
   };
+}
+
+function clearLessonCountValidity() {
+  $('#lesson-count').setCustomValidity('');
+  updateLessonCountHint();
 }
 
 function updateLessonCountHint() {
   const range = getLessonCountRange($('#total-hours').value);
   $('#lesson-count-hint').textContent = range
-    ? `当前总课时支持 ${range.minimum}–${range.maximum} 节，每节 0.5–2 小时`
-    : '填写总课时后自动建议，可继续修改';
-}
-
-function suggestLessonCount() {
-  const range = getLessonCountRange($('#total-hours').value);
-  if (range) $('#lesson-count').value = String(range.minimum);
-  else $('#lesson-count').value = '';
-  $('#lesson-count').setCustomValidity('');
-  updateLessonCountHint();
+    ? `当前总课时支持 ${range.minimum}–${range.maximum} 节，请独立填写；每节 0.5–2 小时`
+    : '请根据实际授课安排独立填写，单次支持 0.5–2 小时';
 }
 
 function getSelectedExamDate() {
@@ -1540,9 +1749,36 @@ function getGenerationChecklistItems() {
     teacherName: teacher?.displayName || '',
     notesLength: formData.teacherNotes.length,
   });
-  if (planningSource !== 'upload') return items;
+  if (planningSource !== 'upload') {
+    if (reportGenerationBaseline) {
+      const nextInput = normalizeGenerationInput({ ...formData, subjectCode: currentSubjectCode, source: planningSource });
+      const forceNewPlan = $('[name="regeneration-plan-mode"]:checked')?.value === 'replace';
+      const action = getGenerationAction(reportGenerationBaseline, nextInput, { forceNewPlan });
+      items.push({
+        label: '本次修改方式',
+        value: action === 'reuse' ? '输入未变化，保留现有报告与人工修改' : action === 'summary-only' ? '仅更新试听总结，保留课程内容、课时和顺序' : '根据当前条件重新制定课程规划',
+        status: 'ready',
+      });
+    }
+    if (currentSubjectCode === 'sat_math' && formData.satMathHours) {
+      items.push({
+        label: 'SAT 数学课时分配',
+        value: SAT_MATH_AREA_CONFIG.map((item) => `${item.label} ${formData.satMathHours[item.code]}h`).join('；'),
+        status: 'ready',
+      });
+    }
+    if (currentSubjectCode === 'sat_english') {
+      const assessment = formData.satEnglishAssessment;
+      items.push({
+        label: '语言成绩参考',
+        value: assessment ? `${assessment.testType === 'toefl_ibt' ? 'TOEFL iBT' : 'IELTS Academic'} ${assessment.overallScore}${assessment.readingScore !== undefined ? `，阅读 ${assessment.readingScore}` : ''}` : '未提供，按 SAT 诊断与课堂记录规划',
+        status: assessment ? 'ready' : 'optional',
+      });
+    }
+    return items;
+  }
   return [
-    ...items.filter((item) => !['辅导场景', '课程侧重点', '试听记录'].includes(item.label)),
+    ...items.filter((item) => !['辅导场景', '课程侧重点'].includes(item.label)),
     { label: '生成方式', value: '老师上传已有规划', status: 'ready' },
   ];
 }
@@ -1601,7 +1837,7 @@ function validateGenerationInputs() {
   }
   if (planningSource === 'upload' && !uploadedCoursePlanConfirmed) {
     notice.classList.add('error');
-    notice.innerHTML = '<strong>课程规划尚未就绪：</strong>请上传文件，AI 解析完成后会自动进入学习报告。';
+    notice.innerHTML = '<strong>课程规划尚未就绪：</strong>请上传文件；如系统发现范围风险，请复核确认后继续。';
     $('#course-plan-upload-panel').scrollIntoView({ behavior: 'smooth', block: 'center' });
     return false;
   }
@@ -1621,6 +1857,31 @@ function validateGenerationInputs() {
     notice.innerHTML = `<strong>课次填写有误：</strong>当前总课时下，预计课次应为 ${escapeHtml(rangeText)} 节。`;
     lessonCount.reportValidity();
     return false;
+  }
+  if (planningSource === 'ai' && currentSubjectCode === 'sat_math') {
+    const mathValidation = validateSatMathHours(collectSatMathHours(), $('#total-hours').value);
+    document.querySelectorAll('[data-sat-math-hours]').forEach((input) => input.setCustomValidity(''));
+    if (!mathValidation.valid) {
+      const input = mathValidation.code === 'total' ? $('#total-hours') : $(`[data-sat-math-hours="${mathValidation.code}"]`);
+      input?.setCustomValidity(mathValidation.message);
+      notice.classList.add('error');
+      notice.innerHTML = `<strong>数学课时分配有误：</strong>${escapeHtml(mathValidation.message)}`;
+      input?.reportValidity();
+      return false;
+    }
+  }
+  if (planningSource === 'ai' && currentSubjectCode === 'sat_english') {
+    const languageValidation = validateSatEnglishAssessment(collectSatEnglishAssessment());
+    $('#language-overall-score').setCustomValidity('');
+    $('#language-reading-score').setCustomValidity('');
+    if (!languageValidation.valid) {
+      const input = languageValidation.field === 'reading' ? $('#language-reading-score') : $('#language-overall-score');
+      input.setCustomValidity(languageValidation.message);
+      notice.classList.add('error');
+      notice.innerHTML = `<strong>语言成绩填写有误：</strong>${escapeHtml(languageValidation.message)}`;
+      input.reportValidity();
+      return false;
+    }
   }
   const validation = validateSubjectScores(
     currentSubjectCode,
@@ -1703,7 +1964,7 @@ async function openHistoricalReport(reportId) {
   $('#student-name').value = record.student_name || '';
   $('#current-score').value = record.current_score || '';
   $('#target-score').value = record.target_score || '';
-  $('#teacher-notes').value = record.original_notes || '';
+  $('#teacher-notes').value = record.original_notes === LEGACY_UPLOAD_REPORT_NOTE ? '' : (record.original_notes || '');
   $('#total-hours').value = record.course_plan?.totalHours || '';
   const savedPlanningContext = record.report_data?.planningContext || {};
   $('#planning-scenario').value = resolvePlanningScenario(savedPlanningContext.scenario);
@@ -1711,6 +1972,14 @@ async function openHistoricalReport(reportId) {
   const savedLessons = record.course_plan?.stages?.flatMap((stage) => stage.lessons || []) || [];
   $('#lesson-count').value = savedPlanningContext.lessonCount || savedLessons.length || Math.ceil(Number(record.course_plan?.totalHours || 0) / 2) || '';
   $('#include-exam-training').checked = savedPlanningContext.includeExamTraining === true;
+  const languageAssessment = savedPlanningContext.satEnglishAssessment || {};
+  $('#language-test-type').value = languageAssessment.testType || '';
+  $('#language-score-scale').value = languageAssessment.scoreScale === 'legacy_0_120' ? 'legacy_0_120' : 'new_1_6';
+  $('#language-overall-score').value = languageAssessment.overallScore ?? '';
+  $('#language-reading-score').value = languageAssessment.readingScore ?? '';
+  $('#language-test-date').value = languageAssessment.testDate || '';
+  renderSatMathHoursInputs(savedPlanningContext.satMathHours || createEmptySatMathHours());
+  configureSatSubjectContext();
   updateLessonCountHint();
   if (subjectCode.startsWith('ap_')) {
     const examDate = record.exam_date_text || '';
@@ -1732,6 +2001,11 @@ async function openHistoricalReport(reportId) {
     },
   };
   currentReportId = record.id;
+  reportGenerationBaseline = record.report_data?.generationInput || normalizeGenerationInput({
+    ...collectFormData(savedPlanningContext.source === 'upload' ? 'upload' : 'ai'),
+    subjectCode,
+    source: savedPlanningContext.source,
+  });
   if (savedPlanningContext.source === 'upload') {
     planningSource = 'upload';
     uploadedCoursePlan = cloneCoursePlan(currentReportData.coursePlan);
@@ -1756,7 +2030,16 @@ async function openHistoricalReport(reportId) {
   $('#save-report').textContent = '更新历史报告';
 }
 
-async function generateAiReport({ source, formData, subjectCode }) {
+async function generateAiReport({ source, formData, subjectCode, preserveCoursePlan = null }) {
+  if (preserveCoursePlan) {
+    const result = await requestGeneratedJson('/api/generate-report', {
+      ...formData,
+      subjectCode,
+      lockedCoursePlan: cloneCoursePlan(preserveCoursePlan),
+      planningSource: 'ai',
+    });
+    return result.report;
+  }
   if (source === 'upload') {
     if (!formData.lockedCoursePlan) throw new Error('LOCKED_PLAN_REQUIRED');
     const result = await requestGeneratedJson('/api/generate-report', {
@@ -1888,6 +2171,8 @@ async function generateAiReport({ source, formData, subjectCode }) {
       lessonCount: Number(formData.lessonCount),
       focusAreas: formData.planningFocusAreas || [],
       includeExamTraining: formData.includeExamTraining === true,
+      ...(formData.satEnglishAssessment ? { satEnglishAssessment: formData.satEnglishAssessment } : {}),
+    ...(formData.satMathHours ? { satMathHours: formData.satMathHours } : {}),
       source: 'ai',
     },
     qualityReview: {
@@ -1900,11 +2185,13 @@ async function generateAiReport({ source, formData, subjectCode }) {
   };
 }
 
-async function requestGeneratedJson(path, payload) {
+async function requestGeneratedJson(path, payload, method = 'POST') {
   const response = await fetch(path, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(payload),
+    method,
+    ...(method === 'GET' ? {} : {
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    }),
   });
   const contentType = response.headers.get('content-type') || '';
   let result;
@@ -1927,6 +2214,54 @@ async function requestGeneratedJson(path, payload) {
     throw error;
   }
   return result;
+}
+
+async function presentGeneratedReport(report, generationSource, notice, generationInput) {
+  $('[name="regeneration-plan-mode"][value="preserve"]').checked = true;
+  report.generationInput = normalizeGenerationInput({
+    ...generationInput.formData,
+    subjectCode: generationInput.subjectCode,
+    source: generationSource,
+  });
+  reportGenerationBaseline = report.generationInput;
+  currentReportData = report;
+  currentReportId = pendingRegenerationReportId;
+  historicalTeacherProfile = null;
+  isQuickPreview = false;
+  originalAiCoursePlan = cloneCoursePlan(currentReportData.coursePlan);
+  renderReport(currentReportData);
+  setQuickPreviewActions(false);
+  setReportDisplayMode('workspace');
+  changeView('report');
+  document.querySelector('#report-view .eyebrow').textContent = 'AI 报告已生成 · 未云端保存';
+  $('#save-report').textContent = '保存报告';
+  const reportSaved = await saveReport({ automatic: true });
+  if (reportSaved) pendingRegenerationReportId = null;
+  if (generationSource === 'ai' && reportSaved) clearGenerationRecovery();
+  notice.innerHTML = generationSource === 'upload'
+    ? '<strong>上传模式：</strong>课程规划来自老师确认的上传文件，系统未改动课次、顺序和时长。'
+    : '<strong>生成完成：</strong>总课时由老师决定，AI 仅负责规划内容与课时分配。';
+}
+
+function displayGenerationFailure(notice, error) {
+  notice.classList.add('error');
+  const messages = {
+    AI_GENERATION_FAILED: 'AI 服务暂时无响应，请稍后重试。',
+    AI_GATEWAY_ERROR: 'AI 服务请求超时或平台暂时异常，请稍后重试。',
+    BACKGROUND_DISPATCH_FAILED: '后台生成任务未能启动，请稍后重试。',
+    JOB_NOT_FOUND: '没有找到对应的后台生成任务，请重新生成。',
+    INVALID_SCORE: '当前成绩或目标成绩不符合所选科目的分数范围。',
+    INVALID_LESSON_COUNT: '预计课次与总课时不匹配，请返回检查。',
+    SYLLABUS_COVERAGE_VIOLATION: '课程规划遗漏或错误标记了 Calculus 官方 Unit，请重新生成。',
+    SUBJECT_SCOPE_VIOLATION: 'AI 内容出现跨科目术语，请重新生成。',
+    UNEXPECTED_LANGUAGE: 'AI 内容出现异常语言文字，系统已阻止生成，请重新生成。',
+    COURSE_PLAN_STYLE_REPETITION: '连续课时使用了重复的大纲式句型，请重新生成。',
+    REPORT_QUALITY_FAILED: 'AI 连续两次未达到报告质量要求，请重新生成。'
+  };
+  const reason = error.reason || messages[error.message] || `报告渲染异常（${error.message || 'UNKNOWN_ERROR'}），请重试。`;
+  const suggestion = error.suggestion ? `<br><span>建议：${escapeHtml(error.suggestion)}</span>` : '';
+  const reference = error.requestId ? ` <span>参考编号：${escapeHtml(error.requestId)}</span>` : '';
+  notice.innerHTML = `<strong>生成失败：</strong>${escapeHtml(reason)}${suggestion}${reference}`;
 }
 
 async function retryGenerationStep(task, attempts, onAttempt = () => {}) {
@@ -1953,6 +2288,7 @@ function buildBatchedSalesFollowUp(report, subjectName, targetScore) {
   };
 }
 
+
 $('#report-form').addEventListener('submit', async (event) => {
   event.preventDefault();
   const button = $('#generate-report');
@@ -1965,30 +2301,43 @@ $('#report-form').addEventListener('submit', async (event) => {
     subjectCode: currentSubjectCode,
     formData: collectFormData(generationSource),
   };
+  const nextInput = normalizeGenerationInput({ ...generationInput.formData, subjectCode: generationInput.subjectCode, source: generationSource });
+  const forceNewPlan = generationSource === 'ai' && !$('#regeneration-options').classList.contains('hidden')
+    && $('[name="regeneration-plan-mode"]:checked')?.value === 'replace';
+  let action = getGenerationAction(reportGenerationBaseline, nextInput, { forceNewPlan });
+  if (generationSource === 'upload' && !sameCoursePlan(currentReportData?.coursePlan, generationInput.formData.lockedCoursePlan)) action = 'new-plan';
+  if (action === 'reuse' && currentReportData && !isQuickPreview) {
+    changeView('report');
+    setReportDisplayMode('workspace');
+    renderReport(currentReportData);
+    document.querySelector('#report-view .eyebrow').textContent = '输入未变化 · 已保留当前报告与人工修改';
+    return;
+  }
+  if (action === 'summary-only' && generationSource === 'ai' && currentReportData && !isQuickPreview) {
+    generationInput.preserveCoursePlan = cloneCoursePlan(currentReportData.coursePlan);
+  }
   setGenerationControlsLocked(true, generationSource);
   button.disabled = true;
-  button.textContent = generationSource === 'upload' ? '正在生成课程规划报告…' : 'AI 正在分析并生成课程规划…';
+  button.textContent = generationSource === 'upload' ? 'AI 正在整理试听总结并合并课程规划…' : 'AI 正在分析并生成课程规划…';
   notice.classList.remove('error');
   notice.innerHTML = generationSource === 'upload'
-    ? '<strong>正在生成：</strong>课程规划已锁定，系统正在整理完整报告，请不要重复提交或关闭页面。'
-    : '<strong>正在生成：</strong>通常需要 30–90 秒。每个完成阶段都会自动保存，刷新后可以继续。';
+    ? '<strong>正在生成：</strong>课程规划已锁定，AI 正在根据试听反馈生成首页总结并合并完整报告。'
+    : '<strong>正在分阶段生成：</strong>每个完成阶段会自动保存进度，刷新后可继续生成。';
   try {
-    currentReportData = await generateAiReport(generationInput);
-    currentReportId = null;
-    historicalTeacherProfile = null;
-    isQuickPreview = false;
-    originalAiCoursePlan = cloneCoursePlan(currentReportData.coursePlan);
-    renderReport(currentReportData);
-    setQuickPreviewActions(false);
-    setReportDisplayMode('workspace');
-    changeView('report');
-    document.querySelector('#report-view .eyebrow').textContent = 'AI 报告已生成 · 未云端保存';
-    $('#save-report').textContent = '保存报告';
-    const reportSaved = await saveReport({ automatic: true });
-    if (generationSource === 'ai' && reportSaved) clearGenerationRecovery();
-    notice.innerHTML = generationSource === 'upload'
-      ? '<strong>上传模式：</strong>课程规划来自老师确认的上传文件，系统未改动课次、顺序和时长。'
-      : '<strong>生成原则：</strong>总课时由老师决定，AI 仅负责规划内容与课时分配。';
+    if (!forceNewPlan && !generationInput.preserveCoursePlan) {
+      const existing = await requestGeneratedJson('/api/reports/reuse', {
+        ...nextInput,
+        ...(generationSource === 'upload' ? { lockedCoursePlan: generationInput.formData.lockedCoursePlan } : {}),
+      });
+      if (existing.id) {
+        await openHistoricalReport(existing.id);
+        pendingRegenerationReportId = null;
+        document.querySelector('#report-view .eyebrow').textContent = '输入未变化 · 已打开之前保存的报告';
+        return;
+      }
+    }
+    const report = await generateAiReport(generationInput);
+    await presentGeneratedReport(report, generationSource, notice, generationInput);
   } catch (error) {
     if (error.message === 'INVALID_INPUT') {
       notice.classList.add('error');
@@ -2000,32 +2349,11 @@ $('#report-form').addEventListener('submit', async (event) => {
       notice.innerHTML = '<strong>登录已过期：</strong>请刷新页面后重新登录。';
       return;
     }
-    notice.classList.add('error');
-    const messages = {
-      AI_GENERATION_FAILED: 'AI 服务暂时无响应，请稍后重试。',
-      AI_GATEWAY_ERROR: 'AI 服务请求超时或平台暂时异常，请稍后重试。',
-      INVALID_SCORE: '当前成绩或目标成绩不符合所选科目的分数范围。',
-      INVALID_LESSON_COUNT: '预计课次与总课时不匹配，请返回检查。',
-      SYLLABUS_COVERAGE_VIOLATION: '课程规划遗漏或错误标记了 Calculus 官方 Unit，请重新生成。',
-      SUBJECT_SCOPE_VIOLATION: 'AI 内容出现跨科目术语，请重新生成。',
-      UNEXPECTED_LANGUAGE: 'AI 内容出现异常语言文字，系统已阻止生成，请重新生成。',
-      COURSE_PLAN_STYLE_REPETITION: '连续课时使用了重复的大纲式句型，请重新生成。',
-      REPORT_QUALITY_FAILED: 'AI 连续两次未达到报告质量要求，请重新生成。'
-    };
-    const reason = error.reason || messages[error.message] || `报告渲染异常（${error.message || 'UNKNOWN_ERROR'}），请重试。`;
-    const suggestion = error.suggestion ? `<br><span>建议：${escapeHtml(error.suggestion)}</span>` : '';
-    const reference = error.requestId ? ` <span>参考编号：${escapeHtml(error.requestId)}</span>` : '';
-    const checkpoint = generationSource === 'ai'
-      ? loadGenerationCheckpoint({ ...generationInput.formData, subjectCode: generationInput.subjectCode })
-      : null;
-    const recovery = checkpoint
-      ? `<br><span>已保存 ${countCompletedStages(checkpoint.generatedStages)}/${checkpoint.outlineResult.outline.stages.length} 个阶段，再次点击生成只会继续缺失阶段。</span>`
-      : '';
-    notice.innerHTML = `<strong>生成失败：</strong>${escapeHtml(reason)}${suggestion}${reference}${recovery}`;
+    displayGenerationFailure(notice, error);
   } finally {
     setGenerationControlsLocked(false);
     button.disabled = false;
-    button.innerHTML = generationSource === 'upload' ? '生成课程规划报告 <span>→</span>' : 'AI 生成个性化报告 <span>→</span>';
+    button.innerHTML = generationSource === 'upload' ? '生成完整学习报告 <span>→</span>' : 'AI 生成个性化报告 <span>→</span>';
   }
 });
 document.querySelectorAll('[data-scenario-sample]').forEach((button) => button.addEventListener('click', () => {
@@ -2102,10 +2430,26 @@ $('#subject-select').addEventListener('change', () => {
 });
 $('#current-score').addEventListener('input', (event) => event.target.setCustomValidity(''));
 $('#target-score').addEventListener('input', (event) => event.target.setCustomValidity(''));
-$('#total-hours').addEventListener('input', suggestLessonCount);
-$('#lesson-count').addEventListener('input', (event) => {
+$('#total-hours').addEventListener('input', clearLessonCountValidity);
+$('#total-hours').addEventListener('input', updateSatMathHoursSummary);
+$('#lesson-count').addEventListener('input', (event) => event.target.setCustomValidity(''));
+$('#language-test-type').addEventListener('change', updateLanguageAssessmentFields);
+$('#language-score-scale').addEventListener('change', updateLanguageAssessmentFields);
+$('#language-overall-score').addEventListener('input', (event) => event.target.setCustomValidity(''));
+$('#language-reading-score').addEventListener('input', (event) => event.target.setCustomValidity(''));
+$('#sat-math-hours-grid').addEventListener('input', (event) => {
   event.target.setCustomValidity('');
-  updateLessonCountHint();
+  updateSatMathHoursSummary();
+});
+$('#suggest-sat-math-hours').addEventListener('click', () => {
+  const suggestion = suggestSatMathHours($('#total-hours').value);
+  if (!suggestion) {
+    $('#total-hours').setCustomValidity('请先填写 2–60 之间、以 0.5 小时递增的总课时');
+    $('#total-hours').reportValidity();
+    return;
+  }
+  renderSatMathHoursInputs(suggestion);
+  scheduleFormDraftSave();
 });
 $('#planning-focus-options').addEventListener('change', updatePlanningFocusState);
 document.querySelectorAll('[name="planning-source"]').forEach((input) => input.addEventListener('change', (event) => {
@@ -2113,7 +2457,7 @@ document.querySelectorAll('[name="planning-source"]').forEach((input) => input.a
     setPlanningSource(activeGenerationSource);
     return;
   }
-  setPlanningSource(event.target.value);
+  switchPlanningSource(event.target.value);
 }));
 $('#report-form').addEventListener('input', scheduleFormDraftSave);
 $('#report-form').addEventListener('change', scheduleFormDraftSave);
@@ -2150,7 +2494,7 @@ $('#course-plan-upload-review').addEventListener('click', async (event) => {
   }
   if (event.target.dataset.uploadAction !== 'confirm') return;
   try {
-    await openUploadedPlanReport(collectUploadedCoursePlan());
+    confirmUploadedCoursePlan(collectUploadedCoursePlan());
   } catch (error) {
     $('#course-plan-upload-status').className = 'course-plan-upload-status error';
     $('#course-plan-upload-status').textContent = error.message;
@@ -2164,6 +2508,7 @@ window.addEventListener('keydown', (event) => {
   if (event.key === 'Escape' && generationChecklistResolver) closeGenerationChecklist(false);
 });
 document.querySelectorAll('.nav-item').forEach((item) => item.addEventListener('click', () => {
+  pendingRegenerationReportId = null;
   changeView(item.dataset.view);
   if (item.dataset.view === 'history') loadHistoryReports();
 }));
@@ -2187,6 +2532,43 @@ $('#back-edit').addEventListener('click', () => {
   }
   setReportDisplayMode('workspace');
   $('#report-mode-banner').scrollIntoView({ behavior: 'smooth', block: 'start' });
+});
+$('#regenerate-report').addEventListener('click', async () => {
+  if (reportAutoSaveTimer) {
+    clearTimeout(reportAutoSaveTimer);
+    reportAutoSaveTimer = null;
+    if (!await saveReport({ automatic: true })) return;
+  }
+  pendingRegenerationReportId = currentReportId;
+  reportGenerationBaseline = currentReportData?.generationInput || normalizeGenerationInput({
+    ...collectFormData(),
+    subjectCode: currentSubjectCode,
+    source: currentReportData?.planningContext?.source,
+  });
+  reportGenerationBaseline = {
+    ...reportGenerationBaseline,
+    totalHours: Number(currentReportData.coursePlan.totalHours),
+    lessonCount: currentReportData.coursePlan.stages.reduce((total, stage) => total + stage.lessons.length, 0),
+  };
+  $('[name="regeneration-plan-mode"][value="preserve"]').checked = true;
+  changeView('new');
+  const reportSource = currentReportData?.planningContext?.source === 'upload' ? 'upload' : 'ai';
+  if (reportSource === 'upload') {
+    uploadedCoursePlan = cloneCoursePlan(currentReportData.coursePlan);
+    uploadedCoursePlanConfirmed = true;
+  }
+  setPlanningSource(reportSource);
+  if (reportSource === 'upload' && uploadedCoursePlanConfirmed) {
+    const lessonCount = uploadedCoursePlan.stages.reduce((total, stage) => total + stage.lessons.length, 0);
+    $('#course-plan-upload-status').className = 'course-plan-upload-status success';
+    $('#course-plan-upload-status').textContent = `当前报告的课程规划已锁定：${lessonCount} 节，共 ${uploadedCoursePlan.totalHours} 小时。修改试听反馈后可直接重新生成。`;
+  }
+  $('#generation-notice').classList.remove('error');
+  $('#generation-notice').innerHTML = currentReportId
+    ? '<strong>重新生成当前报告：</strong>修改下方原始信息后再次生成，系统将更新当前历史报告，不会新增重复记录。'
+    : '<strong>重新生成当前报告：</strong>修改下方原始信息后再次生成；生成成功后将保存为一条历史报告。';
+  $('#generate-report').innerHTML = '重新生成并更新报告 <span>→</span>';
+  document.querySelector('#new-view .topbar')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
 });
 $('#save-report').addEventListener('click', saveReport);
 $('#quick-preview-report').addEventListener('click', openQuickPreview);
@@ -2387,6 +2769,7 @@ $('#copy-script').addEventListener('click', async () => { await navigator.clipbo
 const defaultCoursePlan = getDefaultCoursePlan();
 
 function initializeApp() {
+  renderSatMathHoursInputs();
   populateSubjectSelect();
   const initialData = collectFormData();
   currentReportData = buildFallbackReport(currentSubjectCode, initialData);
@@ -2395,7 +2778,7 @@ function initializeApp() {
   renderReport(currentReportData);
   initializeWorkspaceEditors();
   setReportDisplayMode('workspace');
-  loadTeacherProfile().then(() => {
+  loadTeacherProfile().then(async () => {
     if (formHasUserInput) {
       saveFormDraft();
       return;

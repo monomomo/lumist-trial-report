@@ -4,7 +4,7 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>路觅教育｜试听课报告生成器</title>
-    <link rel="stylesheet" href="styles.css?v=generation-recovery-1" />
+    <link rel="stylesheet" href="styles.css?v=sat-context-1" />
   </head>
   <body>
     <div class="app-shell">
@@ -76,6 +76,7 @@
                 ></label>
                 <label class="ai-workflow-only"
                   >辅导场景（必填）<select id="planning-scenario" required>
+                    <option value="" disabled>请选择辅导场景</option>
                     <option value="preview">预习</option>
                     <option value="synchronous" selected>同步</option>
                     <option value="intensive">冲刺</option>
@@ -96,12 +97,40 @@
                     inputmode="numeric"
                     placeholder="例如：50"
                     required
-                  /><small id="lesson-count-hint">填写总课时后自动建议，可继续修改</small></label
+                  /><small id="lesson-count-hint">请根据实际授课安排独立填写，单次支持 0.5–2 小时</small></label
                 >
                 <label class="ai-workflow-only planning-exam-training-toggle"
                   ><span>考试训练安排</span><span class="checkbox-label"><input id="include-exam-training" type="checkbox" /> 包含考试训练与模考安排（约占总课时 20%）</span></label
                 >
               </div>
+              <section id="sat-english-context" class="subject-context-card ai-workflow-only hidden" aria-labelledby="sat-english-context-title">
+                <div class="subject-context-heading">
+                  <div>
+                    <h3 id="sat-english-context-title">学生语言基础（选填）</h3>
+                    <p>语言成绩只作为阅读与语言基础参考，不会直接换算成 SAT 英语分数。</p>
+                  </div>
+                  <span>仅 SAT 英语</span>
+                </div>
+                <div class="subject-context-grid">
+                  <label>语言考试<select id="language-test-type"><option value="">未提供</option><option value="toefl_ibt">TOEFL iBT</option><option value="ielts_academic">IELTS Academic</option></select></label>
+                  <label id="language-score-scale-field" class="hidden">成绩分制<select id="language-score-scale"><option value="new_1_6">1–6 新制（2026 年起）</option><option value="legacy_0_120">0–120 旧制 / 兼容分</option></select></label>
+                  <label id="language-overall-field" class="hidden"><span id="language-overall-label">总分</span><input id="language-overall-score" type="text" inputmode="decimal" /></label>
+                  <label id="language-reading-field" class="hidden"><span id="language-reading-label">阅读单项（选填）</span><input id="language-reading-score" type="text" inputmode="decimal" /></label>
+                  <label id="language-test-date-field" class="hidden">考试月份（选填）<input id="language-test-date" type="month" /></label>
+                </div>
+                <p class="subject-context-note">SAT 模考、课堂表现和老师判断的优先级高于语言成绩。</p>
+              </section>
+              <section id="sat-math-context" class="subject-context-card ai-workflow-only hidden" aria-labelledby="sat-math-context-title">
+                <div class="subject-context-heading">
+                  <div>
+                    <h3 id="sat-math-context-title">SAT 数学课时分配</h3>
+                    <p>老师锁定各领域课时，系统据此生成每节教学内容，不会重新分配。</p>
+                  </div>
+                  <button id="suggest-sat-math-hours" type="button" class="secondary-btn compact-btn">按官方权重建议</button>
+                </div>
+                <div id="sat-math-hours-grid" class="sat-math-hours-grid"></div>
+                <div id="sat-math-hours-summary" class="sat-math-hours-summary" aria-live="polite">填写总课时后，再分配五项课时。</div>
+              </section>
               <section id="course-plan-upload-panel" class="course-plan-upload-panel hidden">
                 <div>
                   <strong>上传老师已有课程规划</strong>
@@ -122,29 +151,29 @@
                 <div class="section-heading spacing">
                   <span>02</span>
                   <div>
-                    <h2>学生背景与试听课反馈</h2>
-                    <p>
+                    <h2 id="feedback-section-title">学生背景与试听课反馈</h2>
+                    <p id="feedback-section-description">
                       像写微信反馈一样描述即可。系统会整理成报告与销售跟进话术。
                     </p>
                   </div>
                 </div>
-                <fieldset class="planning-focus-selector">
+                <fieldset class="planning-focus-selector ai-planning-only">
                   <legend>课程规划侧重点（选填，最多 3 项）</legend>
                   <div id="planning-focus-options" class="planning-focus-options"></div>
                   <small id="planning-focus-hint">未选择时，系统将根据课堂记录安排课程重点</small>
                 </fieldset>
                 <label class="textarea-label"
-                  >老师自然语言记录<textarea id="teacher-notes"
+                  ><span id="teacher-notes-label">老师自然语言记录</span><textarea id="teacher-notes"
                     rows="14"
                     minlength="20"
                     maxlength="6000"
                     required
                   ></textarea>
                 </label>
-                <p class="scenario-sample-hint" id="scenario-sample-hint">
+                <p class="scenario-sample-hint ai-planning-only" id="scenario-sample-hint">
                   当前提供 SAT 数学的预习、同步和冲刺样例
                 </p>
-                <div class="quick-actions">
+                <div class="quick-actions ai-planning-only">
                   <button type="button" class="text-btn" data-scenario-sample="preview">
                     载入“预习”样例</button
                   ><button type="button" class="text-btn" data-scenario-sample="synchronous">
@@ -154,6 +183,12 @@
                   </button>
                 </div>
               </div>
+              <fieldset class="planning-focus-selector regeneration-options hidden" id="regeneration-options">
+                <legend>本次修改如何处理课程规划</legend>
+                <label><input type="radio" name="regeneration-plan-mode" value="preserve" checked> 保留现有规划，仅更新试听反馈（推荐）</label>
+                <label><input type="radio" name="regeneration-plan-mode" value="replace"> 重新制定全部课程规划</label>
+                <p>修改科目、成绩目标、课时或其他规划条件时，系统会根据新条件重新规划。</p>
+              </fieldset>
               <div class="notice" id="generation-notice">
                 <strong>生成原则：</strong>总课时由老师决定，AI
                 仅负责规划内容与课时分配。
@@ -211,6 +246,8 @@
                 编辑试听总结</button
               ><button class="secondary-btn" id="edit-course-plan">
                 编辑课程规划</button
+              ><button class="secondary-btn" id="regenerate-report">
+                返回修改并重新生成</button
               ><button class="secondary-btn" id="back-edit">返回老师工作台</button
               ><button class="secondary-btn" id="preview-report">预览家长版</button
               ><button class="secondary-btn" id="print-report">导出 PDF</button>
@@ -757,6 +794,6 @@
         </footer>
       </div>
     </div>
-    <script type="module" src="app.js?v=generation-recovery-1"></script>
+    <script type="module" src="app.js?v=stable-plans-1"></script>
   </body>
 </html>

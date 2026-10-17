@@ -1,6 +1,8 @@
 import { z } from 'zod';
 import { SUBJECT_CODES, SUBJECT_CATALOG, validateSubjectScores } from '../subjects/catalog.js';
 import { PLANNING_FOCUS_AREA_CODES, PLANNING_SCENARIO_CODES, normalizePlanningFocusAreas } from './planning-context.js';
+import { satEnglishAssessmentSchema, satMathHoursSchema } from './sat-context-validation.js';
+import { generationSnapshotSchema } from './generation-snapshot-schema.js';
 
 const subjectNames = SUBJECT_CODES.map((code) => SUBJECT_CATALOG[code].displayName) as [string, ...string[]];
 const subjectSchema = z.enum(subjectNames);
@@ -37,6 +39,7 @@ const coursePlanSchema = z.object({
 });
 
 const reportDataSchema = z.object({
+  generationInput: generationSnapshotSchema.optional(),
   overview: z.string().trim().min(1).max(500),
   classroomStatus: z.string().trim().min(1).max(160),
   strength: z.string().trim().min(1).max(160),
@@ -51,6 +54,8 @@ const reportDataSchema = z.object({
     lessonCount: z.number().int().min(1).max(60),
     focusAreas: z.array(z.enum(PLANNING_FOCUS_AREA_CODES as [string, ...string[]])).max(3).optional(),
     includeExamTraining: z.boolean().optional(),
+    satEnglishAssessment: satEnglishAssessmentSchema.optional(),
+    satMathHours: satMathHoursSchema.optional(),
     source: z.enum(['ai', 'upload']).optional(),
   }).strict().optional(),
   teacherNotice: z.string().trim().max(500).optional(),
@@ -87,8 +92,8 @@ type ReportValidationInput = {
   subject: string;
   currentScore: string;
   targetScore: string;
-  reportData: { planningContext?: { lessonCount: number; focusAreas?: string[] } };
-  coursePlan: { stages: Array<{ lessons: unknown[] }> };
+  reportData: { planningContext?: { lessonCount: number; focusAreas?: string[]; satEnglishAssessment?: unknown; satMathHours?: Record<string, number>; source?: string } };
+  coursePlan: { totalHours: number; stages: Array<{ lessons: unknown[] }> };
 };
 
 function validateReport(data: ReportValidationInput, context: z.RefinementCtx) {
@@ -120,6 +125,15 @@ function validateReport(data: ReportValidationInput, context: z.RefinementCtx) {
         message: `预计课次 ${savedLessonCount} 与课程规划 ${actualLessonCount} 节不一致`,
       });
     }
+  }
+  const planningContext = data.reportData?.planningContext;
+  if (planningContext?.source !== 'upload' && data.subject === SUBJECT_CATALOG.sat_math.displayName && planningContext?.satMathHours) {
+    const assigned = Object.values(planningContext.satMathHours).reduce((total, hours) => total + hours, 0);
+    if (Math.abs(assigned - data.coursePlan.totalHours) > 0.001) context.addIssue({
+      code: 'custom',
+      path: ['reportData', 'planningContext', 'satMathHours'],
+      message: `SAT 数学课时分配合计 ${assigned}h，与课程规划 ${data.coursePlan.totalHours}h 不一致`,
+    });
   }
 }
 

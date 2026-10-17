@@ -170,6 +170,7 @@ test('new report form starts with empty teacher inputs', async () => {
   assert.match(source, /<textarea id="teacher-notes"[^>]*><\/textarea>/);
   assert.match(source, /id="planning-scenario"/);
   assert.match(source, /id="lesson-count"/);
+  assert.match(source, /请根据实际授课安排独立填写/);
   assert.match(source, /id="planning-focus-options"/);
   assert.match(source, /课程规划侧重点（选填，最多 3 项）/);
   assert.equal(source.match(/data-scenario-sample=/g)?.length, 3);
@@ -181,6 +182,24 @@ test('scenario samples follow the selected SAT or AP subject', async () => {
   assert.match(appSource, /getPlanningScenarioSample\(scenario, currentSubjectCode\)/);
   assert.match(appSource, /当前提供 \$\{getSubjectShortName\(code\)\} 的预习、同步和冲刺样例/);
   assert.match(htmlSource, /id="scenario-sample-hint"/);
+});
+
+test('total hours and lesson count are entered independently', async () => {
+  const source = await readFile(new URL('../public/report/app.js', import.meta.url), 'utf8');
+  assert.doesNotMatch(source, /function suggestLessonCount/);
+  assert.doesNotMatch(source, /\$\('#lesson-count'\)\.value = String\(range\.minimum\)/);
+  assert.match(source, /\$\('#total-hours'\)\.addEventListener\('input', clearLessonCountValidity\)/);
+});
+
+test('switching between SAT and AP clears every teacher-entered field', async () => {
+  const appSource = await readFile(new URL('../public/report/app.js', import.meta.url), 'utf8');
+  assert.match(appSource, /getSubjectTrack\(currentSubjectCode\) !== getSubjectTrack\(code\)/);
+  assert.match(appSource, /if \(trackChanged\) resetFormForTrackChange\(options\)/);
+  assert.match(appSource, /function resetFormForTrackChange\(\{ clearRecovery = true \} = \{\}\)[\s\S]*?currentReportId = null[\s\S]*?#student-name[\s\S]*?#current-score[\s\S]*?#target-score[\s\S]*?#total-hours[\s\S]*?#lesson-count[\s\S]*?#teacher-notes/);
+  assert.match(appSource, /#planning-scenario'\)\.value = ''/);
+  assert.match(appSource, /renderPlanningFocusOptions\(\[\]\)[\s\S]*?renderSatMathHoursInputs\(\)/);
+  assert.match(appSource, /#language-test-type[\s\S]*?#language-overall-score[\s\S]*?#language-reading-score[\s\S]*?#language-test-date/);
+  assert.match(appSource, /uploadedCoursePlan = null[\s\S]*?selectedCoursePlanFile = null[\s\S]*?setPlanningSource\('ai'\)[\s\S]*?if \(clearRecovery\) clearGenerationRecovery\(\)/);
 });
 
 test('AP subjects use upcoming May exam options', async () => {
@@ -291,19 +310,19 @@ test('generation handles non-JSON platform timeout pages without exposing parser
 
 test('AI-led reports generate an exact course plan in validated stage batches', async () => {
   const appSource = await readFile(new URL('../public/report/app.js', import.meta.url), 'utf8');
-  const routeSource = await readFile(new URL('../app/api/generate-report-batch/route.ts', import.meta.url), 'utf8');
+  const generationSource = await readFile(new URL('../lib/reports/batch-generation.ts', import.meta.url), 'utf8');
   assert.match(appSource, /operation: 'outline'/);
   assert.match(appSource, /operation: 'stage'/);
   assert.match(appSource, /Math\.min\(2, pendingStageIndexes\.length\)/);
   assert.match(appSource, /retryGenerationStep[\s\S]*STAGE_LESSON_COUNT_MISMATCH/);
-  assert.match(routeSource, /plannedCount !== context\.lessonDurations\.length/);
-  assert.match(routeSource, /stageResult\.lessons\.length !== parsed\.data\.stage\.lessonCount/);
-  assert.match(routeSource, /当前阶段包含无效或缺失的 AP Unit 编码/);
+  assert.match(generationSource, /plannedCount !== context\.lessonDurations\.length/);
+  assert.match(generationSource, /stageResult\.lessons\.length !== input\.stage\.lessonCount/);
+  assert.match(generationSource, /当前阶段包含无效或缺失的 AP Unit 编码/);
   assert.doesNotMatch(appSource, /generateAiReport[\s\S]*reconcileCoursePlanLessonCount/);
 });
 
 test('batched generation forbids invented classroom evidence', async () => {
-  const routeSource = await readFile(new URL('../app/api/generate-report-batch/route.ts', import.meta.url), 'utf8');
+  const routeSource = await readFile(new URL('../lib/reports/batch-generation.ts', import.meta.url), 'utf8');
   const guardSource = await readFile(new URL('../lib/reports/classroom-fact-guard.ts', import.meta.url), 'utf8');
   assert.match(routeSource, /都必须能在 teacherNotes 中找到直接依据/);
   assert.match(routeSource, /不得把未来课程计划改写成已经发生的课堂事实/);
@@ -311,6 +330,13 @@ test('batched generation forbids invented classroom evidence', async () => {
   assert.match(routeSource, /applyClassroomFactGuard/);
   assert.match(routeSource, /applyClassroomFactGuard\(outline/);
   assert.match(guardSource, /具体作答过程将在后续练习中继续观察/);
+});
+
+test('Vercel generation saves completed stages without requiring a Netlify worker', async () => {
+  const appSource = await readFile(new URL('../public/report/app.js', import.meta.url), 'utf8');
+  assert.match(appSource, /saveGenerationCheckpoint\(commonPayload, outlineResult, generatedStages\)/);
+  assert.match(appSource, /loadGenerationCheckpoint\(commonPayload\)/);
+  assert.doesNotMatch(appSource, /report-generation-jobs|pollGenerationJob|\.netlify\/functions/);
 });
 
 test('displayable content risks do not block generation and render a prominent teacher warning', async () => {
@@ -371,7 +397,7 @@ test('lesson durations are computed before generation and attached after validat
   assert.match(source, /goal: z\.string\(\)\.min\(8\)\.max\(80\)/);
 });
 
-test('teacher-uploaded course plans open the report workspace automatically as a locked plan', async () => {
+test('teacher-uploaded course plans are locked before feedback and unified report generation', async () => {
   const appSource = await readFile(new URL('../public/report/app.js', import.meta.url), 'utf8');
   const htmlSource = await readFile(new URL('../public/report/index.html', import.meta.url), 'utf8');
   assert.match(htmlSource, /name="planning-source" value="upload"/);
@@ -383,13 +409,21 @@ test('teacher-uploaded course plans open the report workspace automatically as a
   assert.match(htmlSource, /拖拽文件到这里，或点击选择文件/);
   assert.doesNotMatch(htmlSource, /id="parse-course-plan"/);
   assert.match(appSource, /ai-generation-fields/);
-  assert.match(appSource, /UPLOAD_REPORT_NOTE/);
+  assert.match(htmlSource, /id="feedback-section-title"/);
+  assert.match(htmlSource, /id="teacher-notes-label"/);
   assert.match(appSource, /dataTransfer\.files\[0\]/);
   assert.match(appSource, /parseUploadedCoursePlan\(\)/);
   assert.match(appSource, /uploadedCoursePlanConfirmed/);
   assert.match(appSource, /lockedCoursePlan: cloneCoursePlan\(uploadedCoursePlan\)/);
-  assert.match(appSource, /result\.lockedPlan[\s\S]*openUploadedPlanReport\(result\.lockedPlan\)/);
-  assert.match(appSource, /AI 解析完成后会自动进入学习报告/);
+  assert.match(appSource, /result\.lockedPlan && !satReviewWarnings\.length[\s\S]*confirmUploadedCoursePlan\(result\.lockedPlan\)/);
+  assert.match(appSource, /function confirmUploadedCoursePlan\(coursePlan\)[\s\S]*uploadedCoursePlanConfirmed = true[\s\S]*请继续填写试听课反馈/);
+  assert.match(appSource, /planningSource === 'upload' \? '填写试听课反馈'/);
+  assert.match(appSource, /planningSource === 'upload' && !uploadedCoursePlanConfirmed/);
+  assert.match(appSource, /planningSource === 'ai' && currentSubjectCode === 'sat_math'/);
+  assert.match(appSource, /planningSource === 'ai' && currentSubjectCode === 'sat_english'/);
+  assert.match(appSource, /SAT 课程范围提示/);
+  assert.match(appSource, /系统不会修改原文件/);
+  assert.match(appSource, /如系统发现范围风险，请复核确认后继续/);
   assert.match(appSource, /summary-editor-modal[\s\S]*isUploadedPlan/);
 });
 
@@ -399,12 +433,31 @@ test('generation mode stays immutable from request creation through report savin
   assert.match(appSource, /formData: collectFormData\(generationSource\)/);
   assert.match(appSource, /setGenerationControlsLocked\(true, generationSource\)/);
   assert.match(appSource, /document\.querySelectorAll\('#report-form input, #report-form select, #report-form textarea'\)/);
-  assert.match(appSource, /currentReportData = await generateAiReport\(generationInput\)/);
+  assert.match(appSource, /const report = await generateAiReport\(generationInput\)/);
   assert.match(appSource, /if \(source === 'upload'\) \{[\s\S]*if \(!formData\.lockedCoursePlan\) throw new Error\('LOCKED_PLAN_REQUIRED'\)/);
   assert.match(appSource, /if \(formData\.lockedCoursePlan\) throw new Error\('AI_MODE_LOCKED_PLAN_FORBIDDEN'\)/);
   assert.match(appSource, /const reportSource = currentReportData\.planningContext\?\.source === 'upload' \? 'upload' : 'ai';/);
-  assert.match(appSource, /teacherNotes: reportSource === 'upload' \? UPLOAD_REPORT_NOTE/);
-  assert.doesNotMatch(appSource, /teacherNotes: planningSource === 'upload' \? UPLOAD_REPORT_NOTE/);
+  assert.match(appSource, /teacherNotes: \$\('#teacher-notes'\)\.value\.trim\(\)/);
+  assert.doesNotMatch(appSource, /teacherNotes: (?:reportSource|planningSource) === 'upload'/);
+});
+
+test('generated reports can return to populated inputs and regenerate over the same history record', async () => {
+  const appSource = await readFile(new URL('../public/report/app.js', import.meta.url), 'utf8');
+  const htmlSource = await readFile(new URL('../public/report/index.html', import.meta.url), 'utf8');
+  assert.match(htmlSource, /id="regenerate-report"[\s\S]*返回修改并重新生成/);
+  assert.match(appSource, /pendingRegenerationReportId = currentReportId[\s\S]*changeView\('new'\)/);
+  assert.match(appSource, /currentReportId = pendingRegenerationReportId/);
+  assert.match(appSource, /if \(reportSaved\) pendingRegenerationReportId = null/);
+  assert.match(appSource, /重新生成并更新报告/);
+});
+
+test('switching from upload mode back to AI isolates file state and restores the AI draft', async () => {
+  const appSource = await readFile(new URL('../public/report/app.js', import.meta.url), 'utf8');
+  assert.match(appSource, /planningSource === 'ai' && nextSource === 'upload'[\s\S]*?aiModeDraft = collectFormDraft\(\)/);
+  assert.match(appSource, /clearCoursePlanUploadState\(\)[\s\S]*?coursePlanParseVersion \+= 1[\s\S]*?selectedCoursePlanFile = null[\s\S]*?uploadedCoursePlan = null/);
+  assert.match(appSource, /clearCoursePlanUploadState\(\);[\s\S]*?setPlanningSource\('ai'\);[\s\S]*?restoreAiModeDraft\(aiModeDraft\)/);
+  assert.match(appSource, /source === 'upload' && uploadedCoursePlanConfirmed[\s\S]*?lockedCoursePlan/);
+  assert.match(appSource, /if \(formData\.lockedCoursePlan\) throw new Error\('AI_MODE_LOCKED_PLAN_FORBIDDEN'\)/);
 });
 
 test('unlocking generation controls preserves the real generation result notice', async () => {
