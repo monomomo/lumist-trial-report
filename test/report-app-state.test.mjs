@@ -280,10 +280,11 @@ test('generation failures expose a safe reference id and unexpected language bec
   assert.match(routeSource, /criticalWarnings,/);
   assert.doesNotMatch(routeSource, /failureResponse\('UNEXPECTED_LANGUAGE'/);
   assert.match(routeSource, /'x-request-id': diagnostics\.requestId/);
-  assert.match(appSource, /error\.requestId = result\.requestId/);
-  assert.match(appSource, /error\.reason = result\.reason/);
-  assert.match(appSource, /error\.suggestion = result\.suggestion/);
-  assert.match(appSource, /UNEXPECTED_LANGUAGE: 'AI 内容出现异常语言文字/);
+  const requestSource = await readFile(new URL('../public/report/request-utils.js', import.meta.url), 'utf8');
+  assert.match(requestSource, /error\.requestId = result\?\.requestId/);
+  assert.match(requestSource, /error\.reason = result\.reason/);
+  assert.match(requestSource, /error\.suggestion = result\.suggestion/);
+  assert.match(appSource, /getWorkflowError/);
   assert.match(appSource, /参考编号/);
   assert.match(promptSource, /不使用日文、韩文、俄文或其他语言文字/);
   assert.match(guideSource, /报告仍会生成，但页面顶部会显示红色警示/);
@@ -297,15 +298,14 @@ test('generation repairs repeated course wording and preserves remaining issues 
   assert.doesNotMatch(routeSource, /failureResponse\('COURSE_PLAN_STYLE_REPETITION'/);
   assert.match(routeSource, /reason: details\.reason/);
   assert.match(routeSource, /suggestion: details\.suggestion/);
-  assert.match(appSource, /COURSE_PLAN_STYLE_REPETITION/);
-  assert.match(appSource, /建议：\$\{escapeHtml\(error\.suggestion\)\}/);
+  assert.match(appSource, /showWorkflowError/);
 });
 
 test('generation handles non-JSON platform timeout pages without exposing parser errors', async () => {
-  const appSource = await readFile(new URL('../public/report/app.js', import.meta.url), 'utf8');
-  assert.match(appSource, /contentType\.includes\('application\/json'\)/);
-  assert.match(appSource, /response\.status === 502 \|\| response\.status === 504/);
-  assert.match(appSource, /AI 生成时间超过当前平台限制，本次请求已超时/);
+  const requestSource = await readFile(new URL('../public/report/request-utils.js', import.meta.url), 'utf8');
+  assert.match(requestSource, /JSON\.parse\(text\)/);
+  assert.match(requestSource, /response\.status === 502 \|\| response\.status === 504/);
+  assert.match(requestSource, /生成请求等待超时/);
 });
 
 test('AI-led reports generate an exact course plan in validated stage batches', async () => {
@@ -506,6 +506,7 @@ test('DeepSeek generation disables thinking and handles non-JSON gateway errors'
   assert.match(routeSource, /isDeepSeek \? client\.responses\.create\(payload\) : client\.responses\.parse\(payload\)/);
   assert.match(routeSource, /safeParse\(normalizeGeneratedReportCandidate\(value\)\)/);
   assert.match(routeSource, /reviewIssues\.length > 0 && lessonDurations\.length < 20/);
-  assert.match(appSource, /new Error\('AI_GATEWAY_ERROR'\)/);
-  assert.match(appSource, /await response\.text\(\)/);
+  const requestSource = await readFile(new URL('../public/report/request-utils.js', import.meta.url), 'utf8');
+  assert.match(requestSource, /new Error\('INVALID_RESPONSE'\)/);
+  assert.match(requestSource, /await response\.text\(\)/);
 });

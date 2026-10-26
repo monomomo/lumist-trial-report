@@ -8,6 +8,9 @@ import { detectInputConflicts } from './input-conflict-utils.js';
 import { FORM_DRAFT_TTL_MS, GENERATION_CHECKPOINT_TTL_MS, createExpiringRecord, readFreshRecord, createGenerationFingerprint, normalizeGeneratedStages, getPendingStageIndexes, countCompletedStages } from './generation-recovery.js';
 import { SAT_MATH_AREA_CONFIG, createEmptySatMathHours, sumSatMathHours, validateSatEnglishAssessment, validateSatMathHours } from './sat-context.js';
 import { normalizeGenerationInput, getGenerationAction, sameCoursePlan } from './generation-policy.js';
+import { requestReportJson, requestFailureMetadata } from './request-utils.js';
+import { getWorkflowError } from './workflow-errors.js';
+import { waitForImage } from './export-utils.js';
 
 const $ = (selector) => document.querySelector(selector);
 const setText = (selector, value) => { $(selector).textContent = value; };
@@ -97,9 +100,27 @@ let formHasUserInput = false;
 let activeGenerationSource = null;
 let pendingRegenerationReportId = null;
 let reportGenerationBaseline = null;
+let pendingReportSaveToken = null;
 const LEGACY_UPLOAD_REPORT_NOTE = '老师已上传并确认完整课程规划，本报告仅对老师提供的原规划进行结构化整理与排版。';
 const FORM_DRAFT_STORAGE_KEY = 'lumist-report-form-draft-v1';
 const GENERATION_CHECKPOINT_STORAGE_KEY = 'lumist-report-generation-checkpoint-v1';
+
+function showWorkflowError(element, error, operation, progress = '') {
+  error.requestId ||= globalThis.crypto?.randomUUID?.() || `support-${Date.now().toString(36)}`;
+  const message = getWorkflowError(error, { operation });
+  const labels = { generate: '继续生成', save: '重新保存', upload: '重新解析', history: '重试读取', export: '重试导出', input: '检查填写内容', profile: '重新读取资料', 'edit-plan': '检查课程规划', 'edit-summary': '检查试听总结', 'quick-preview': '重试样式预览' };
+  const action = message.actionId === 'login'
+    ? '<a href="/" target="_blank" rel="noopener">在新窗口重新登录</a>'
+    : message.actionId && labels[message.actionId]
+      ? `<button type="button" class="secondary-btn" data-workflow-action="${message.actionId}" data-workflow-focus="${escapeHtml(message.focus || '')}" data-workflow-operation="${operation}">${labels[message.actionId]}</button>` : '';
+  element.classList.remove('hidden');
+  element.setAttribute('role', 'alert');
+  element.classList.add('error', 'workflow-error');
+  const reloadAction = message.category === 'render' ? '<button type="button" class="secondary-btn" data-workflow-action="render">重新加载报告</button>' : '';
+  element.innerHTML = `<strong>${escapeHtml(message.title)}</strong><p>${escapeHtml(message.reason)}</p><p>下一步：${escapeHtml(message.action)}</p>${progress ? `<p>${escapeHtml(progress)}</p>` : ''}<div class="workflow-actions">${action}${reloadAction}</div>${error.requestId ? `<details><summary>多次尝试仍失败？查看问题编号</summary>参考编号：${escapeHtml(error.requestId)}</details>` : ''}`;
+  console.warn('report-workflow-failure', requestFailureMetadata(error, operation));
+  return message;
+}
 
 function renderSatMathHoursInputs(values = createEmptySatMathHours()) {
   $('#sat-math-hours-grid').innerHTML = SAT_MATH_AREA_CONFIG.map((item) => `<label><span><b>${escapeHtml(item.label)}</b><small>${escapeHtml(item.description)}</small></span><span class="sat-math-hour-input"><input type="text" inputmode="decimal" data-sat-math-hours="${escapeHtml(item.code)}" value="${escapeHtml(values[item.code] ?? '')}" aria-label="${escapeHtml(item.label)}课时"><i>h</i></span></label>`).join('');
@@ -400,9 +421,7 @@ let teacherProfile = null;
 
 async function loadTeacherProfile() {
   try {
-    const response = await fetch('/api/me');
-    if (!response.ok) return false;
-    const data = await response.json();
+    const data = await requestReportJson('/api/me', undefined, { method: 'GET', timeoutMs: 15000 });
     recoveryStorageScope = typeof data.accountId === 'string' ? data.accountId : '';
     teacherProfile = normalizeTeacherProfile(data);
     if (teacherProfile) {
@@ -411,7 +430,8 @@ async function loadTeacherProfile() {
       setText('#info-teacher', getActiveTeacherProfile().displayName);
     }
     return Boolean(recoveryStorageScope);
-  } catch {
+  } catch (error) {
+    showWorkflowError($('#sidebar-teacher'), error, 'profile');
     return false;
   }
 }
@@ -419,6 +439,8 @@ async function loadTeacherProfile() {
 function renderSidebarTeacher() {
   if (!teacherProfile) return;
   const footer = $('#sidebar-teacher');
+  footer.classList.remove('error', 'workflow-error');
+  footer.removeAttribute('role');
   footer.innerHTML = `<div class="avatar">${escapeHtml(teacherProfile.displayPlaceholder)}</div><div><strong>${escapeHtml(teacherProfile.displayName)}</strong><small>${escapeHtml(teacherProfile.title)}</small></div>`;
 }
 
@@ -765,6 +787,15 @@ function layoutTeacherProfilePages() {
 }
 
 function renderReport(data) {
+  try {
+    renderReportContent(data);
+  } catch (error) {
+    error.generationStage = 'render';
+    throw error;
+  }
+}
+
+function renderReportContent(data) {
   const name = $('#student-name').value.trim() || '学生';
   const target = resolveTargetScore(currentSubjectCode, $('#target-score').value);
   const subjectName = createSubjectViewModel(currentSubjectCode).displayName;
@@ -1251,6 +1282,7 @@ async function saveReport({ automatic = false } = {}) {
   const { coursePlan, salesFollowUp, ...reportData } = currentReportData;
   const payload = {
     id: currentReportId,
+    ...(!currentReportId ? { saveToken: pendingReportSaveToken ||= crypto.randomUUID() } : {}),
     studentName: $('#student-name').value.trim(),
     currentScore: $('#current-score').value.trim(),
     targetScore: resolveTargetScore(currentSubjectCode, $('#target-score').value),
@@ -1265,20 +1297,17 @@ async function saveReport({ automatic = false } = {}) {
   saveButton.disabled = true;
   saveButton.textContent = '保存中…';
   try {
-    const response = await fetch('/api/reports', {
-      method: currentReportId ? 'PATCH' : 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(payload),
-    });
-    const result = await response.json();
-    if (!response.ok) throw new Error(result.error || 'REPORT_SAVE_FAILED');
+    const result = await requestReportJson('/api/reports', payload, { method: currentReportId ? 'PATCH' : 'POST', attempts: 1, timeoutMs: 30000 });
+    if (!result.saved) throw new Error('SYSTEM_NOT_CONFIGURED');
     if (result.id) currentReportId = result.id;
     reportStatus.textContent = result.saved ? (automatic ? '报告已自动保存' : '报告已生成 · 已保存') : '报告未保存 · 当前为本地演示';
     saveButton.textContent = currentReportId ? '更新历史报告' : '保存报告';
+    $('#report-operation-notice').classList.add('hidden');
     return Boolean(result.saved);
-  } catch {
+  } catch (error) {
     reportStatus.textContent = automatic ? '自动保存失败 · 请手动保存' : '报告保存失败 · 请稍后重试';
     saveButton.textContent = '重新保存';
+    showWorkflowError($('#report-view').classList.contains('active') ? $('#report-operation-notice') : $('#generation-notice'), error, 'save');
     return false;
   } finally {
     saveButton.disabled = false;
@@ -1366,6 +1395,8 @@ function saveFormDraft() {
   if (planningSource !== 'ai') return;
   if (writeRecoveryRecord(FORM_DRAFT_STORAGE_KEY, collectFormDraft(), FORM_DRAFT_TTL_MS)) {
     $('#draft-status').textContent = '草稿已自动保存';
+  } else {
+    $('#draft-status').textContent = '草稿未能自动保存，请复制课堂记录备份';
   }
 }
 
@@ -1646,10 +1677,8 @@ async function parseUploadedCoursePlan() {
     const form = new FormData();
     form.append('file', file);
     form.append('subjectCode', currentSubjectCode);
-    const response = await fetch('/api/parse-course-plan', { method: 'POST', body: form });
-    const result = await response.json();
+    const result = await requestReportJson('/api/parse-course-plan', form, { timeoutMs: 245000 });
     if (parseVersion !== coursePlanParseVersion) return;
-    if (!response.ok) throw new Error(result.error || 'COURSE_PLAN_PARSE_FAILED');
     const satReviewWarnings = Array.isArray(result.satReviewWarnings) ? result.satReviewWarnings : [];
     if (result.lockedPlan && !satReviewWarnings.length) {
       confirmUploadedCoursePlan(result.lockedPlan);
@@ -1661,20 +1690,25 @@ async function parseUploadedCoursePlan() {
   } catch (error) {
     if (parseVersion !== coursePlanParseVersion) return;
     status.className = 'course-plan-upload-status error';
-    status.textContent = error.message === 'UNAUTHORIZED' ? '登录已过期，请刷新页面重新登录。' : '文件解析失败，请检查文件格式或稍后重试。';
+    showWorkflowError(status, error, 'upload');
   }
 }
 
 function selectCoursePlanFile(file) {
   const status = $('#course-plan-upload-status');
   coursePlanParseVersion += 1;
+  uploadedCoursePlan = null;
+  uploadedCoursePlanConfirmed = false;
+  $('#course-plan-upload-review').classList.add('hidden');
+  $('#course-plan-upload-review').innerHTML = '';
+  setPlanningSource('upload');
   const validExtension = /\.(docx|xlsx|pdf)$/i.test(file?.name || '');
-  if (!file || !validExtension || file.size > 8 * 1024 * 1024) {
+  if (!file || !validExtension || file.size === 0 || file.size > 8 * 1024 * 1024) {
     selectedCoursePlanFile = null;
     $('#course-plan-dropzone').classList.remove('has-file');
     $('#course-plan-file-name').textContent = '尚未选择文件';
     status.className = 'course-plan-upload-status error';
-    status.textContent = !validExtension ? '仅支持 DOCX、XLSX 或 PDF 文件。' : '文件不能超过 8MB。';
+    status.textContent = !validExtension ? '请选择 DOCX、XLSX 或 PDF 文件后重新上传。' : file?.size === 0 ? '文件为空，请保存课程规划后重新选择文件。' : '文件超过 8MB，请压缩或只保留本次规划后重新上传。';
     return;
   }
   selectedCoursePlanFile = file;
@@ -1722,8 +1756,8 @@ function buildCurrentPlanningContext(lessonCount, source = currentReportData?.pl
     lessonCount,
     focusAreas: normalizePlanningFocusAreas(reportContext?.focusAreas ?? getSelectedPlanningFocusAreas(), currentSubjectCode),
     includeExamTraining: source === 'ai' && (reportContext?.includeExamTraining === true || $('#include-exam-training').checked),
-    ...(source === 'ai' && currentSubjectCode === 'sat_english' && (reportContext?.satEnglishAssessment || formData.satEnglishAssessment) ? { satEnglishAssessment: reportContext?.satEnglishAssessment || formData.satEnglishAssessment } : {}),
-    ...(source === 'ai' && currentSubjectCode === 'sat_math' && (reportContext?.satMathHours || formData.satMathHours) ? { satMathHours: reportContext?.satMathHours || formData.satMathHours } : {}),
+    ...(source === 'ai' && currentSubjectCode === 'sat_english' && (formData.satEnglishAssessment || reportContext?.satEnglishAssessment) ? { satEnglishAssessment: formData.satEnglishAssessment || reportContext?.satEnglishAssessment } : {}),
+    ...(source === 'ai' && currentSubjectCode === 'sat_math' && (formData.satMathHours || reportContext?.satMathHours) ? { satMathHours: formData.satMathHours || reportContext?.satMathHours } : {}),
     source,
   };
 }
@@ -1842,6 +1876,16 @@ function openGenerationChecklist() {
 
 function validateGenerationInputs() {
   const notice = $('#generation-notice');
+  for (const [selector, field, minimum, maximum] of [['#student-name', 'studentName', 1, 30], ['#teacher-notes', 'teacherNotes', 20, 6000]]) {
+    const value = $(selector).value.trim();
+    if (value.length < minimum || value.length > maximum) {
+      const error = new Error('INVALID_INPUT');
+      error.issues = [{ path: field }];
+      showWorkflowError(notice, error, 'generate');
+      $(selector).focus();
+      return false;
+    }
+  }
   if (!subjectSelectionConfirmed) {
     $('#subject-search').setCustomValidity('请从下拉列表中选择课程科目');
     notice.classList.add('error');
@@ -1938,16 +1982,16 @@ async function loadHistoryReports() {
   const container = $('#history-list');
   container.innerHTML = '<div class="history-empty">正在读取历史报告…</div>';
   try {
-    const response = await fetch('/api/reports');
-    const result = await response.json();
-    if (!response.ok) throw new Error(result.error || 'REPORT_LIST_FAILED');
+    const result = await requestReportJson('/api/reports', undefined, { method: 'GET', timeoutMs: 20000 });
+    if (result.demo) throw new Error('SYSTEM_NOT_CONFIGURED');
     if (!result.reports?.length) {
       container.innerHTML = '<div class="history-empty">还没有保存过报告。生成报告后点击“保存报告”，这里就会出现历史记录。</div>';
       return;
     }
     container.innerHTML = result.reports.map((report) => `<article class="history-card"><div><span class="history-chip">${escapeHtml(report.status === 'completed' ? '已完成' : report.status)}</span><h2>${escapeHtml(report.student_name)} · ${escapeHtml(report.subject)}</h2><p>更新于 ${escapeHtml(formatHistoryDate(report.updated_at))}</p></div><button type="button" class="secondary-btn" data-history-id="${escapeHtml(report.id)}">打开报告</button></article>`).join('');
-  } catch {
-    container.innerHTML = '<div class="history-empty">历史报告读取失败，请刷新页面后重试。</div>';
+  } catch (error) {
+    container.innerHTML = '<div class="history-empty" id="history-error-notice"></div>';
+    showWorkflowError($('#history-error-notice'), error, 'history');
   }
 }
 
@@ -1963,19 +2007,8 @@ function buildHistoricalTeacherProfile(snapshot) {
 }
 
 async function openHistoricalReport(reportId) {
-  const response = await fetch(`/api/reports?id=${encodeURIComponent(reportId)}`);
-  const responseText = await response.text();
-  let result;
-  try {
-    result = JSON.parse(responseText);
-  } catch {
-    const error = new Error('AI_GATEWAY_ERROR');
-    error.requestId = response.headers.get('x-request-id') || '';
-    error.reason = `AI 服务返回异常（HTTP ${response.status}）。`;
-    error.suggestion = '请稍后重新生成；如果反复出现，请联系管理员检查 Vercel Function 日志。';
-    throw error;
-  }
-  if (!response.ok || !result.report) throw new Error(result.error || 'REPORT_NOT_FOUND');
+  const result = await requestGeneratedJson(`/api/reports?id=${encodeURIComponent(reportId)}`, undefined, 'GET');
+  if (!result.report) throw new Error('REPORT_NOT_FOUND');
   const record = result.report;
   const subjectCode = resolveStoredSubjectCode(record.subject);
   applySubjectSelection(subjectCode);
@@ -2019,6 +2052,7 @@ async function openHistoricalReport(reportId) {
     },
   };
   currentReportId = record.id;
+  pendingReportSaveToken = null;
   reportGenerationBaseline = record.report_data?.generationInput || normalizeGenerationInput({
     ...collectFormData(savedPlanningContext.source === 'upload' ? 'upload' : 'ai'),
     subjectCode,
@@ -2204,37 +2238,11 @@ async function generateAiReport({ source, formData, subjectCode, preserveCourseP
 }
 
 async function requestGeneratedJson(path, payload, method = 'POST') {
-  const response = await fetch(path, {
-    method,
-    ...(method === 'GET' ? {} : {
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(payload),
-    }),
-  });
-  const contentType = response.headers.get('content-type') || '';
-  let result;
-  if (contentType.includes('application/json')) {
-    result = await response.json();
-  } else {
-    const error = new Error('AI_GATEWAY_ERROR');
-    error.requestId = response.headers.get('x-request-id') || '';
-    error.reason = response.status === 502 || response.status === 504
-      ? 'AI 生成时间超过当前平台限制，本次请求已超时。'
-      : 'AI 服务暂时未返回有效结果。';
-    error.suggestion = '请直接重新生成；如果反复出现，请把发生时间发给管理员。';
-    throw error;
-  }
-  if (!response.ok) {
-    const error = new Error(result.error || 'AI_GENERATION_FAILED');
-    error.requestId = result.requestId || response.headers.get('x-request-id') || '';
-    error.reason = result.reason || '';
-    error.suggestion = result.suggestion || '';
-    throw error;
-  }
-  return result;
+  return requestReportJson(path, payload, { method, timeoutMs: path === '/api/reports/reuse' ? 8000 : 245000 });
 }
 
 async function presentGeneratedReport(report, generationSource, notice, generationInput) {
+  pendingReportSaveToken = null;
   $('[name="regeneration-plan-mode"][value="preserve"]').checked = true;
   report.generationInput = normalizeGenerationInput({
     ...generationInput.formData,
@@ -2247,10 +2255,10 @@ async function presentGeneratedReport(report, generationSource, notice, generati
   historicalTeacherProfile = null;
   isQuickPreview = false;
   originalAiCoursePlan = cloneCoursePlan(currentReportData.coursePlan);
-  renderReport(currentReportData);
   setQuickPreviewActions(false);
-  setReportDisplayMode('workspace');
   changeView('report');
+  renderReport(currentReportData);
+  setReportDisplayMode('workspace');
   document.querySelector('#report-view .eyebrow').textContent = 'AI 报告已生成 · 未云端保存';
   $('#save-report').textContent = '保存报告';
   const reportSaved = await saveReport({ automatic: true });
@@ -2261,25 +2269,12 @@ async function presentGeneratedReport(report, generationSource, notice, generati
     : '<strong>生成完成：</strong>总课时由老师决定，AI 仅负责规划内容与课时分配。';
 }
 
-function displayGenerationFailure(notice, error) {
-  notice.classList.add('error');
-  const messages = {
-    AI_GENERATION_FAILED: 'AI 服务暂时无响应，请稍后重试。',
-    AI_GATEWAY_ERROR: 'AI 服务请求超时或平台暂时异常，请稍后重试。',
-    BACKGROUND_DISPATCH_FAILED: '后台生成任务未能启动，请稍后重试。',
-    JOB_NOT_FOUND: '没有找到对应的后台生成任务，请重新生成。',
-    INVALID_SCORE: '当前成绩或目标成绩不符合所选科目的分数范围。',
-    INVALID_LESSON_COUNT: '预计课次与总课时不匹配，请返回检查。',
-    SYLLABUS_COVERAGE_VIOLATION: '课程规划遗漏或错误标记了 Calculus 官方 Unit，请重新生成。',
-    SUBJECT_SCOPE_VIOLATION: 'AI 内容出现跨科目术语，请重新生成。',
-    UNEXPECTED_LANGUAGE: 'AI 内容出现异常语言文字，系统已阻止生成，请重新生成。',
-    COURSE_PLAN_STYLE_REPETITION: '连续课时使用了重复的大纲式句型，请重新生成。',
-    REPORT_QUALITY_FAILED: 'AI 连续两次未达到报告质量要求，请重新生成。'
-  };
-  const reason = error.reason || messages[error.message] || `报告渲染异常（${error.message || 'UNKNOWN_ERROR'}），请重试。`;
-  const suggestion = error.suggestion ? `<br><span>建议：${escapeHtml(error.suggestion)}</span>` : '';
-  const reference = error.requestId ? ` <span>参考编号：${escapeHtml(error.requestId)}</span>` : '';
-  notice.innerHTML = `<strong>生成失败：</strong>${escapeHtml(reason)}${suggestion}${reference}`;
+function displayGenerationFailure(notice, error, generationInput) {
+  const checkpoint = generationInput?.source === 'ai'
+    ? loadGenerationCheckpoint({ ...generationInput.formData, subjectCode: generationInput.subjectCode }) : null;
+  const progress = checkpoint ? `已保留 ${countCompletedStages(checkpoint.generatedStages)}/${checkpoint.outlineResult.outline.stages.length} 个阶段；继续生成会从可用进度接着处理。` : '';
+  const target = error.generationStage === 'render' ? $('#report-operation-notice') : notice;
+  showWorkflowError(target, error, 'generate', progress);
 }
 
 async function retryGenerationStep(task, attempts, onAttempt = () => {}) {
@@ -2290,6 +2285,7 @@ async function retryGenerationStep(task, attempts, onAttempt = () => {}) {
       return await task();
     } catch (error) {
       lastError = error;
+      if (['NETWORK_ERROR', 'REQUEST_TIMEOUT'].includes(error.message) || [401, 403, 408, 429, 502, 503, 504].includes(error.status)) throw error;
     }
   }
   throw lastError;
@@ -2307,6 +2303,16 @@ function buildBatchedSalesFollowUp(report, subjectName, targetScore) {
 }
 
 
+$('#report-form').addEventListener('invalid', (event) => {
+  event.preventDefault();
+  if (event.target !== $('#report-form').querySelector(':invalid')) return;
+  const fields = { 'student-name': 'studentName', 'subject-search': 'subjectCode', 'current-score': 'currentScore', 'target-score': 'targetScore', 'total-hours': 'totalHours', 'lesson-count': 'lessonCount', 'planning-scenario': 'planningScenario', 'teacher-notes': 'teacherNotes', 'language-overall-score': 'satEnglishAssessment', 'language-reading-score': 'satEnglishAssessment' };
+  const error = new Error('INVALID_INPUT');
+  error.issues = [{ path: fields[event.target.id] || (event.target.dataset.satMathHours ? 'satMathHours' : '') }];
+  showWorkflowError($('#generation-notice'), error, 'generate');
+  event.target.focus();
+  event.target.scrollIntoView({ behavior: 'smooth', block: 'center' });
+}, true);
 $('#report-form').addEventListener('submit', async (event) => {
   event.preventDefault();
   const button = $('#generate-report');
@@ -2343,31 +2349,39 @@ $('#report-form').addEventListener('submit', async (event) => {
     : '<strong>正在分阶段生成：</strong>每个完成阶段会自动保存进度，刷新后可继续生成。';
   try {
     if (!forceNewPlan && !generationInput.preserveCoursePlan) {
-      const existing = await requestGeneratedJson('/api/reports/reuse', {
-        ...nextInput,
-        ...(generationSource === 'upload' ? { lockedCoursePlan: generationInput.formData.lockedCoursePlan } : {}),
-      });
+      let existing = {};
+      try {
+        existing = await requestGeneratedJson('/api/reports/reuse', {
+          ...nextInput,
+          ...(generationSource === 'upload' ? { lockedCoursePlan: generationInput.formData.lockedCoursePlan } : {}),
+        });
+      } catch (error) {
+        if ([401, 403].includes(error.status) || ['UNAUTHORIZED', 'FORBIDDEN'].includes(error.message)) throw error;
+        console.warn('report-reuse-check-unavailable', requestFailureMetadata(error, 'reuse-check'));
+        notice.innerHTML = '<strong>正在继续生成：</strong>暂时无法检查历史结果，系统将按本次填写的信息生成报告。';
+      }
       if (existing.id) {
-        await openHistoricalReport(existing.id);
-        pendingRegenerationReportId = null;
-        document.querySelector('#report-view .eyebrow').textContent = '输入未变化 · 已打开之前保存的报告';
-        return;
+        try {
+          await openHistoricalReport(existing.id);
+          pendingRegenerationReportId = null;
+          document.querySelector('#report-view .eyebrow').textContent = '输入未变化 · 已打开之前保存的报告';
+          return;
+        } catch (error) {
+          if (!error.requestPath?.startsWith('/api/reports?') || [401, 403].includes(error.status)) throw error;
+          console.warn('report-reuse-open-unavailable', requestFailureMetadata(error, 'reuse-open'));
+          notice.innerHTML = '<strong>正在继续生成：</strong>暂时无法读取历史报告，系统将按本次填写的信息生成报告。';
+        }
       }
     }
     const report = await generateAiReport(generationInput);
-    await presentGeneratedReport(report, generationSource, notice, generationInput);
+    try {
+      await presentGeneratedReport(report, generationSource, notice, generationInput);
+    } catch (error) {
+      error.generationStage = 'render';
+      throw error;
+    }
   } catch (error) {
-    if (error.message === 'INVALID_INPUT') {
-      notice.classList.add('error');
-      notice.innerHTML = '<strong>信息不足：</strong>请至少填写 20 个字的试听课反馈。';
-      return;
-    }
-    if (error.message === 'UNAUTHORIZED') {
-      notice.classList.add('error');
-      notice.innerHTML = '<strong>登录已过期：</strong>请刷新页面后重新登录。';
-      return;
-    }
-    displayGenerationFailure(notice, error);
+    displayGenerationFailure(notice, error, generationInput);
   } finally {
     setGenerationControlsLocked(false);
     button.disabled = false;
@@ -2527,9 +2541,16 @@ $('#history-list').addEventListener('click', async (event) => {
   button.textContent = '正在打开…';
   try {
     await openHistoricalReport(button.dataset.historyId);
-  } catch {
+  } catch (error) {
     button.disabled = false;
     button.textContent = '重试打开';
+    let notice = $('#history-open-error');
+    if (!notice) {
+      notice = document.createElement('div');
+      notice.id = 'history-open-error';
+      $('#history-list').prepend(notice);
+    }
+    showWorkflowError(notice, error, 'history');
   }
 });
 $('#back-edit').addEventListener('click', () => {
@@ -2579,18 +2600,16 @@ $('#regenerate-report').addEventListener('click', async () => {
   document.querySelector('#new-view .topbar')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
 });
 $('#save-report').addEventListener('click', saveReport);
-$('#quick-preview-report').addEventListener('click', openQuickPreview);
+$('#quick-preview-report').addEventListener('click', () => {
+  try {
+    openQuickPreview();
+  } catch {
+    showWorkflowError($('#generation-notice'), new Error('QUICK_PREVIEW_FAILED'), 'preview');
+  }
+});
 async function waitForReportImages() {
   const images = [...document.querySelectorAll('#parent-report img')];
-  await Promise.all(images.map(async (image) => {
-    if (!image.complete) {
-      await new Promise((resolve) => {
-        image.addEventListener('load', resolve, { once: true });
-        image.addEventListener('error', resolve, { once: true });
-      });
-    }
-    if (image.decode) await image.decode().catch(() => {});
-  }));
+  await Promise.all(images.map((image) => waitForImage(image)));
 }
 
 function switchReportImageSources(mode) {
@@ -2629,8 +2648,14 @@ function setReportDisplayMode(mode) {
 
 $('#preview-report').addEventListener('click', () => {
   const isPreview = $('#parent-report').classList.contains('parent-preview-mode');
-  setReportDisplayMode(isPreview ? 'workspace' : 'preview');
-  $('#report-mode-banner').scrollIntoView({ behavior: 'smooth', block: 'start' });
+  try {
+    setReportDisplayMode(isPreview ? 'workspace' : 'preview');
+    $('#report-operation-notice').classList.add('hidden');
+    $('#report-mode-banner').scrollIntoView({ behavior: 'smooth', block: 'start' });
+  } catch (error) {
+    error.generationStage = 'render';
+    showWorkflowError($('#report-operation-notice'), error, 'generate');
+  }
 });
 
 $('#print-report').addEventListener('click', async () => {
@@ -2641,14 +2666,21 @@ $('#print-report').addEventListener('click', async () => {
   const restorePrintState = () => {
     if (restored) return;
     restored = true;
-    switchReportImageSources('screen');
-    setReportDisplayMode(previousMode);
-    printButton.disabled = false;
-    printButton.textContent = previousButtonText;
+    try {
+      switchReportImageSources('screen');
+      setReportDisplayMode(previousMode);
+    } catch {
+      $('#parent-report').classList.add('hidden');
+      $('#teacher-workspace-editor').classList.remove('hidden');
+    } finally {
+      printButton.disabled = false;
+      printButton.textContent = previousButtonText;
+    }
   };
   printButton.disabled = true;
   printButton.textContent = '正在准备 PDF…';
   try {
+    $('#report-operation-notice').classList.add('hidden');
     setReportDisplayMode('preview');
     switchReportImageSources('print');
     await waitForReportImages();
@@ -2656,7 +2688,7 @@ $('#print-report').addEventListener('click', async () => {
     window.print();
   } catch (error) {
     restorePrintState();
-    throw error;
+    showWorkflowError($('#report-operation-notice'), error, 'export');
   }
 });
 $('#edit-summary').addEventListener('click', openSummaryEditor);
@@ -2773,7 +2805,53 @@ document.querySelectorAll('.tab').forEach((tab) => tab.addEventListener('click',
   $('#preview-report').classList.toggle('hidden', !isParent);
   $('#print-report').classList.toggle('hidden', !isParent);
 }));
-$('#copy-script').addEventListener('click', async () => { await navigator.clipboard.writeText($('#sales-script').textContent); $('#copy-script').textContent = '已复制'; setTimeout(() => { $('#copy-script').textContent = '复制话术'; }, 1200); });
+$('#copy-script').addEventListener('click', async () => {
+  try {
+    await navigator.clipboard.writeText($('#sales-script').textContent);
+    $('#copy-script').textContent = '已复制';
+    setTimeout(() => { $('#copy-script').textContent = '复制话术'; }, 1200);
+  } catch {
+    showWorkflowError($('#report-operation-notice'), new Error('COPY_FAILED'), 'copy');
+  }
+});
+document.addEventListener('click', async (event) => {
+  const button = event.target.closest('[data-workflow-action]');
+  if (!button) return;
+  const action = button.dataset.workflowAction;
+  const notice = button.closest('.workflow-error, .notice') || $('#generation-notice');
+  try {
+    if (action === 'generate') $('#report-form').requestSubmit();
+    if (action === 'render') {
+      renderReport(currentReportData);
+      notice.classList.add('hidden');
+    }
+    if (action === 'save') {
+      const saved = await saveReport();
+      if (saved && $('#new-view').classList.contains('active')) {
+        notice.classList.remove('error', 'workflow-error');
+        notice.innerHTML = '<strong>报告已保存。</strong>请点击左侧“历史报告”重新打开，无需再次生成。';
+      }
+    }
+    if (action === 'upload') await parseUploadedCoursePlan();
+    if (action === 'history') { changeView('history'); await loadHistoryReports(); }
+    if (action === 'profile') await loadTeacherProfile();
+    if (action === 'export') $('#print-report').click();
+    if (action === 'quick-preview') $('#quick-preview-report').click();
+    if (action === 'edit-plan') $('#edit-course-plan').click();
+    if (action === 'edit-summary') $('#edit-summary').click();
+    if (action === 'input') {
+      changeView('new');
+      if (button.dataset.workflowOperation === 'save') {
+        $('#generation-notice').innerHTML = '<strong>请修改刚才提示的填写项。</strong>完成后保存当前报告，无需重新生成。<button type="button" class="secondary-btn" data-workflow-action="save">保存当前报告</button>';
+      }
+      const target = $(button.dataset.workflowFocus || '#student-name');
+      target?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      (target?.matches('input, select, textarea') ? target : target?.querySelector('input, select, textarea'))?.focus();
+    }
+  } catch (error) {
+    showWorkflowError(notice || $('#generation-notice'), error, action === 'export' ? 'export' : action === 'history' ? 'history' : 'generate');
+  }
+});
 const defaultCoursePlan = getDefaultCoursePlan();
 
 function initializeApp() {

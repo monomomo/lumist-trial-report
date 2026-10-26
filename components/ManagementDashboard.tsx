@@ -3,6 +3,7 @@
 import { FormEvent, useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { ChangePasswordDialog } from '@/components/ChangePasswordDialog';
+import { teacherProfileSchema, formatTeacherValidationErrors, type TeacherFieldError } from '@/lib/teachers/profile-validation';
 
 type Teacher = {
   id: string;
@@ -45,6 +46,7 @@ export function ManagementDashboard({ username }: { username: string }) {
   const [loading, setLoading] = useState(true);
   const [message, setMessage] = useState('');
   const [error, setError] = useState('');
+  const [fieldErrors, setFieldErrors] = useState<TeacherFieldError[]>([]);
   const [query, setQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState<StatusFilter>('all');
   const [subjectFilter, setSubjectFilter] = useState('all');
@@ -103,6 +105,7 @@ export function ManagementDashboard({ username }: { username: string }) {
   }, [editorOpen]);
 
   function startCreate() {
+    setFieldErrors([]);
     setSelected(null);
     setCreating(true);
     setForm(emptyForm);
@@ -111,6 +114,7 @@ export function ManagementDashboard({ username }: { username: string }) {
   }
 
   function startEdit(teacher: Teacher) {
+    setFieldErrors([]);
     setSelected(teacher);
     setCreating(false);
     setForm({ username: teacher.username, password: '', displayName: chineseName(teacher.displayName), publicName: teacher.publicName, title: teacher.title, summary: teacher.summary, bio: teacher.bio.join('\n'), subjects: teacher.subjects.join('\n'), employmentType: teacher.employmentType || '' });
@@ -120,6 +124,27 @@ export function ManagementDashboard({ username }: { username: string }) {
 
   function updateField(field: keyof typeof emptyForm, value: string) {
     setForm((current) => ({ ...current, [field]: value }));
+    setFieldErrors((current) => current.filter((item) => item.field !== field));
+    setError('');
+  }
+
+  function showFieldErrors(errors: TeacherFieldError[]) {
+    setFieldErrors(errors);
+    setError(errors.map((item) => item.message).join(' '));
+    window.setTimeout(() => {
+      const control = document.getElementsByName(errors[0]?.field || '')[0];
+      control?.focus();
+      control?.closest('label')?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }, 0);
+  }
+
+  function validationProps(field: string) {
+    return { name: field, 'aria-invalid': fieldErrors.some((item) => item.field === field), 'aria-describedby': fieldErrors.some((item) => item.field === field) ? `teacher-field-error-${field}` : undefined };
+  }
+
+  function fieldError(field: string) {
+    const errors = fieldErrors.filter((item) => item.field === field);
+    return errors.length ? <span className="teacher-field-error" id={`teacher-field-error-${field}`}>{errors.map((item) => item.message).join(' ')}</span> : null;
   }
 
   function closeEditor() {
@@ -185,9 +210,19 @@ export function ManagementDashboard({ username }: { username: string }) {
     setError('');
     setMessage('');
     const payload = { displayName: form.displayName, publicName: form.publicName, title: form.title, summary: form.summary, bio: form.bio.split(/\r?\n/).map((item) => item.trim()).filter(Boolean), subjects: form.subjects.split(/[,\n]/).map((item) => item.trim()).filter(Boolean), employmentType: form.employmentType || null };
+    const validation = teacherProfileSchema.safeParse(payload);
+    if (!validation.success) {
+      showFieldErrors(formatTeacherValidationErrors(validation.error.issues, payload));
+      return;
+    }
+    setFieldErrors([]);
     const response = await fetch('/api/management/teachers', { method: creating ? 'POST' : 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(creating ? { ...payload, username: form.username, password: form.password } : { ...payload, teacherId: selected?.id, active: selected?.active ?? true }) });
     const result = await response.json();
     if (!response.ok) {
+      if (Array.isArray(result.fieldErrors) && result.fieldErrors.length) {
+        showFieldErrors(result.fieldErrors);
+        return;
+      }
       setError(result.error || '保存失败。');
       return;
     }
@@ -214,7 +249,7 @@ export function ManagementDashboard({ username }: { username: string }) {
           <button type="button" className="management-primary" onClick={startCreate}>创建老师账号</button>
         </div>
         {message ? <div className="management-success">{message}</div> : null}
-        {error ? <div className="management-error">{error}</div> : null}
+        {error && !editorOpen ? <div className="management-error">{error}</div> : null}
         <div className="management-grid directory-only">
           <section className="management-card teacher-directory">
             <div className="teacher-directory-heading"><div><h2>老师目录</h2><p>共 {teachers.length} 位老师，当前找到 {filteredTeachers.length} 位</p></div></div>
@@ -249,15 +284,16 @@ export function ManagementDashboard({ username }: { username: string }) {
             <section className="management-card teacher-editor" role="dialog" aria-modal="true" aria-labelledby="teacher-editor-title">
               <div className="teacher-editor-heading"><div><h2 id="teacher-editor-title">{creating ? '创建老师账号' : '编辑老师资料'}</h2>{selected ? <p>{selected.publicName} · {selected.username}</p> : null}</div><button type="button" onClick={closeEditor}>关闭</button></div>
               <form className="management-form" onSubmit={submit}>
-                <label>登录账号<input value={form.username} onChange={(event) => updateField('username', event.target.value)} disabled={!creating} required /></label>
-                {creating ? <label>初始密码（选填）<input type="password" value={form.password} onChange={(event) => updateField('password', event.target.value)} minLength={6} placeholder="留空时使用 123456" /></label> : null}
-                <label>中文姓名<input value={form.displayName} onChange={(event) => updateField('displayName', event.target.value)} required /></label>
-                <label>报告展示名（选填）<input value={form.publicName} onChange={(event) => updateField('publicName', event.target.value)} placeholder="留空时使用老师姓名" /></label>
-                <label>任职类型<select value={form.employmentType} onChange={(event) => updateField('employmentType', event.target.value)} required><option value="">请选择</option><option value="full_time">全职</option><option value="part_time">兼职</option></select></label>
-                <label>展示职位<input value={form.title} onChange={(event) => updateField('title', event.target.value)} /></label>
-                <label>简介摘要<textarea value={form.summary} onChange={(event) => updateField('summary', event.target.value)} rows={3} /></label>
-                <label>老师简介（每行一条）<textarea value={form.bio} onChange={(event) => updateField('bio', event.target.value)} rows={6} /></label>
-                <label>擅长科目（每行或逗号分隔）<textarea value={form.subjects} onChange={(event) => updateField('subjects', event.target.value)} rows={3} /></label>
+                {error ? <div className="management-error" role="alert">{error}</div> : null}
+                <label>登录账号<input {...validationProps('username')} value={form.username} onChange={(event) => updateField('username', event.target.value)} disabled={!creating} required />{fieldError('username')}</label>
+                {creating ? <label>初始密码（选填）<input {...validationProps('password')} type="password" value={form.password} onChange={(event) => updateField('password', event.target.value)} minLength={6} placeholder="留空时使用 123456" />{fieldError('password')}</label> : null}
+                <label>中文姓名<input {...validationProps('displayName')} value={form.displayName} onChange={(event) => updateField('displayName', event.target.value)} required />{fieldError('displayName')}</label>
+                <label>报告展示名（选填）<input {...validationProps('publicName')} value={form.publicName} onChange={(event) => updateField('publicName', event.target.value)} placeholder="留空时使用老师姓名" />{fieldError('publicName')}</label>
+                <label>任职类型<select {...validationProps('employmentType')} value={form.employmentType} onChange={(event) => updateField('employmentType', event.target.value)} required><option value="">请选择</option><option value="full_time">全职</option><option value="part_time">兼职</option></select>{fieldError('employmentType')}</label>
+                <label>展示职位<input {...validationProps('title')} value={form.title} onChange={(event) => updateField('title', event.target.value)} />{fieldError('title')}</label>
+                <label>简介摘要<textarea {...validationProps('summary')} value={form.summary} onChange={(event) => updateField('summary', event.target.value)} rows={3} /><small>{form.summary.trim().length}/500 字</small>{fieldError('summary')}</label>
+                <label>老师简介（每行一条）<textarea {...validationProps('bio')} value={form.bio} onChange={(event) => updateField('bio', event.target.value)} rows={6} /><small>{form.bio.split(/\r?\n/).filter((item) => item.trim()).length}/20 条，每条最多 600 字；空行不计入</small>{fieldError('bio')}</label>
+                <label>擅长科目（每行或逗号分隔）<textarea {...validationProps('subjects')} value={form.subjects} onChange={(event) => updateField('subjects', event.target.value)} rows={3} /><small>{form.subjects.split(/[,\n]/).filter((item) => item.trim()).length}/20 条，每条最多 80 字</small>{fieldError('subjects')}</label>
                 {!creating ? <label className="management-checkbox"><input type="checkbox" checked={selected?.active ?? false} onChange={(event) => setSelected((current) => current ? { ...current, active: event.target.checked } : current)} /> 账号启用</label> : null}
                 {!creating && selected ? <div className="teacher-assets"><div className="teacher-asset"><div className="teacher-asset-preview">{selected.photoUrl ? <img src={selected.photoUrl} alt={`${selected.displayName}职业照`} /> : <span>暂无职业照</span>}</div><label>老师职业照<input type="file" accept="image/jpeg,image/png,image/webp" disabled={uploading !== null} onChange={(event) => void uploadAsset('photo', event.target.files?.[0])} /></label><small>支持 JPG、PNG、WebP，最大 4MB</small>{uploading === 'photo' ? <em>上传中…</em> : null}</div><div className="teacher-asset"><div className="teacher-asset-preview qr">{selected.qrUrl ? <img src={selected.qrUrl} alt={`${selected.displayName}授课视频二维码`} /> : <span>暂无二维码</span>}</div><label>授课视频二维码<input type="file" accept="image/jpeg,image/png,image/webp" disabled={uploading !== null} onChange={(event) => void uploadAsset('qr', event.target.files?.[0])} /></label><small>支持 JPG、PNG、WebP，最大 3MB</small>{uploading === 'qr' ? <em>上传中…</em> : null}</div></div> : creating ? <p className="teacher-asset-note">创建账号后即可上传职业照和授课视频二维码。</p> : null}
                 <div className="management-actions"><button type="submit" className="management-primary">保存</button><button type="button" onClick={closeEditor}>取消</button></div>

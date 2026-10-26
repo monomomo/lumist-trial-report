@@ -68,7 +68,7 @@ test('reports API supports listing, opening, creating and updating owned reports
   assert.match(routeSource, /INVALID_REPORT_DATA/);
   assert.match(routeSource, /\.update\(buildMutableReportPayload\(body\)\)/);
   assert.match(routeSource, /teacher_snapshot: teacherSnapshot \|\| \{\}/);
-  assert.equal(routeSource.match(/\.eq\('teacher_id', user\.id\)/g)?.length, 3);
+  assert.equal(routeSource.match(/\.eq\('teacher_id', user\.id\)/g)?.length, 4);
 });
 
 test('report save schema accepts valid create and update payloads', () => {
@@ -119,8 +119,8 @@ test('report workspace exposes persistent history actions without stale demo con
   assert.match(htmlSource, /id="save-report"/);
   assert.doesNotMatch(htmlSource, /id="open-history"/);
   assert.doesNotMatch(appSource, /#open-history/);
-  assert.match(appSource, /fetch\('\/api\/reports'\)/);
-  assert.match(appSource, /fetch\(`\/api\/reports\?id=\$\{encodeURIComponent\(reportId\)\}`\)/);
+  assert.match(appSource, /requestReportJson\('\/api\/reports'/);
+  assert.match(appSource, /requestGeneratedJson\(`\/api\/reports\?id=\$\{encodeURIComponent\(reportId\)\}`, undefined, 'GET'\)/);
   assert.match(appSource, /method: currentReportId \? 'PATCH' : 'POST'/);
   assert.match(appSource, /historicalTeacherProfile = buildHistoricalTeacherProfile\(record\.teacher_snapshot\)/);
   assert.match(appSource, /currentReportId = null/);

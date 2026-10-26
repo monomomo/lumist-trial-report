@@ -329,7 +329,7 @@ export async function POST(request: Request) {
     stage = 'request_validation';
     const parsed = requestSchema.safeParse(await readRequestBody(request));
     if (!parsed.success) {
-      return failureResponse('INVALID_INPUT', 400);
+      return failureResponse('INVALID_INPUT', 400, { issues: parsed.error.issues.map((issue) => ({ path: issue.path.map(String).join('.'), code: issue.code })) });
     }
 
     const subject = resolveSubject(parsed.data.subjectCode);

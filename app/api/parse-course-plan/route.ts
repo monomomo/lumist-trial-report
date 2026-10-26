@@ -1,4 +1,5 @@
 import OpenAI from 'openai';
+import { randomUUID } from 'node:crypto';
 import { zodTextFormat } from 'openai/helpers/zod';
 import { NextResponse } from 'next/server';
 import { getAuthResult, AUTH_STATUS } from '@/lib/auth/current-user';
@@ -15,6 +16,12 @@ export const dynamic = 'force-dynamic';
 
 const MAX_FILE_BYTES = 8 * 1024 * 1024;
 
+function uploadFailure(error: string, status: number) {
+  const requestId = randomUUID();
+  console.warn(JSON.stringify({ event: 'course_plan_upload_failure', requestId, errorCode: error, status }));
+  return NextResponse.json({ error, requestId }, { status, headers: { 'x-request-id': requestId } });
+}
+
 export async function POST(request: Request) {
   try {
     const auth = await getAuthResult();
@@ -26,7 +33,7 @@ export async function POST(request: Request) {
     const file = form.get('file');
     const subjectCode = String(form.get('subjectCode') ?? '');
     if (!(file instanceof File) || file.size === 0 || file.size > MAX_FILE_BYTES || !SUBJECT_CODES.includes(subjectCode as never)) {
-      return NextResponse.json({ error: 'INVALID_UPLOAD' }, { status: 400 });
+      return uploadFailure('INVALID_UPLOAD', 400);
     }
     const subject = resolveSubject(subjectCode);
     const extractedText = await extractCoursePlanText(file);
@@ -47,7 +54,7 @@ export async function POST(request: Request) {
       const result = uploadedPlanExtractionSchema.safeParse(value);
       return result.success ? result.data : null;
     });
-    if (!extraction) return NextResponse.json({ error: 'COURSE_PLAN_PARSE_FAILED' }, { status: 502 });
+    if (!extraction) return uploadFailure('COURSE_PLAN_PARSE_FAILED', 502);
     const warnings = getUploadedPlanWarnings(extraction);
     const satReviewWarnings = getSatUploadedPlanWarnings(subjectCode, extraction);
     let lockedPlan = null;
@@ -59,6 +66,6 @@ export async function POST(request: Request) {
     return NextResponse.json({ parsed: true, fileName: file.name, extraction, lockedPlan, warnings: [...new Set(warnings)], satReviewWarnings });
   } catch (error) {
     const code = error instanceof RangeError ? error.message : 'COURSE_PLAN_PARSE_FAILED';
-    return NextResponse.json({ error: code }, { status: code === 'COURSE_PLAN_PARSE_FAILED' ? 502 : 400 });
+    return uploadFailure(code, code === 'COURSE_PLAN_PARSE_FAILED' ? 502 : 400);
   }
 }

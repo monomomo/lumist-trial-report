@@ -756,6 +756,9 @@ input {
 .management-form textarea {
   resize: vertical;
 }
+.management-form [aria-invalid="true"] { border-color:#c4362b; }
+.teacher-field-error { color:#b42318; font-size:12px; line-height:1.5; font-weight:400; }
+.management-form label>small { color:#6b7280; font-size:12px; font-weight:400; }
 
 .management-checkbox {
   display: flex !important;

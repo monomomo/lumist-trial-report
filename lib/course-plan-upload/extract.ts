@@ -4,10 +4,15 @@ export async function extractCoursePlanText(file: File) {
   const extension = file.name.toLowerCase().split('.').pop();
   const buffer = Buffer.from(await file.arrayBuffer());
   let text = '';
-  if (extension === 'docx') text = await extractDocx(buffer);
-  else if (extension === 'xlsx') text = await extractXlsx(buffer);
-  else if (extension === 'pdf') text = await extractPdf(buffer);
-  else throw new RangeError('UNSUPPORTED_FILE_TYPE');
+  if (!['docx', 'xlsx', 'pdf'].includes(extension || '')) throw new RangeError('UNSUPPORTED_FILE_TYPE');
+  try {
+    if (extension === 'docx') text = await extractDocx(buffer);
+    else if (extension === 'xlsx') text = await extractXlsx(buffer);
+    else text = await extractPdf(buffer);
+  } catch (error) {
+    if (error instanceof ReferenceError || (error && typeof error === 'object' && 'code' in error && ['ERR_MODULE_NOT_FOUND', 'MODULE_NOT_FOUND', 'ERR_DLOPEN_FAILED'].includes(String(error.code)))) throw error;
+    throw new RangeError('INVALID_DOCUMENT');
+  }
   const normalized = text.replace(/\u0000/g, '').replace(/\r\n?/g, '\n').trim();
   if (!normalized) throw new RangeError('EMPTY_DOCUMENT');
   if (normalized.length > MAX_EXTRACTED_CHARACTERS) throw new RangeError('DOCUMENT_TOO_LONG');
@@ -41,5 +46,5 @@ async function extractPdf(buffer: Buffer) {
     const text = content.items.map((item) => 'str' in item ? item.str : '').join(' ');
     pages.push(`[第 ${pageNumber} 页]\n${text}`);
   }
-  return pages.join('\n\n');
+  return pages.some((page) => page.replace(/^\[第 \d+ 页\]\s*/, '').trim()) ? pages.join('\n\n') : '';
 }

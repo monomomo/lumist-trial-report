@@ -140,6 +140,7 @@ function validateReport(data: ReportValidationInput, context: z.RefinementCtx) {
 export const reportCreateSchema = z.object({
   ...reportSaveShape,
   id: z.null().optional(),
+  saveToken: z.string().uuid().optional(),
 }).strict().superRefine(validateReport);
 
 export const reportUpdateSchema = z.object({

@@ -47,7 +47,7 @@ test('workspace exposes current-password verification and password update', asyn
   assert.match(dialog, /修改密码/);
   assert.match(dialog, /signInWithPassword/);
   assert.match(dialog, /updateUser\(\{ password: newPassword \}\)/);
-  assert.match(dialog, /当前密码不正确/);
+  assert.match(dialog, /getAccountErrorMessage\(verifyError, 'verify'\)/);
 });
 
 test('Amber preset profile contains the supplied AP credentials and portrait', async () => {

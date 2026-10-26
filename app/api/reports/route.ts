@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server';
+import { randomUUID } from 'node:crypto';
 import { isSupabaseConfigured } from '@/lib/supabase/config';
 import { createClient } from '@/lib/supabase/server';
 import { authEmailToUsername } from '@/lib/auth/username';
@@ -10,6 +11,12 @@ import {
   type ReportCreateInput,
   type ReportUpdateInput,
 } from '@/lib/reports/schema';
+
+function reportFailure(error: string, status: number, issues?: unknown[]) {
+  const requestId = randomUUID();
+  console.warn(JSON.stringify({ event: 'report_storage_failure', requestId, errorCode: error, status }));
+  return NextResponse.json({ error, requestId, ...(issues ? { issues } : {}) }, { status, headers: { 'x-request-id': requestId } });
+}
 
 export async function GET(request: Request) {
   if (!isSupabaseConfigured) {
@@ -32,7 +39,7 @@ export async function GET(request: Request) {
       .single();
 
     if (error || !data) {
-      return NextResponse.json({ error: error?.message || 'REPORT_NOT_FOUND' }, { status: error?.code === 'PGRST116' ? 404 : 500 });
+      return reportFailure(error?.code === 'PGRST116' ? 'REPORT_NOT_FOUND' : 'REPORT_READ_FAILED', error?.code === 'PGRST116' ? 404 : 500);
     }
 
     return NextResponse.json({ report: data });
@@ -46,7 +53,7 @@ export async function GET(request: Request) {
     .limit(50);
 
   if (error) {
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    return reportFailure('REPORT_LIST_FAILED', 500);
   }
 
   return NextResponse.json({ reports: data });
@@ -71,6 +78,7 @@ export async function POST(request: Request) {
   const body = parsed.data;
   const teacherSnapshot = await getTeacherProfileSnapshot(user.id, authEmailToUsername(user.email ?? ''));
   const payload = {
+    ...(body.saveToken ? { id: body.saveToken } : {}),
     teacher_id: user.id,
     ...buildMutableReportPayload(body),
     teacher_snapshot: teacherSnapshot || {},
@@ -83,8 +91,18 @@ export async function POST(request: Request) {
     data = fallbackResult.data;
     error = fallbackResult.error;
   }
+  if (error?.code === '23505' && body.saveToken) {
+    const existing = await supabase.from('reports')
+      .update(buildMutableReportPayload(body))
+      .eq('id', body.saveToken)
+      .eq('teacher_id', user.id)
+      .select('id')
+      .single();
+    data = existing.data;
+    error = existing.error;
+  }
   if (error || !data) {
-    return NextResponse.json({ error: error?.message || 'REPORT_SAVE_FAILED' }, { status: 500 });
+    return reportFailure('REPORT_SAVE_FAILED', 500);
   }
 
   return NextResponse.json({ saved: true, id: data.id });
@@ -117,7 +135,7 @@ export async function PATCH(request: Request) {
     .single();
 
   if (error || !data) {
-    return NextResponse.json({ error: error?.message || 'REPORT_SAVE_FAILED' }, { status: 500 });
+    return reportFailure('REPORT_SAVE_FAILED', 500);
   }
 
   return NextResponse.json({ saved: true, id: data.id });
@@ -132,13 +150,10 @@ async function readRequestBody(request: Request) {
 }
 
 function invalidReportDataResponse(issues: Array<{ path: PropertyKey[]; message: string }>) {
-  return NextResponse.json({
-    error: 'INVALID_REPORT_DATA',
-    issues: issues.map((issue) => ({
+  return reportFailure('INVALID_REPORT_DATA', 400, issues.map((issue) => ({
       path: issue.path.map(String).join('.'),
       message: issue.message,
-    })),
-  }, { status: 400 });
+    })));
 }
 
 function buildMutableReportPayload(body: ReportCreateInput | ReportUpdateInput) {

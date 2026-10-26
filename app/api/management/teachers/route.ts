@@ -4,19 +4,12 @@ import { getAuthResult, AUTH_STATUS } from '@/lib/auth/current-user';
 import { authEmailToUsername, usernameToAuthEmail, isValidUsername } from '@/lib/auth/username';
 import { getTeacherPasswordError } from '@/lib/auth/password';
 import { createAdminClient } from '@/lib/supabase/admin';
+import { teacherProfileSchema, formatTeacherValidationErrors } from '@/lib/teachers/profile-validation';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 
-const profileFields = z.object({
-  displayName: z.string().trim().min(1).max(40),
-  publicName: z.string().trim().max(60).default(''),
-  title: z.string().trim().max(120).default(''),
-  summary: z.string().trim().max(500).default(''),
-  bio: z.array(z.string().trim().min(1).max(600)).max(20).default([]),
-  subjects: z.array(z.string().trim().min(1).max(80)).max(20).default([]),
-  employmentType: z.enum(['full_time', 'part_time']),
-});
+const profileFields = teacherProfileSchema;
 
 const createSchema = profileFields.extend({
   username: z.string().trim().min(3).max(32),
@@ -30,6 +23,11 @@ const updateSchema = profileFields.extend({
 
 function errorResponse(error: string, status: number) {
   return NextResponse.json({ error }, { status });
+}
+
+function validationErrorResponse(error: z.ZodError, input: unknown) {
+  const fieldErrors = formatTeacherValidationErrors(error.issues, input);
+  return NextResponse.json({ error: fieldErrors.map((item) => item.message).join(' '), fieldErrors }, { status: 400 });
 }
 
 async function getManagementContext() {
@@ -91,8 +89,9 @@ export async function GET() {
 export async function POST(request: Request) {
   const context = await getManagementContext();
   if ('response' in context) return context.response;
-  const parsed = createSchema.safeParse(await readJson(request));
-  if (!parsed.success) return errorResponse('老师姓名、账号名和任职类型不能为空。', 400);
+  const input = await readJson(request);
+  const parsed = createSchema.safeParse(input);
+  if (!parsed.success) return validationErrorResponse(parsed.error, input);
   if (!isValidUsername(parsed.data.username)) return errorResponse('老师账号格式不正确。', 400);
   const password = parsed.data.password || '123456';
   const publicName = parsed.data.publicName || parsed.data.displayName;
@@ -126,8 +125,9 @@ export async function POST(request: Request) {
 export async function PATCH(request: Request) {
   const context = await getManagementContext();
   if ('response' in context) return context.response;
-  const parsed = updateSchema.safeParse(await readJson(request));
-  if (!parsed.success) return errorResponse('老师资料填写不完整。', 400);
+  const input = await readJson(request);
+  const parsed = updateSchema.safeParse(input);
+  if (!parsed.success) return validationErrorResponse(parsed.error, input);
   const { teacherId, active, ...profile } = parsed.data;
   const publicName = profile.publicName || profile.displayName;
   const { error: authError } = await context.admin.auth.admin.updateUserById(teacherId, { ban_duration: active ? 'none' : '876000h' });

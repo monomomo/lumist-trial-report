@@ -165,14 +165,14 @@ function createPromptContext(data: GenerationInput) {
   const subject = resolveSubject(data.subjectCode);
   const targetScore = data.targetScore || (subject.code.startsWith('ap_') ? '5' : '');
   const scoreValidation = validateSubjectScores(subject.code, data.currentScore, targetScore);
-  if (!scoreValidation.valid) throw new GenerationRequestError('INVALID_INPUT', 400, '成绩、课次或课程规划参数不符合要求。');
+  if (!scoreValidation.valid) throw new GenerationRequestError('INVALID_SCORE', 400, '成绩不符合当前科目的分数范围。');
   const planningFocusAreas = normalizePlanningFocusAreas(data.planningFocusAreas, subject.code);
-  if (planningFocusAreas.length !== data.planningFocusAreas.length) throw new GenerationRequestError('INVALID_INPUT', 400, '成绩、课次或课程规划参数不符合要求。');
+  if (planningFocusAreas.length !== data.planningFocusAreas.length) throw new GenerationRequestError('INVALID_PLANNING_FOCUS', 400, '课程侧重点不适用于当前科目。');
   let lessonDurations: number[];
   try {
     lessonDurations = buildLessonDurationSlots(data.totalHours, data.lessonCount);
   } catch {
-    throw new GenerationRequestError('INVALID_INPUT', 400, '成绩、课次或课程规划参数不符合要求。');
+    throw new GenerationRequestError('INVALID_LESSON_COUNT', 400, '课次与总课时不匹配。');
   }
   return {
     subject,
@@ -189,6 +189,8 @@ function createPromptContext(data: GenerationInput) {
 
 function normalizeGenerationError(error: unknown) {
   if (error instanceof GenerationRequestError) return error;
+  if (error instanceof OpenAI.APIError && error.status === 429) return new GenerationRequestError('AI_RATE_LIMITED', 429, '当前使用人数较多。', '请等待 1 分钟后继续生成。');
+  if (error instanceof OpenAI.APIError && [401, 403, 404].includes(error.status || 0)) return new GenerationRequestError('AI_SERVICE_NOT_CONFIGURED', 503, 'AI 服务当前不可用。', '请联系管理员处理，无需修改课堂记录。');
   const reason = error instanceof Error && error.name === 'APIConnectionTimeoutError'
     ? 'AI 服务本次响应超时。'
     : 'AI 服务本次没有完成生成。';

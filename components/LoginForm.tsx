@@ -4,6 +4,7 @@ import { FormEvent, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { createClient } from '@/lib/supabase/client';
 import { isValidUsername, normalizeUsername, usernameToAuthEmail } from '@/lib/auth/username';
+import { getAccountErrorMessage } from '@/lib/auth/error-messages';
 
 export function LoginForm({ error: externalError }: { error?: string }) {
   const router = useRouter();
@@ -24,17 +25,19 @@ export function LoginForm({ error: externalError }: { error?: string }) {
       return;
     }
     setLoading(true);
-    const supabase = createClient();
-    const { error: signInError } = await supabase.auth.signInWithPassword({
-      email: usernameToAuthEmail(normalizedUsername),
-      password,
-    });
-    setLoading(false);
-    if (signInError) {
-      setError('账号或密码不正确，请联系管理员确认老师账号。');
-      return;
+    try {
+      const supabase = createClient();
+      const { error: signInError } = await supabase.auth.signInWithPassword({
+        email: usernameToAuthEmail(normalizedUsername),
+        password,
+      });
+      if (signInError) { setError(getAccountErrorMessage(signInError, 'login')); return; }
+      router.refresh();
+    } catch (error) {
+      setError(getAccountErrorMessage(error instanceof Error ? error : null, 'login'));
+    } finally {
+      setLoading(false);
     }
-    router.refresh();
   }
 
   return (

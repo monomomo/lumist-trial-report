@@ -4,6 +4,7 @@ import { FormEvent, useState } from 'react';
 import { getTeacherPasswordError, MIN_TEACHER_PASSWORD_LENGTH } from '@/lib/auth/password';
 import { usernameToAuthEmail } from '@/lib/auth/username';
 import { createClient } from '@/lib/supabase/client';
+import { getAccountErrorMessage } from '@/lib/auth/error-messages';
 
 export function ChangePasswordDialog({ username }: { username: string }) {
   const [open, setOpen] = useState(false);
@@ -42,27 +43,31 @@ export function ChangePasswordDialog({ username }: { username: string }) {
       return;
     }
     setLoading(true);
-    const supabase = createClient();
-    const { error: verifyError } = await supabase.auth.signInWithPassword({
-      email: usernameToAuthEmail(username),
-      password: currentPassword,
-    });
-    if (verifyError) {
+    try {
+      const supabase = createClient();
+      const { error: verifyError } = await supabase.auth.signInWithPassword({
+        email: usernameToAuthEmail(username),
+        password: currentPassword,
+      });
+      if (verifyError) {
+        setMessage(getAccountErrorMessage(verifyError, 'verify'));
+        return;
+      }
+      const { error: updateError } = await supabase.auth.updateUser({ password: newPassword });
+      if (updateError) {
+        setMessage(getAccountErrorMessage(updateError, 'update'));
+        return;
+      }
+      setCurrentPassword('');
+      setNewPassword('');
+      setConfirmPassword('');
+      setSuccess(true);
+      setMessage('密码修改成功，下次登录请使用新密码。');
+    } catch (error) {
+      setMessage(getAccountErrorMessage(error instanceof Error ? error : null, 'update'));
+    } finally {
       setLoading(false);
-      setMessage('当前密码不正确，请重新输入。');
-      return;
     }
-    const { error: updateError } = await supabase.auth.updateUser({ password: newPassword });
-    setLoading(false);
-    if (updateError) {
-      setMessage('密码修改失败，请稍后再试。');
-      return;
-    }
-    setCurrentPassword('');
-    setNewPassword('');
-    setConfirmPassword('');
-    setSuccess(true);
-    setMessage('密码修改成功，下次登录请使用新密码。');
   }
 
   return (
