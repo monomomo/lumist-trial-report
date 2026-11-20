@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { stageAssessmentSchema } from './stage-assessment.ts';
 import { SUBJECT_CODES, SUBJECT_CATALOG, validateSubjectScores } from '../subjects/catalog.js';
 import { PLANNING_FOCUS_AREA_CODES, PLANNING_SCENARIO_CODES, normalizePlanningFocusAreas } from './planning-context.js';
 import { satEnglishAssessmentSchema, satMathHoursSchema } from './sat-context-validation.js';
@@ -22,6 +23,7 @@ const coursePlanSchema = z.object({
   stages: z.array(z.object({
     title: z.string().trim().min(1).max(100),
     description: z.string().trim().max(300),
+    assessment: stageAssessmentSchema.optional(),
     lessons: z.array(lessonSchema).min(1).max(60),
   }).strict()).min(1).max(20),
 }).strict().superRefine((plan, context) => {

@@ -19,6 +19,12 @@ function validateCoursePlan(coursePlan, { allowSparseLessons = false } = {}) {
     if (!title.trim()) errors.push({ path: `stages.${stageIndex}.title`, message: '请填写阶段名称' });
     if (title.length > 50) warnings.push({ path: `stages.${stageIndex}.title`, message: '阶段名称超过 50 字，可能影响报告排版' });
     if (description.length > 160) warnings.push({ path: `stages.${stageIndex}.description`, message: '阶段说明超过 160 字，可能影响报告排版' });
+    if (stage.assessment) {
+      for (const [field, label, limit] of [['task', '阶段测任务', 120], ['target', '计划达标线', 100], ['adjustment', '调整建议', 120]]) {
+        const value = String(stage.assessment[field] || '').trim();
+        if (!value || value.length > limit) errors.push({ path: `stages.${stageIndex}.assessment.${field}`, message: `请填写${label}（1–${limit} 字）` });
+      }
+    }
     if (!stage.lessons.length) errors.push({ path: `stages.${stageIndex}.lessons`, message: '每个阶段至少需要一个课时' });
     stage.lessons.forEach((lesson, lessonIndex) => {
       if (!ALLOWED_DURATIONS.includes(Number(lesson.duration))) errors.push({ path: `stages.${stageIndex}.lessons.${lessonIndex}.duration`, message: '课时时长仅支持 0.5、1、1.5 或 2 小时' });

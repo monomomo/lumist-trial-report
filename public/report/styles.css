@@ -633,3 +633,12 @@ body.modal-open { overflow:hidden; }
 .reading-lessons li { padding:10px 12px; margin:0 0 8px; background:#fffcf4; border-radius:8px; }
 .reading-lessons p { margin:4px 0 0; }
 @media print { #parent-reading { display:none !important; } }
+.feedback-review { display:grid; gap:10px; margin:16px 0; }
+.feedback-review p, #feedback-review-status { margin:0; }
+.feedback-review button { justify-self:start; }
+.plan-detail-cell .plan-stage-inline { display:block; padding:5px 8px; background:#fff7de; }
+.plan-detail-cell .plan-stage-inline > strong { display:block; font-size:14px; }
+.plan-detail-cell .plan-stage-inline > span { display:block; margin-top:3px; }
+.stage-assessment { margin:6px 0; }
+.plan-overview-stage { padding:5px 0; border-bottom:1px solid #e8ddbd; }
+.plan-overview-stage h3, .plan-overview-stage p { margin:3px 0; }

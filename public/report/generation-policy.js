@@ -29,6 +29,7 @@ export function normalizeGenerationInput(input) {
 export function sameCoursePlan(first, second) {
   const normalize = (plan) => canonical({
     ...plan,
+    stages: plan.stages.map(({ assessment, ...stage }) => stage),
     rationale: plan.rationale === '本课程规划由任课老师上传并确认，课次顺序、课程内容与时长均按原文件保留。' ? '' : (plan.rationale || ''),
   });
   return Boolean(first && second) && JSON.stringify(normalize(first)) === JSON.stringify(normalize(second));

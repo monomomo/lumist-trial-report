@@ -41,6 +41,7 @@ await page.route('**/api/**', async (route) => {
   requests.push({ path, method: request.method(), body });
   let response;
   if (path === '/api/me') response = { accountId: 'mock-teacher', displayName: '测试老师' };
+  else if (path === '/api/review-feedback') response = { notes: input.teacherNotes, missing: ['请核对已有阶段测成绩，未测时可安排初测。'] };
   else if (path === '/api/reports/reuse') {
     if (failReuse) return route.abort('failed');
     response = { id: reusableId };
@@ -64,7 +65,7 @@ await page.route('**/api/**', async (route) => {
     if (failGeneration) return route.abort('failed');
     const stage = report.coursePlan.stages[0];
     response = body.operation === 'outline'
-      ? { outline: { ...report, rationale: report.coursePlan.rationale, stages: [{ title: stage.title, description: stage.description, lessonCount: 2, startLessonNumber: 1, durations: [1, 1] }] }, targetScore: '5' }
+      ? { outline: { ...report, rationale: report.coursePlan.rationale, stages: [{ title: stage.title, description: stage.description, lessonCount: 2, startLessonNumber: 1, durations: [1, 1], assessment: { task: '限时完成两道连续性判断题，按判断依据计分。', target: '至少 8/10', adjustment: '未达标时复练左右极限的判断依据。' } }] }, targetScore: '5' }
       : { lessons: report.coursePlan.stages.flatMap((item) => item.lessons) };
   } else if (path === '/api/parse-course-plan') {
     return route.fulfill({ status: uploadError === 'UNAUTHORIZED' ? 401 : 400, contentType: 'application/json', body: JSON.stringify({ error: uploadError }) });
@@ -95,7 +96,7 @@ try {
   await page.locator('#regenerate-report').click();
   await page.locator('#teacher-notes').fill(input.teacherNotes + '补充：学生能独立检查边界条件。');
   await submit();
-  await page.waitForFunction(() => document.querySelector('#report-view .eyebrow').textContent === '报告已自动保存');
+  await page.waitForFunction(() => document.querySelector('#report-view .eyebrow').textContent === '报告已保存');
   assert.deepEqual(record.course_plan, report.coursePlan);
   assert.equal(requests.filter((item) => item.path === '/api/generate-report').length, 1);
   assert.equal(requests.filter((item) => item.path === '/api/generate-report-batch').length, 0);
@@ -103,9 +104,16 @@ try {
 
   await page.locator('#regenerate-report').click();
   await page.locator('[name="regeneration-plan-mode"][value="replace"]').check();
+  await page.locator('#teacher-notes').fill('');
+  await page.locator('#feedback-family').fill(input.teacherNotes);
+  await page.locator('#review-feedback').click();
+  await page.locator('#feedback-review-status').getByText(/可安排初测/).waitFor();
+  assert.equal(await page.locator('#teacher-notes').inputValue(), input.teacherNotes);
   await submit();
-  await page.waitForFunction(() => document.querySelector('#report-view .eyebrow').textContent === '报告已自动保存');
+  await page.waitForFunction(() => document.querySelector('#report-view .eyebrow').textContent === '报告已保存');
   assert.equal(requests.filter((item) => item.path === '/api/generate-report-batch').length, 2);
+  assert.equal(record.course_plan.stages[0].assessment.target, '至少 8/10');
+  assert.match(await page.locator('.plan-overview-stage').first().textContent(), /至少 8\/10/);
   console.log('PASS: explicit replanning calls outline and stage generation');
 
   reusableId = id;
@@ -159,7 +167,7 @@ try {
   const reuseCount = requests.filter((item) => item.path === '/api/reports/reuse').length;
   const batchCount = requests.filter((item) => item.path === '/api/generate-report-batch').length;
   await submit();
-  await page.waitForFunction(() => document.querySelector('#report-view .eyebrow').textContent === '报告已自动保存');
+  await page.waitForFunction(() => document.querySelector('#report-view .eyebrow').textContent === '报告已保存');
   assert.equal(requests.filter((item) => item.path === '/api/reports/reuse').length - reuseCount, 2);
   assert.equal(requests.filter((item) => item.path === '/api/generate-report-batch').length - batchCount, 2);
   console.log('PASS: a persistent reuse lookup network failure retries twice and still generates the report');

@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { stageAssessmentSchema } from '../reports/stage-assessment.ts';
 
 export const uploadedLessonSchema = z.object({
   sourceNumber: z.string().trim().max(30).nullable(),
@@ -47,6 +48,7 @@ export const lockedCoursePlanSchema = z.object({
   stages: z.array(z.object({
     title: z.string().trim().min(1).max(100),
     description: z.string().trim().max(300),
+    assessment: stageAssessmentSchema.optional(),
     lessons: z.array(lockedLessonSchema).min(1).max(60),
   }).strict()).min(1).max(20),
 }).strict().superRefine((plan, context) => {
