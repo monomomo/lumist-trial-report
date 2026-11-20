@@ -300,7 +300,7 @@ NEXT_PUBLIC_APP_URL
 - 不得将真实 API Key、密码或其他敏感信息写入 GitHub
 - `OPENAI_API_KEY` 只能存在于服务端环境变量
 - Supabase Publishable Key 可以暴露给浏览器，但 Service Role Key 不可以
-- `SUPABASE_SERVICE_ROLE_KEY` 当前业务未使用，不应无必要地配置到生产环境
+- 师资管理服务端操作已使用 `SUPABASE_SERVICE_ROLE_KEY`，提供这些功能的环境须配置；禁止传入浏览器或提交 Git。三套环境与发布记录见 [环境交接](ENVIRONMENTS.md)
 
 ## 7. Supabase 当前状态
 

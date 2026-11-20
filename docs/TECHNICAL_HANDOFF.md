@@ -1,6 +1,6 @@
 # 路觅教育试听课报告生成器：技术交接与重新部署指南
 
-更新时间：2026-08-19
+更新时间：2026-11-20（补充环境与配置说明；历史章节请结合当前代码核对）
 
 交接基线：`main` 分支，以 GitHub 远程最新提交为准
 
@@ -9,6 +9,8 @@
 代码仓库：https://github.com/monomomo/lumist-trial-report
 
 ## 1. 交接结论
+
+部署前先阅读 [三套环境与发布交接](ENVIRONMENTS.md)。本文历史章节主要介绍 Vercel，不代表其他环境已同步。
 
 这是一个面向路觅老师的内部试听课学情报告工具。老师使用账号名和密码登录，填写学生信息、科目、总课时与试听课记录，系统调用 OpenAI 生成结构化报告。老师可以继续编辑课程规划、保存历史报告，并通过浏览器导出 PDF。
 
@@ -455,7 +457,7 @@ TEACHER_INITIAL_PASSWORD=123456
 - Vercel Production、Preview、Development 环境分别核对变量
 - 变量新增或修改后重新部署
 - publishable key 可以进入客户端，service role/secret key 不可以
-- 不建议把 `SUPABASE_SERVICE_ROLE_KEY` 放到 Vercel，当前线上运行不需要它
+- 师资管理服务端操作需要 `SUPABASE_SERVICE_ROLE_KEY`，提供这些功能的环境须配置；禁止加 `NEXT_PUBLIC_` 前缀或传入浏览器
 - 交接后轮换 OpenAI Key、Supabase 管理 Key 和飞书授权
 
 ## 13. 本地启动与验证
