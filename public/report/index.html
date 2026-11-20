@@ -4,7 +4,7 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>路觅教育｜试听课报告生成器</title>
-    <link rel="stylesheet" href="styles.css?v=workflow-guidance-1" />
+    <link rel="stylesheet" href="styles.css?v=report-reading-1" />
   </head>
   <body>
     <div class="app-shell">
@@ -268,6 +268,8 @@
           </div>
 
           <div id="teacher-workspace-editor" class="teacher-workspace-editor"></div>
+
+          <section id="parent-reading" class="parent-reading hidden" aria-label="家长版阅读预览"></section>
 
           <div id="parent-report" class="report-document teacher-workspace-mode">
             <article class="report-page cover-page delivery-only">
@@ -717,7 +719,7 @@
           <div>
             <p class="eyebrow">试听总结编辑器</p>
             <h2 id="summary-editor-title">调整课堂诊断与学习成果</h2>
-            <p>直接编辑试听反馈，内容会同步到报告和 PDF；完成后点击顶部“保存报告”。</p>
+            <p>直接编辑试听反馈，内容会同步到报告和 PDF；修改会自动保存，保存状态显示在报告顶部。</p>
           </div>
           <div class="plan-editor-summary">
             <span id="summary-editor-student-name">学生</span>
@@ -749,7 +751,7 @@
             <p class="eyebrow">课程规划编辑器</p>
             <h2 id="course-plan-editor-title">调整阶段与课次</h2>
             <p>
-              长内容可直接完整阅读并拖动文本框右下角继续放大；完成后点击顶部“保存报告”。
+              选择阶段后，展开要修改的课次。修改会自动保存，保存状态显示在报告顶部。
             </p>
           </div>
           <div class="plan-editor-summary">
@@ -794,6 +796,6 @@
         </footer>
       </div>
     </div>
-    <script type="module" src="app.js?v=workflow-self-service-2"></script>
+    <script type="module" src="app.js?v=report-reading-1"></script>
   </body>
 </html>

@@ -855,7 +855,7 @@ function renderReportQualityNotice(data) {
   const warnings = checks.filter((check) => check.status === 'warning');
   qualityNotice.classList.remove('hidden');
   qualityNotice.classList.toggle('has-warnings', warnings.length > 0);
-  qualityNotice.innerHTML = `<div class="quality-notice-header"><strong>报告质量检查</strong><span class="quality-notice-summary">${checks.length - warnings.length} 项通过${warnings.length ? ` · ${warnings.length} 项建议检查` : ''}</span></div><ul class="quality-check-list">${checks.map((check) => `<li class="${check.status}"><span class="quality-check-icon">${check.status === 'passed' ? '✓' : '!'}</span><span class="quality-check-label">${escapeHtml(check.label)}</span><span class="quality-check-message">${escapeHtml(check.message)}</span></li>`).join('')}</ul>`;
+  qualityNotice.innerHTML = `<details ${warnings.length ? 'open' : ''}><summary class="quality-notice-header"><strong>报告质量检查</strong><span class="quality-notice-summary">${checks.length - warnings.length} 项通过${warnings.length ? ` · ${warnings.length} 项建议检查` : ''}</span></summary><ul class="quality-check-list">${checks.map((check) => `<li class="${check.status}"><span class="quality-check-icon">${check.status === 'passed' ? '✓' : '!'}</span><span class="quality-check-label">${escapeHtml(check.label)}</span><span class="quality-check-message">${escapeHtml(check.message)}</span></li>`).join('')}</ul></details>`;
 }
 
 function setQuickPreviewActions(enabled) {
@@ -872,10 +872,10 @@ function openQuickPreview() {
   isQuickPreview = true;
   renderReport(currentReportData);
   setQuickPreviewActions(true);
-  setReportDisplayMode('preview');
+  setReportDisplayMode('reading');
   changeView('report');
   document.querySelector('#report-view .eyebrow').textContent = '快速预览 · 未生成、未保存';
-  $('#report-mode-banner').innerHTML = '<div><strong>报告样式预览</strong><span>当前内容为即时示例，不会发送给 AI、不会保存，也不能导出。正式生成后可逐段编辑并导出 PDF。</span></div><span class="report-mode-status">仅预览</span>';
+  $('#report-mode-banner').innerHTML = '<div><strong>报告样式预览</strong><span>当前内容为即时示例，不会发送给 AI、不会保存，也不能导出。正式生成后可逐段编辑并导出 PDF。</span></div><button type="button" class="secondary-btn" data-preview-mode="preview">查看完整排版</button>';
 }
 
 function changeView(id) {
@@ -1017,6 +1017,7 @@ let draftCoursePlan = null;
 let originalAiCoursePlan = null;
 let editorBaseline = '';
 let collapsedStages = new WeakSet();
+let expandedLessons = new WeakSet();
 
 function isCoursePlanDirty() {
   return draftCoursePlan !== null && JSON.stringify(draftCoursePlan) !== editorBaseline;
@@ -1115,9 +1116,10 @@ function createLessonEditor(lesson, stageIndex, lessonIndex) {
   const card = document.createElement('article');
   card.className = 'plan-lesson-editor';
   const globalIndex = draftCoursePlan.stages.slice(0, stageIndex).reduce((total, stage) => total + stage.lessons.length, 0) + lessonIndex + 1;
-  card.innerHTML = `<header><b>课次 ${String(globalIndex).padStart(2, '0')}</b><div class="editor-icon-actions"><button type="button" data-lesson-action="up" data-stage-index="${stageIndex}" data-lesson-index="${lessonIndex}" ${lessonIndex === 0 ? 'disabled' : ''}>上移</button><button type="button" data-lesson-action="down" data-stage-index="${stageIndex}" data-lesson-index="${lessonIndex}" ${lessonIndex === draftCoursePlan.stages[stageIndex].lessons.length - 1 ? 'disabled' : ''}>下移</button><button type="button" data-lesson-action="copy" data-stage-index="${stageIndex}" data-lesson-index="${lessonIndex}">复制</button><button type="button" data-lesson-action="delete" data-stage-index="${stageIndex}" data-lesson-index="${lessonIndex}">删除</button></div></header>`;
+  card.innerHTML = `<header><button class="lesson-editor-toggle" type="button" data-lesson-action="toggle" data-stage-index="${stageIndex}" data-lesson-index="${lessonIndex}" aria-expanded="${expandedLessons.has(lesson)}">第 ${globalIndex} 课 · ${escapeHtml(lesson.theme || '未填写主题')} · ${escapeHtml(lesson.duration)}h</button><div class="editor-icon-actions"><button type="button" data-lesson-action="up" data-stage-index="${stageIndex}" data-lesson-index="${lessonIndex}" ${lessonIndex === 0 ? 'disabled' : ''}>上移</button><button type="button" data-lesson-action="down" data-stage-index="${stageIndex}" data-lesson-index="${lessonIndex}" ${lessonIndex === draftCoursePlan.stages[stageIndex].lessons.length - 1 ? 'disabled' : ''}>下移</button><button type="button" data-lesson-action="copy" data-stage-index="${stageIndex}" data-lesson-index="${lessonIndex}">复制</button><button type="button" data-lesson-action="delete" data-stage-index="${stageIndex}" data-lesson-index="${lessonIndex}">删除</button></div></header>`;
   const grid = document.createElement('div');
   grid.className = 'plan-lesson-fields';
+  grid.hidden = !expandedLessons.has(lesson);
   const durationLabel = document.createElement('label');
   durationLabel.textContent = '时长';
   const duration = document.createElement('select');
@@ -1141,10 +1143,21 @@ function setDraftValue(path, value) {
   parts.slice(0, -1).forEach((part) => { target = target[Number.isNaN(Number(part)) ? part : Number(part)]; });
   target[parts.at(-1)] = parts.at(-1) === 'duration' ? Number(value) : value;
   markEditorDirty();
+  if (parts.at(-1) === 'theme' || parts.at(-1) === 'duration') {
+    const stageIndex = Number(parts[1]);
+    const lessonIndex = Number(parts[3]);
+    const toggle = $(`[data-lesson-action="toggle"][data-stage-index="${stageIndex}"][data-lesson-index="${lessonIndex}"]`);
+    if (toggle) {
+      const number = draftCoursePlan.stages.slice(0, stageIndex).reduce((total, stage) => total + stage.lessons.length, 0) + lessonIndex + 1;
+      toggle.textContent = `第 ${number} 课 · ${target.theme || '未填写主题'} · ${target.duration}h`;
+    }
+  }
   if (parts.at(-1) === 'title') {
     const stageIndex = Number(parts[1]);
     const title = value.trim() || '未命名阶段';
-    $(`[data-scroll-stage="${stageIndex}"]`).textContent = `${stageIndex + 1}. ${title}`;
+    const legacyShortcut = $(`[data-scroll-stage="${stageIndex}"]`);
+    if (legacyShortcut) legacyShortcut.textContent = `${stageIndex + 1}. ${title}`;
+    renderWorkspaceStageShortcuts();
     $(`[data-stage-editor="${stageIndex}"] .plan-stage-editor-header b`).textContent = title;
     document.querySelectorAll('[data-move-lesson]').forEach((select) => { select.options[stageIndex].textContent = title; });
   }
@@ -1167,6 +1180,7 @@ function initializeWorkspaceEditors() {
   draftCoursePlan = cloneCoursePlan(currentReportData.coursePlan);
   editorBaseline = JSON.stringify(draftCoursePlan);
   collapsedStages = new WeakSet(draftCoursePlan.stages.slice(1));
+  expandedLessons = new WeakSet();
   renderSummaryEditor();
   renderPlanEditor();
 }
@@ -1175,6 +1189,7 @@ function openPlanEditor() {
   draftCoursePlan = cloneCoursePlan(currentReportData.coursePlan);
   editorBaseline = JSON.stringify(draftCoursePlan);
   collapsedStages = new WeakSet(draftCoursePlan.stages.slice(1));
+  expandedLessons = new WeakSet();
   $('[data-editor-action="restore"]').textContent = currentReportData?.planningContext?.source === 'upload' ? '恢复上传原始规划' : '恢复 AI 原始规划';
   renderPlanEditor();
   $('#course-plan-modal').classList.remove('hidden');
@@ -1195,7 +1210,10 @@ function cancelPlanEditor() {
 function showValidationErrors(errors) {
   clearValidationErrors();
   errors.forEach((error) => {
-    const stage = draftCoursePlan.stages[Number(error.path.split('.')[1])];
+    const [, stageIndex, , lessonIndex] = error.path.split('.');
+    const stage = draftCoursePlan.stages[Number(stageIndex)];
+    const lesson = stage?.lessons[Number(lessonIndex)];
+    if (lesson) expandedLessons.add(lesson);
     if (collapsedStages.has(stage)) collapsedStages.delete(stage);
   });
   renderPlanEditor();
@@ -1300,8 +1318,8 @@ async function saveReport({ automatic = false } = {}) {
     const result = await requestReportJson('/api/reports', payload, { method: currentReportId ? 'PATCH' : 'POST', attempts: 1, timeoutMs: 30000 });
     if (!result.saved) throw new Error('SYSTEM_NOT_CONFIGURED');
     if (result.id) currentReportId = result.id;
-    reportStatus.textContent = result.saved ? (automatic ? '报告已自动保存' : '报告已生成 · 已保存') : '报告未保存 · 当前为本地演示';
-    saveButton.textContent = currentReportId ? '更新历史报告' : '保存报告';
+    reportStatus.textContent = '报告已保存';
+    saveButton.textContent = '保存报告';
     $('#report-operation-notice').classList.add('hidden');
     return Boolean(result.saved);
   } catch (error) {
@@ -2079,7 +2097,7 @@ async function openHistoricalReport(reportId) {
   setReportDisplayMode('workspace');
   changeView('report');
   document.querySelector('#report-view .eyebrow').textContent = '历史报告 · 已保存';
-  $('#save-report').textContent = '更新历史报告';
+  $('#save-report').textContent = '保存报告';
 }
 
 async function generateAiReport({ source, formData, subjectCode, preserveCoursePlan = null }) {
@@ -2626,19 +2644,64 @@ function switchReportImageSources(mode) {
   });
 }
 
+function renderParentReading(data) {
+  const { coursePlan } = data;
+  const stages = coursePlan.stages;
+  const lessonCount = stages.reduce((total, stage) => total + stage.lessons.length, 0);
+  let lessonNumber = 0;
+  $('#parent-reading').innerHTML = `
+    <nav class="reading-nav" aria-label="报告章节">
+      <a href="#reading-summary">试听反馈</a>
+      <a href="#reading-plan">课程规划</a>
+    </nav>
+    <section class="reading-card" id="reading-summary">
+      <h2>试听反馈</h2>
+      <p>${escapeHtml(data.overview)}</p>
+      <h3>优先提升</h3>
+      <p>${escapeHtml(data.currentFocus)}</p>
+      <p class="reading-totals">${escapeHtml(calculateTotalHours(coursePlan))} 小时 · ${stages.length} 个阶段 · ${lessonCount} 个课次</p>
+      <details>
+        <summary>查看课堂观察与学习成果</summary>
+        <h3>${escapeHtml(data.lessonTitle)}</h3>
+        <p>${escapeHtml(data.lessonSummary)}</p>
+        <p>${escapeHtml(data.classroomStatus)}</p>
+        <p>${escapeHtml(data.strength)}</p>
+        <p>${escapeHtml(data.performance)}</p>
+        <ul>${data.outcomes.map((outcome) => `<li>${escapeHtml(outcome)}</li>`).join('')}</ul>
+      </details>
+    </section>
+    <section class="reading-card" id="reading-plan">
+      <h2>课程规划</h2>
+      ${stages.map((stage, index) => `
+        <details class="reading-stage">
+          <summary><strong>${index + 1}. ${escapeHtml(stage.title)}</strong><span>${stage.lessons.length} 课次 · ${calculateTotalHours({ stages: [stage] })} 小时</span></summary>
+          <p>${escapeHtml(stage.description)}</p>
+          <ol class="reading-lessons">${stage.lessons.map((lesson) => `
+            <li><strong>第 ${++lessonNumber} 课 · ${escapeHtml(lesson.theme)} · ${escapeHtml(lesson.duration)}h</strong>
+            <p>${escapeHtml(lesson.content)}</p><p>${escapeHtml(lesson.goal)}</p></li>`).join('')}</ol>
+        </details>`).join('')}
+    </section>`;
+}
+
 function setReportDisplayMode(mode) {
-  const isPreview = mode === 'preview';
+  const isPreview = mode !== 'workspace';
+  const isReading = mode === 'reading';
   const isUploadedPlan = currentReportData?.planningContext?.source === 'upload';
   if (isPreview && currentReportData) renderReport(currentReportData);
   if (!isPreview && currentReportData) initializeWorkspaceEditors();
   $('#parent-report').classList.toggle('teacher-workspace-mode', !isPreview);
   $('#parent-report').classList.toggle('parent-preview-mode', isPreview);
-  $('#parent-report').classList.toggle('hidden', !isPreview);
+  $('#parent-report').classList.toggle('hidden', !isPreview || isReading);
+  $('#parent-reading').classList.toggle('hidden', !isReading);
+  $('#parent-reading').dataset.active = String(isReading);
+  if (isReading) renderParentReading(currentReportData);
   $('#teacher-workspace-editor').classList.toggle('hidden', isPreview);
   $('#summary-editor-modal').classList.toggle('hidden', !isPreview && isUploadedPlan);
   $('#report-mode-banner').classList.toggle('preview-mode', isPreview);
-  $('#report-mode-banner').innerHTML = isPreview
-    ? '<div><strong>家长版预览</strong><span>当前展示完整交付版内容，导出的 PDF 将采用相同页面顺序。</span></div><span class="report-mode-status">完整报告</span>'
+  $('#report-mode-banner').innerHTML = isReading
+    ? '<div><strong>家长版阅读预览</strong></div><button type="button" class="secondary-btn" data-preview-mode="preview">查看完整排版</button>'
+    : isPreview
+    ? '<div><strong>家长版预览</strong><span>当前展示完整交付版内容，导出的 PDF 将采用相同页面顺序。</span></div><button type="button" class="secondary-btn" data-preview-mode="reading">返回阅读预览</button>'
     : isUploadedPlan
       ? '<div><strong>课程规划调整</strong><span>AI 已完成文件解析，请直接调整阶段、课次、时长和文字，修改会同步到报告。</span></div><span class="report-mode-status">可编辑</span>'
       : '<div><strong>老师工作台</strong><span>请重点核对试听反馈与课程规划，品牌包装页将在家长预览和 PDF 中显示。</span></div><span class="report-mode-status">待老师核对</span>';
@@ -2646,10 +2709,22 @@ function setReportDisplayMode(mode) {
   $('#preview-report').setAttribute('aria-pressed', String(isPreview));
 }
 
+$('#report-mode-banner').addEventListener('click', (event) => {
+  const mode = event.target.closest('[data-preview-mode]')?.dataset.previewMode;
+  if (!mode) return;
+  try {
+    setReportDisplayMode(mode);
+    $('#report-mode-banner [data-preview-mode]')?.focus();
+  } catch (error) {
+    error.generationStage = 'render';
+    showWorkflowError($('#report-operation-notice'), error, 'generate');
+  }
+});
+
 $('#preview-report').addEventListener('click', () => {
   const isPreview = $('#parent-report').classList.contains('parent-preview-mode');
   try {
-    setReportDisplayMode(isPreview ? 'workspace' : 'preview');
+    setReportDisplayMode(isPreview ? 'workspace' : 'reading');
     $('#report-operation-notice').classList.add('hidden');
     $('#report-mode-banner').scrollIntoView({ behavior: 'smooth', block: 'start' });
   } catch (error) {
@@ -2661,7 +2736,8 @@ $('#preview-report').addEventListener('click', () => {
 $('#print-report').addEventListener('click', async () => {
   const printButton = $('#print-report');
   const previousButtonText = printButton.textContent;
-  const previousMode = $('#parent-report').classList.contains('parent-preview-mode') ? 'preview' : 'workspace';
+  const previousMode = !$('#parent-reading').classList.contains('hidden') ? 'reading'
+    : $('#parent-report').classList.contains('parent-preview-mode') ? 'preview' : 'workspace';
   let restored = false;
   const restorePrintState = () => {
     if (restored) return;
@@ -2737,7 +2813,13 @@ $('#plan-editor-content').addEventListener('click', (event) => {
   if (stageAction) {
     const stageIndex = Number(event.target.dataset.stageIndex);
     const stage = draftCoursePlan.stages[stageIndex];
-    if (stageAction === 'collapse') collapsedStages.has(stage) ? collapsedStages.delete(stage) : collapsedStages.add(stage);
+    if (stageAction === 'collapse') {
+      const wasCollapsed = collapsedStages.has(stage);
+      collapsedStages = new WeakSet(draftCoursePlan.stages.filter((item) => !wasCollapsed || item !== stage));
+      renderPlanEditor();
+      $(`[data-stage-editor="${stageIndex}"] [data-stage-action="collapse"]`)?.focus();
+      return;
+    }
     if (stageAction === 'up' || stageAction === 'down') draftCoursePlan.stages = moveItem(draftCoursePlan.stages, stageIndex, stageIndex + (stageAction === 'up' ? -1 : 1));
     if (stageAction === 'delete') {
       if (!window.confirm(`确定删除该阶段及其中 ${stage.lessons.length} 个课次吗？`)) return;
@@ -2750,6 +2832,15 @@ $('#plan-editor-content').addEventListener('click', (event) => {
     const stageIndex = Number(event.target.dataset.stageIndex);
     const lessonIndex = Number(event.target.dataset.lessonIndex);
     const lessons = draftCoursePlan.stages[stageIndex].lessons;
+    if (lessonAction === 'toggle') {
+      const lesson = lessons[lessonIndex];
+      const open = !expandedLessons.has(lesson);
+      if (open) expandedLessons.add(lesson);
+      else expandedLessons.delete(lesson);
+      event.target.setAttribute('aria-expanded', String(open));
+      event.target.closest('.plan-lesson-editor').querySelector('.plan-lesson-fields').hidden = !open;
+      return;
+    }
     if (lessonAction === 'up' || lessonAction === 'down') draftCoursePlan.stages[stageIndex].lessons = moveItem(lessons, lessonIndex, lessonIndex + (lessonAction === 'up' ? -1 : 1));
     if (lessonAction === 'copy') lessons.splice(lessonIndex + 1, 0, cloneCoursePlan(lessons[lessonIndex]));
     if (lessonAction === 'delete') {
@@ -2761,7 +2852,9 @@ $('#plan-editor-content').addEventListener('click', (event) => {
   }
   if (event.target.dataset.addLesson !== undefined) {
     const stageIndex = Number(event.target.dataset.addLesson);
-    draftCoursePlan.stages[stageIndex].lessons.push(createLesson());
+    const lesson = createLesson();
+    draftCoursePlan.stages[stageIndex].lessons.push(lesson);
+    expandedLessons.add(lesson);
     markEditorDirty();
     renderPlanEditor();
     const theme = $(`[data-path="stages.${stageIndex}.lessons.${draftCoursePlan.stages[stageIndex].lessons.length - 1}.theme"]`);
@@ -2772,7 +2865,7 @@ $('#plan-editor-content').addEventListener('click', (event) => {
 $('#workspace-stage-shortcuts').addEventListener('click', (event) => {
   const stageIndex = Number(event.target.dataset.workspaceStage);
   if (!Number.isInteger(stageIndex) || !draftCoursePlan?.stages?.[stageIndex]) return;
-  collapsedStages.delete(draftCoursePlan.stages[stageIndex]);
+  collapsedStages = new WeakSet(draftCoursePlan.stages.filter((_, index) => index !== stageIndex));
   renderPlanEditor();
   $(`[data-stage-editor="${stageIndex}"]`)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
 });
@@ -2784,7 +2877,10 @@ window.addEventListener('beforeunload', (event) => {
 $('#course-plan-modal').addEventListener('click', (event) => {
   const action = event.target.dataset.editorAction;
   if (action === 'add-stage') {
-    draftCoursePlan.stages.push(createStage());
+    const stage = createStage();
+    collapsedStages = new WeakSet(draftCoursePlan.stages);
+    draftCoursePlan.stages.push(stage);
+    expandedLessons.add(stage.lessons[0]);
     markEditorDirty();
     renderPlanEditor();
     const stageIndex = draftCoursePlan.stages.length - 1;
@@ -2799,7 +2895,11 @@ $('#course-plan-modal').addEventListener('click', (event) => {
 document.querySelectorAll('.tab').forEach((tab) => tab.addEventListener('click', () => {
   const isParent = tab.dataset.reportTab === 'parent';
   document.querySelectorAll('.tab').forEach((item) => item.classList.toggle('active', item === tab));
-  $('#parent-report').classList.toggle('hidden', !isParent);
+  const isPreview = $('#parent-report').classList.contains('parent-preview-mode');
+  const isReading = $('#parent-reading').dataset.active === 'true';
+  $('#parent-report').classList.toggle('hidden', !isParent || !isPreview || isReading);
+  $('#parent-reading').classList.toggle('hidden', !isParent || !isReading);
+  $('#teacher-workspace-editor').classList.toggle('hidden', !isParent || isPreview);
   $('#sales-card').classList.toggle('hidden', isParent);
   $('#report-mode-banner').classList.toggle('hidden', !isParent);
   $('#preview-report').classList.toggle('hidden', !isParent);
