@@ -636,14 +636,6 @@ body.modal-open { overflow:hidden; }
 .feedback-review { display:grid; gap:10px; margin:16px 0; }
 .feedback-review p, #feedback-review-status { margin:0; }
 .feedback-review button { justify-self:start; }
-@media screen and (max-width:900px) {
-  .app-shell { flex-direction:column; }
-  .sidebar { width:100%; flex:0 0 auto; padding:8px 12px; }
-  .sidebar .brand,.sidebar .brand-note,.sidebar-footer { display:none; }
-  .sidebar nav { grid-template-columns:1fr 1fr; }
-  .sidebar .nav-item { font-size:14px; text-align:center; height:44px; }
-  .sidebar .nav-item::after { content:none; }
-}
 .plan-detail-cell .plan-stage-inline { display:block; padding:5px 8px; background:#fff7de; }
 .plan-detail-cell .plan-stage-inline > strong { display:block; font-size:14px; }
 .plan-detail-cell .plan-stage-inline > span { display:block; margin-top:3px; }
@@ -659,3 +651,49 @@ body.modal-open { overflow:hidden; }
 .phase-route>div { display:flex; flex-wrap:wrap; gap:2px; }
 .phase-route span { flex-basis:0; min-width:57px; padding:4px 6px; text-align:center; background:#fff1bf; color:#514727; font:bold 10px/1.4 Arial; clip-path:polygon(0 0,calc(100% - 7px) 0,100% 50%,calc(100% - 7px) 100%,0 100%,7px 50%); }
 .phase-route .here { color:#2c2513; background:#ffc928; }
+
+#new-view .workspace { display:block; }
+#report-form { display:grid; grid-template-columns:180px minmax(0,1fr); gap:28px; align-items:start; }
+.form-module-main { min-width:0; }
+[data-form-panel][hidden],.module-nav button[hidden] { display:none; }
+.module-nav { display:grid; gap:6px; padding:6px; border:1px solid #e9ddba; border-radius:12px; background:#f8f1dc; }
+.module-nav button { display:flex; align-items:center; gap:8px; justify-content:flex-start; min-height:42px; padding:8px 12px; border:1px solid transparent; border-radius:8px; background:transparent; color:#4c4227; font-weight:700; text-align:left; }
+.module-nav button:hover { background:#fffbef; }
+.module-nav button[aria-current] { background:#fff; border-color:#d8bc67; color:#483307; }
+.module-nav button span,.module-nav button small { font-size:11px; color:#7b652e; }
+.form-module-nav { position:sticky; top:16px; }
+.module-actions { display:flex; justify-content:flex-end; flex-wrap:wrap; gap:8px; margin-top:20px; }
+.module-actions button { width:auto; margin:0; }
+.form-review-summary { display:grid; gap:8px; }
+.form-review-summary section { display:flex; justify-content:space-between; align-items:center; gap:10px; padding:12px; border:1px solid #eadfbd; border-radius:9px; }
+.form-review-summary h3,.form-review-summary p { margin:0; }
+.form-review-summary p { margin-top:4px; color:#655a40; font-size:13px; }
+.form-review-summary button { flex-shrink:0; }
+.report-module-nav { grid-template-columns:repeat(4,minmax(0,1fr)); max-width:920px; margin:0 auto 18px; }
+.report-module-nav button { justify-content:center; text-align:center; }
+#report-mode-banner.hidden,#sales-card.hidden { display:none; }
+#preview-report,#back-edit { display:none; }
+#report-view:has(#parent-reading:not(.hidden)) #back-edit { display:inline-flex; }
+@media screen and (max-width:900px) {
+  .app-shell { flex-direction:column; }
+  .sidebar { width:auto; flex:0 0 auto; padding:8px 16px; flex-direction:row; align-items:center; justify-content:space-between; gap:8px; }
+  .sidebar>.brand-note,.sidebar-footer { display:none; }
+  .sidebar nav { display:flex; gap:4px; }
+  .sidebar nav .nav-item { height:auto; min-height:40px; padding:6px 8px; font-size:13px; }
+  .sidebar nav .nav-item::after { content:none; }
+  #report-form { grid-template-columns:minmax(0,1fr); gap:14px; }
+  .form-module-nav { position:static; grid-template-columns:repeat(2,minmax(0,1fr)); }
+}
+@media screen and (max-width:600px) {
+  .report-module-nav { grid-template-columns:repeat(2,minmax(0,1fr)); }
+  .module-actions { justify-content:flex-start; }
+}
+@media print { .report-module-nav,#teacher-workspace-editor { display:none !important; } }
+@media screen {
+  .report-navigation { position:sticky; top:0; z-index:25; background:var(--bg); padding-bottom:4px; }
+  .report-navigation .report-topbar { position:static; margin-bottom:4px; }
+  .report-navigation .report-module-nav { margin-bottom:8px; }
+  #report-view .workspace-stage-shortcuts,
+  #report-view #summary-editor-modal.workspace-inline-editor .plan-editor-header { position:static; }
+}
+@media print { .report-navigation { display:none !important; } }

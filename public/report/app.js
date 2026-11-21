@@ -1609,13 +1609,7 @@ function setPlanningSource(value, { preserveNotice = false } = {}) {
   $('#student-info-hint').textContent = planningSource === 'upload'
     ? '填写报告封面信息，课时和课次将从上传文件中自动读取。'
     : '只填写 AI 无法从课堂描述中可靠获取的信息。';
-  $('#workflow-steps').innerHTML = planningSource === 'upload'
-    ? '<li><b>上传并确认规划</b><span>核对课次、顺序、时长与文字</span></li><li><b>填写试听反馈</b><span>独立记录课堂内容与学生表现</span></li><li><b>统一生成报告</b><span>合并课堂总结与锁定课程规划</span></li>'
-    : '<li><b>自然语言记录</b><span>无需填写冗长表单</span></li><li><b>确认 AI 整理结果</b><span>可逐段编辑，避免虚构</span></li><li><b>导出并交付</b><span>家长报告与销售卡分开</span></li>';
-  $('#workflow-title').textContent = planningSource === 'upload' ? '上传模式' : '本版功能';
-  $('#workflow-description').textContent = planningSource === 'upload'
-    ? '课程规划和试听反馈独立录入；AI 只整理课堂总结，不改写老师确认的规划。'
-    : '支持 SAT、AP 等 32 个考试科目；动态课程规划与路觅数据页。';
+  if (!$('#form-review').hidden) renderFormReview();
 }
 
 function clearCoursePlanUploadState() {
@@ -1933,6 +1927,48 @@ function getGenerationInputConflicts() {
   });
 }
 
+function renderFormReview() {
+  const groups = [
+    ['student', '学生信息', [$('#student-name').value.trim() || '待填写学生姓名', createSubjectViewModel(currentSubjectCode).displayName].join(' · ')],
+    ['feedback', '试听反馈', `${$('#teacher-notes').value.trim().length} 字`],
+    ['planning', '课程规划', planningSource === 'upload'
+      ? (uploadedCoursePlanConfirmed ? '已确认上传规划' : '待确认上传规划')
+      : `${$('#total-hours').value || '待填'} 小时 · ${$('#lesson-count').value || '待填'} 课次`],
+  ];
+  $('#form-review-summary').innerHTML = groups.map(([module, label, value]) => `
+    <section><div><h3>${label}</h3><p>${escapeHtml(value)}</p></div>
+    <button type="button" class="secondary-btn" data-form-next="${module}">修改${label}</button></section>`).join('');
+}
+
+function showFormModule(module, { focus = false } = {}) {
+  const panel = $(`#form-${module}`);
+  if (!panel?.matches('[data-form-panel]')) return;
+  document.querySelectorAll('[data-form-panel]').forEach((item) => { item.hidden = item !== panel; });
+  document.querySelectorAll('[data-form-module]').forEach((button) => {
+    if (button.dataset.formModule === module) button.setAttribute('aria-current', 'step');
+    else button.removeAttribute('aria-current');
+  });
+  if (module === 'review') renderFormReview();
+  if (focus) {
+    const heading = panel.querySelector('h2');
+    heading.tabIndex = -1;
+    heading.focus({ preventScroll: true });
+    $('#new-view .topbar').scrollIntoView({ block: 'start' });
+  }
+}
+
+function revealFormField(field) {
+  const module = field?.closest('[data-form-panel]')?.dataset.formPanel;
+  if (!module) return;
+  showFormModule(module);
+  field.scrollIntoView({ block: 'center' });
+}
+
+$('#report-form').addEventListener('click', (event) => {
+  const button = event.target.closest('[data-form-module], [data-form-next]');
+  if (button) showFormModule(button.dataset.formModule || button.dataset.formNext, { focus: true });
+});
+
 function closeGenerationChecklist(confirmed) {
   $('#generation-checklist-modal').classList.add('hidden');
   document.body.classList.remove('modal-open');
@@ -1970,6 +2006,7 @@ function validateGenerationInputs() {
       const error = new Error('INVALID_INPUT');
       error.issues = [{ path: field }];
       showWorkflowError(notice, error, 'generate');
+      revealFormField($(selector));
       $(selector).focus();
       return false;
     }
@@ -1978,13 +2015,14 @@ function validateGenerationInputs() {
     $('#subject-search').setCustomValidity('请从下拉列表中选择课程科目');
     notice.classList.add('error');
     notice.innerHTML = '<strong>科目未确认：</strong>请从搜索结果中点击或按 Enter 选择课程科目。';
+    revealFormField($('#subject-search'));
     $('#subject-search').reportValidity();
     return false;
   }
   if (planningSource === 'upload' && !uploadedCoursePlanConfirmed) {
     notice.classList.add('error');
     notice.innerHTML = '<strong>课程规划尚未就绪：</strong>请上传文件；如系统发现范围风险，请复核确认后继续。';
-    $('#course-plan-upload-panel').scrollIntoView({ behavior: 'smooth', block: 'center' });
+    revealFormField($('#course-plan-upload-panel'));
     return false;
   }
   const currentScore = $('#current-score');
@@ -2005,6 +2043,7 @@ function validateGenerationInputs() {
       input?.setCustomValidity(message);
       notice.classList.add('error');
       notice.innerHTML = `<strong>数学课时分配有误：</strong>${escapeHtml(message)}`;
+      revealFormField(input);
       input?.reportValidity();
       return false;
     }
@@ -2017,6 +2056,7 @@ function validateGenerationInputs() {
     lessonCount.setCustomValidity(`当前总课时下，预计课次应为 ${rangeText} 节`);
     notice.classList.add('error');
     notice.innerHTML = `<strong>课次填写有误：</strong>当前总课时下，预计课次应为 ${escapeHtml(rangeText)} 节。`;
+    revealFormField(lessonCount);
     lessonCount.reportValidity();
     return false;
   }
@@ -2029,6 +2069,7 @@ function validateGenerationInputs() {
       input.setCustomValidity(languageValidation.message);
       notice.classList.add('error');
       notice.innerHTML = `<strong>语言成绩填写有误：</strong>${escapeHtml(languageValidation.message)}`;
+      revealFormField(input);
       input.reportValidity();
       return false;
     }
@@ -2046,6 +2087,7 @@ function validateGenerationInputs() {
   notice.classList.add('error');
   notice.innerHTML = `<strong>成绩填写有误：</strong>${escapeHtml(validation.errors[0].message)}`;
   const firstInput = validation.errors[0].path === 'currentScore' ? currentScore : targetScore;
+  revealFormField(firstInput);
   firstInput.reportValidity();
   return false;
 }
@@ -2167,6 +2209,7 @@ async function openHistoricalReport(reportId) {
   originalAiCoursePlan = cloneCoursePlan(currentReportData.coursePlan);
   renderReport(currentReportData);
   setQuickPreviewActions(false);
+  teacherReportModule = 'summary';
   setReportDisplayMode('workspace');
   changeView('report');
   document.querySelector('#report-view .eyebrow').textContent = '历史报告 · 已保存';
@@ -2351,6 +2394,7 @@ async function presentGeneratedReport(report, generationSource, notice, generati
   setQuickPreviewActions(false);
   changeView('report');
   renderReport(currentReportData);
+  teacherReportModule = 'summary';
   setReportDisplayMode('workspace');
   document.querySelector('#report-view .eyebrow').textContent = 'AI 报告已生成 · 未云端保存';
   $('#save-report').textContent = '保存报告';
@@ -2403,8 +2447,8 @@ $('#report-form').addEventListener('invalid', (event) => {
   const error = new Error('INVALID_INPUT');
   error.issues = [{ path: fields[event.target.id] || (event.target.dataset.satMathHours ? 'satMathHours' : '') }];
   showWorkflowError($('#generation-notice'), error, 'generate');
+  revealFormField(event.target);
   event.target.focus();
-  event.target.scrollIntoView({ behavior: 'smooth', block: 'center' });
 }, true);
 const feedbackInputs = () => ({
   internal: $('#feedback-internal').value.trim(),
@@ -2464,9 +2508,11 @@ $('#report-form').addEventListener('submit', async (event) => {
   const feedback = feedbackInputs();
   if ((feedback.internal || feedback.family) && reviewedFeedbackKey !== JSON.stringify(feedback)) {
     $('#feedback-review-status').textContent = '反馈尚未识别或已改动。请选择“识别反馈”，或跳过识别并手动填写课堂记录。';
+    revealFormField($('#review-feedback'));
     $('#review-feedback').focus();
     return;
   }
+  showFormModule('review');
   if (!validateGenerationInputs()) return;
   if (!await openGenerationChecklist()) return;
   const generationSource = planningSource;
@@ -2709,8 +2755,8 @@ $('#back-edit').addEventListener('click', () => {
     changeView('new');
     return;
   }
-  setReportDisplayMode('workspace');
-  $('#report-mode-banner').scrollIntoView({ behavior: 'smooth', block: 'start' });
+  setReportDisplayMode('workspace', { resetEditors: false });
+  window.scrollTo({ top: 0 });
 });
 $('#regenerate-report').addEventListener('click', async () => {
   if (reportAutoSaveTimer) {
@@ -2731,6 +2777,7 @@ $('#regenerate-report').addEventListener('click', async () => {
   };
   $('[name="regeneration-plan-mode"][value="preserve"]').checked = true;
   changeView('new');
+  showFormModule('feedback');
   const reportSource = currentReportData?.planningContext?.source === 'upload' ? 'upload' : 'ai';
   if (reportSource === 'upload') {
     uploadedCoursePlan = cloneCoursePlan(currentReportData.coursePlan);
@@ -2822,12 +2869,29 @@ function renderParentReading(data) {
     </section>`;
 }
 
-function setReportDisplayMode(mode) {
+let teacherReportModule = 'summary';
+
+function selectReportModule(module) {
+  document.querySelectorAll('[data-report-tab]').forEach((button) => {
+    if (button.dataset.reportTab === module) button.setAttribute('aria-current', 'page');
+    else button.removeAttribute('aria-current');
+  });
+}
+
+function setReportDisplayMode(mode, { resetEditors = true } = {}) {
   const isPreview = mode !== 'workspace';
   const isReading = mode === 'reading';
   const isUploadedPlan = currentReportData?.planningContext?.source === 'upload';
   if (isPreview && currentReportData) renderReport(currentReportData);
-  if (!isPreview && currentReportData) initializeWorkspaceEditors();
+  if (!isPreview && currentReportData && resetEditors) initializeWorkspaceEditors();
+  if (isUploadedPlan) teacherReportModule = 'plan';
+  $('[data-report-tab="summary"]').hidden = Boolean(isUploadedPlan) || isQuickPreview;
+  $('[data-report-tab="plan"]').hidden = isQuickPreview;
+  $('[data-report-tab="sales"]').hidden = isQuickPreview;
+  selectReportModule(isPreview ? 'parent' : teacherReportModule);
+  $('#sales-card').classList.add('hidden');
+  $('#report-mode-banner').classList.toggle('hidden', !isPreview);
+  $('#print-report').classList.toggle('hidden', isQuickPreview);
   $('#parent-report').classList.toggle('teacher-workspace-mode', !isPreview);
   $('#parent-report').classList.toggle('parent-preview-mode', isPreview);
   $('#parent-report').classList.toggle('hidden', !isPreview || isReading);
@@ -2835,7 +2899,8 @@ function setReportDisplayMode(mode) {
   $('#parent-reading').dataset.active = String(isReading);
   if (isReading) renderParentReading(currentReportData);
   $('#teacher-workspace-editor').classList.toggle('hidden', isPreview);
-  $('#summary-editor-modal').classList.toggle('hidden', !isPreview && isUploadedPlan);
+  $('#summary-editor-modal').classList.toggle('hidden', isPreview || teacherReportModule !== 'summary');
+  $('#course-plan-modal').classList.toggle('hidden', isPreview || teacherReportModule !== 'plan');
   $('#report-mode-banner').classList.toggle('preview-mode', isPreview);
   $('#report-mode-banner').innerHTML = isReading
     ? '<div><strong>家长版阅读预览</strong></div><button type="button" class="secondary-btn" data-preview-mode="preview">查看完整排版</button>'
@@ -2883,7 +2948,7 @@ $('#print-report').addEventListener('click', async () => {
     restored = true;
     try {
       switchReportImageSources('screen');
-      setReportDisplayMode(previousMode);
+      setReportDisplayMode(previousMode, { resetEditors: false });
     } catch {
       $('#parent-report').classList.add('hidden');
       $('#teacher-workspace-editor').classList.remove('hidden');
@@ -3031,19 +3096,27 @@ $('#course-plan-modal').addEventListener('click', (event) => {
   if (action === 'apply') applyCoursePlan();
   if (action === 'restore') restoreOriginalCoursePlan();
 });
-document.querySelectorAll('.tab').forEach((tab) => tab.addEventListener('click', () => {
-  const isParent = tab.dataset.reportTab === 'parent';
-  document.querySelectorAll('.tab').forEach((item) => item.classList.toggle('active', item === tab));
-  const isPreview = $('#parent-report').classList.contains('parent-preview-mode');
-  const isReading = $('#parent-reading').dataset.active === 'true';
-  $('#parent-report').classList.toggle('hidden', !isParent || !isPreview || isReading);
-  $('#parent-reading').classList.toggle('hidden', !isParent || !isReading);
-  $('#teacher-workspace-editor').classList.toggle('hidden', !isParent || isPreview);
-  $('#sales-card').classList.toggle('hidden', isParent);
-  $('#report-mode-banner').classList.toggle('hidden', !isParent);
-  $('#preview-report').classList.toggle('hidden', !isParent);
-  $('#print-report').classList.toggle('hidden', !isParent);
-}));
+$('.report-module-nav').addEventListener('click', (event) => {
+  const module = event.target.closest('[data-report-tab]')?.dataset.reportTab;
+  if (!module || module === $('[data-report-tab][aria-current]')?.dataset.reportTab) return;
+  try {
+    if (module === 'parent') {
+      setReportDisplayMode('reading', { resetEditors: false });
+    } else if (module === 'sales') {
+      selectReportModule(module);
+      ['#parent-report', '#parent-reading', '#teacher-workspace-editor', '#report-mode-banner'].forEach((selector) => $(selector).classList.add('hidden'));
+      $('#sales-card').classList.remove('hidden');
+      $('#print-report').classList.add('hidden');
+    } else {
+      teacherReportModule = module;
+      setReportDisplayMode('workspace', { resetEditors: false });
+    }
+    window.scrollTo({ top: 0 });
+  } catch (error) {
+    error.generationStage = 'render';
+    showWorkflowError($('#report-operation-notice'), error, 'generate');
+  }
+});
 $('#copy-script').addEventListener('click', async () => {
   try {
     await navigator.clipboard.writeText($('#sales-script').textContent);
@@ -3084,7 +3157,7 @@ document.addEventListener('click', async (event) => {
         $('#generation-notice').innerHTML = '<strong>请修改刚才提示的填写项。</strong>完成后保存当前报告，无需重新生成。<button type="button" class="secondary-btn" data-workflow-action="save">保存当前报告</button>';
       }
       const target = $(button.dataset.workflowFocus || '#student-name');
-      target?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      revealFormField(target);
       (target?.matches('input, select, textarea') ? target : target?.querySelector('input, select, textarea'))?.focus();
     }
   } catch (error) {

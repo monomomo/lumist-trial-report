@@ -73,8 +73,17 @@ await page.route('**/api/**', async (route) => {
   await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(response) });
 });
 
-async function submit() {
+async function showFormModule(module) {
+  await page.locator(`[data-form-module="${module}"]`).click();
+}
+
+async function requestGeneration() {
+  await showFormModule('review');
   await page.locator('#generate-report').click();
+}
+
+async function submit() {
+  await requestGeneration();
   await page.locator('[data-checklist-action="confirm"]').click();
   await page.locator('#report-view').waitFor({ state: 'visible' });
 }
@@ -106,14 +115,16 @@ try {
   console.log('PASS: feedback-only changes update the same saved report and preserve every lesson');
 
   await page.locator('#regenerate-report').click();
+  await showFormModule('planning');
   await page.locator('[name="regeneration-plan-mode"][value="replace"]').check();
+  await showFormModule('feedback');
   await page.locator('#teacher-notes').fill('');
   await page.locator('#feedback-family').fill(input.teacherNotes);
   await page.locator('#review-feedback').click();
   await page.locator('#feedback-review-status').getByText(/可安排初测/).waitFor();
   assert.equal(await page.locator('#teacher-notes').inputValue(), input.teacherNotes);
   await page.locator('#feedback-family').fill(input.teacherNotes + '补充观察。');
-  await page.locator('#generate-report').click();
+  await requestGeneration();
   assert.match(await page.locator('#feedback-review-status').textContent(), /跳过识别/);
   await page.locator('#manual-feedback').click();
   await submit();
@@ -125,18 +136,21 @@ try {
 
   reusableId = id;
   await page.reload({ waitUntil: 'domcontentloaded' });
+  await showFormModule('student');
   await page.locator('#subject-search').fill('AP Calculus AB');
   await page.locator('[data-subject-code="ap_calculus_ab"]').click();
   await page.locator('#student-name').fill(record.student_name);
   await page.locator('#current-score').fill('3');
   await page.locator('#target-score').fill('5');
   assert.equal(await page.locator('#ap-exam-date').inputValue(), input.examDate);
+  await showFormModule('planning');
   await page.locator('#total-hours').fill('2');
   await page.locator('#lesson-count').fill('2');
   await page.locator('#planning-scenario').evaluate((element) => {
     element.value = 'synchronous';
     element.dispatchEvent(new Event('change', { bubbles: true }));
   });
+  await showFormModule('feedback');
   await page.locator('#teacher-notes').fill(record.original_notes);
   const generationCount = requests.filter((item) => item.path.includes('generate-report')).length;
   await submit();
@@ -145,9 +159,11 @@ try {
   assert.deepEqual(errors, []);
   console.log('PASS: repeated input in a fresh page opens the existing history record');
   await page.getByRole('button', { name: '新建试听报告', exact: true }).click();
+  await showFormModule('student');
   await page.locator('#subject-search').fill('SAT 数学');
   await page.locator('[data-subject-code="sat_math"]').click();
   assert.equal(await page.locator('#total-hours').getAttribute('readonly'), '');
+  await showFormModule('planning');
   await page.locator('#lesson-count').fill('11');
   const mathInputs = page.locator('[data-sat-math-hours]');
   for (const [index, hours] of [5, 6, 3, 4, 2].entries()) await mathInputs.nth(index).fill(String(hours));
@@ -157,6 +173,7 @@ try {
   assert.equal(await page.locator('#lesson-count').inputValue(), '11');
   await mathInputs.nth(0).fill('');
   assert.match(await page.locator('#sat-math-hours-summary').textContent(), /填写全部/);
+  await showFormModule('student');
   await page.locator('#subject-search').fill('AP Calculus AB');
   await page.locator('[data-subject-code="ap_calculus_ab"]').click();
   assert.equal(await page.locator('#total-hours').getAttribute('readonly'), null);
@@ -167,9 +184,11 @@ try {
   await page.locator('#student-name').fill(input.studentName);
   await page.locator('#current-score').fill('3');
   await page.locator('#target-score').fill('5');
+  await showFormModule('planning');
   await page.locator('#total-hours').fill('2');
   await page.locator('#lesson-count').fill('2');
   await page.locator('#planning-scenario').evaluate((element) => { element.value = 'synchronous'; element.dispatchEvent(new Event('change', { bubbles: true })); });
+  await showFormModule('feedback');
   await page.locator('#teacher-notes').fill(input.teacherNotes);
   const reuseCount = requests.filter((item) => item.path === '/api/reports/reuse').length;
   const batchCount = requests.filter((item) => item.path === '/api/generate-report-batch').length;
@@ -180,9 +199,10 @@ try {
   console.log('PASS: a persistent reuse lookup network failure retries twice and still generates the report');
   failGeneration = true;
   await page.locator('#regenerate-report').click();
+  await showFormModule('planning');
   await page.locator('[name="regeneration-plan-mode"][value="replace"]').check();
   const failedBatchStart = requests.filter((item) => item.path === '/api/generate-report-batch').length;
-  await page.locator('#generate-report').click();
+  await requestGeneration();
   await page.locator('[data-checklist-action="confirm"]').click();
   await page.waitForFunction(() => document.querySelector('#generation-notice').classList.contains('error'));
   const notice = await page.locator('#generation-notice').textContent();
@@ -211,6 +231,7 @@ try {
   console.log('PASS: failed saves retain the report and retry the same save token without regenerating');
 
   await page.locator('#regenerate-report').click();
+  await showFormModule('planning');
   await page.locator('[name="regeneration-plan-mode"][value="replace"]').check();
   await page.evaluate(() => {
     Object.defineProperty(document.querySelector('#overview-text'), 'textContent', {
@@ -241,16 +262,17 @@ try {
   await page.locator('#report-view').waitFor({ state: 'visible' });
   console.log('PASS: historical lookup errors can be retried in place without regenerating reports');
 
-  await page.route('**/*-print.jpg', (route) => route.abort('failed'));
+  await page.route(/-print\.jpg(?:\?|$)/, (route) => route.abort('failed'));
   await page.evaluate(() => { window.print = () => { window.testPrintCalls = (window.testPrintCalls || 0) + 1; }; });
   await page.locator('#print-report').click();
   await page.locator('#report-operation-notice:not(.hidden)').waitFor();
-  assert.match(await page.locator('#report-operation-notice').textContent(), /部分图片尚未加载成功/);
+  assert.match(await page.locator('#report-operation-notice').textContent(), /未能加载。导出已自动重试一次/);
   assert.equal(await page.locator('#print-report').isEnabled(), true);
   assert.equal(await page.evaluate(() => window.testPrintCalls || 0), 0);
   console.log('PASS: image failures stop incomplete PDF export, explain the next step, and restore the export button');
 
   await page.getByRole('button', { name: '新建试听报告', exact: true }).click();
+  await showFormModule('planning');
   await page.locator('label:has([name="planning-source"][value="upload"])').click();
   await page.locator('#course-plan-file').setInputFiles({ name: 'scanned-plan.pdf', mimeType: 'application/pdf', buffer: Buffer.from('scanned PDF fixture') });
   await page.locator('#course-plan-upload-status.workflow-error').waitFor();
@@ -266,16 +288,18 @@ try {
   assert.equal(await page.locator('#teacher-notes').inputValue(), notesBeforeExpiry);
   console.log('PASS: expired login offers a new login window and preserves existing form contents');
   await page.locator('label:has([name="planning-source"][value="ai"])').click();
+  await showFormModule('student');
   await page.locator('#student-name').fill('   ');
   const requestsBeforeInvalidInput = requests.length;
-  await page.locator('#generate-report').click();
+  await requestGeneration();
   assert.match(await page.locator('#generation-notice').textContent(), /请检查学生姓名/);
   assert.equal(await page.evaluate(() => document.activeElement.id), 'student-name');
   assert.equal(requests.length, requestsBeforeInvalidInput);
   console.log('PASS: whitespace-only student names are identified before any generation request');
   await page.locator('#student-name').fill(input.studentName);
+  await showFormModule('feedback');
   await page.locator('#teacher-notes').fill('太短');
-  await page.locator('#generate-report').click();
+  await requestGeneration();
   assert.match(await page.locator('#generation-notice').textContent(), /20–6000/);
   assert.equal(await page.evaluate(() => document.activeElement.id), 'teacher-notes');
   console.log('PASS: short feedback receives Chinese writing guidance and field focus');
@@ -286,6 +310,7 @@ try {
       set() { delete this.textContent; throw new Error('preview_error_private_details'); },
     });
   });
+  await showFormModule('review');
   await page.locator('#quick-preview-report').click();
   assert.match(await page.locator('#generation-notice').textContent(), /还没有生成正式报告/);
   assert.equal(await page.locator('#generation-notice [data-workflow-action="save"]').count(), 0);

@@ -154,9 +154,9 @@ test('teacher workspace hides delivery packaging until preview or print', async 
   assert.match(htmlSource, /id="parent-report" class="report-document teacher-workspace-mode"/);
   assert.match(htmlSource, /cover-page delivery-only/);
   assert.match(htmlSource, /company-page data-impact-page delivery-only/);
-  assert.match(appSource, /function setReportDisplayMode\(mode\)/);
+  assert.match(appSource, /function setReportDisplayMode\(mode\b/);
   assert.match(appSource, /setReportDisplayMode\('preview'\)/);
-  assert.match(appSource, /setReportDisplayMode\(previousMode\)/);
+  assert.match(appSource, /setReportDisplayMode\(previousMode\b/);
   assert.match(stylesSource, /\.report-document\.teacher-workspace-mode \.delivery-only \{ display:none; \}/);
   assert.match(stylesSource, /\.report-page\.delivery-only \{ display:block !important; \}/);
 });

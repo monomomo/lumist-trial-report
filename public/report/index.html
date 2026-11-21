@@ -4,7 +4,7 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>路觅教育｜试听课报告生成器</title>
-    <link rel="stylesheet" href="styles.css?v=stage-assessment-2" />
+    <link rel="stylesheet" href="styles.css?v=stage-assessment-2-modules-1" />
   </head>
   <body>
     <div class="app-shell">
@@ -32,199 +32,208 @@
           </header>
           <div class="workspace">
             <form id="report-form" class="input-card">
-              <div class="generation-mode-tabs" role="tablist" aria-label="报告生成方式">
-                <label role="tab"><input type="radio" name="planning-source" value="ai" checked /><span><b>AI 主导生成</b><small>根据试听记录生成总结与课程规划</small></span></label>
-                <label role="tab"><input type="radio" name="planning-source" value="upload" /><span><b>老师上传已有规划</b><small>忠实整理文件并生成排版报告</small></span></label>
-              </div>
-              <div class="section-heading">
-                <span>01</span>
-                <div>
-                  <h2>学生基本信息</h2>
-                  <p id="student-info-hint">只填写 AI 无法从课堂描述中可靠获取的信息。</p>
-                </div>
-              </div>
-              <div class="field-grid">
-                <label>学生姓名<input id="student-name" required /></label>
-                <div class="subject-field">
-                  <span class="label-text">课程科目</span>
-                  <div class="subject-combobox" id="subject-combobox">
-                    <input id="subject-search" type="text" role="combobox" aria-autocomplete="list" aria-expanded="false" aria-controls="subject-options" autocomplete="off" placeholder="搜索科目，如：物理、CSP" />
-                    <button id="subject-toggle" type="button" aria-label="展开科目列表">⌄</button>
-                    <div id="subject-options" class="subject-options hidden" role="listbox"></div>
+              <nav class="module-nav form-module-nav" aria-label="报告填写步骤">
+                <button type="button" data-form-module="student" aria-controls="form-student" aria-current="step"><span>01</span>学生信息</button>
+                <button type="button" data-form-module="feedback" aria-controls="form-feedback"><span>02</span>试听反馈</button>
+                <button type="button" data-form-module="planning" aria-controls="form-planning"><span>03</span>课程规划</button>
+                <button type="button" data-form-module="review" aria-controls="form-review"><span>04</span>确认生成</button>
+              </nav>
+              <div class="form-module-main">
+                <section id="form-student" data-form-panel="student" aria-labelledby="student-module-title">
+                  <div class="section-heading">
+
+                    <div>
+                      <h2 id="student-module-title">学生基本信息</h2>
+                      <p id="student-info-hint">只填写 AI 无法从课堂描述中可靠获取的信息。</p>
+                    </div>
                   </div>
-                  <select id="subject-select" hidden aria-hidden="true"></select>
-                </div>
-                <label
-                  ><span id="score-label-current"
-                    >当前 SAT 数学成绩（可选）</span
-                  ><input id="current-score" placeholder="例如：680"
-                /></label>
-                <label
-                  ><span id="score-label-target">目标成绩（可选）</span
-                  ><input id="target-score"
-                /></label>
-                <label
-                  ><span id="exam-date-label">目标考试日期（可选）</span
-                  ><input
-                    id="exam-date"
-                    placeholder="例如：2026年10月" /><select
-                    id="ap-exam-date"
-                    class="hidden"
-                    disabled
-                    required
-                  ></select
-                ></label>
-                <label class="ai-workflow-only"
-                  >辅导场景（必填）<select id="planning-scenario" required>
-                    <option value="" disabled>请选择辅导场景</option>
-                    <option value="preview">预习</option>
-                    <option value="synchronous" selected>同步</option>
-                    <option value="intensive">冲刺</option>
-                  </select></label
-                >
-                <label class="ai-workflow-only"
-                  ><span id="total-hours-label">总课时（必填）</span><input
-                    id="total-hours"
-                    type="text"
-                    inputmode="decimal"
-                    placeholder="例如：50"
-                    required
-                /></label>
-                <label class="ai-workflow-only"
-                  >预计课次（必填）<input
-                    id="lesson-count"
-                    type="text"
-                    inputmode="numeric"
-                    placeholder="例如：50"
-                    required
-                  /><small id="lesson-count-hint">请根据实际授课安排独立填写，单次支持 0.5–2 小时</small></label
-                >
-                <label class="ai-workflow-only planning-exam-training-toggle"
-                  ><span>考试训练安排</span><span class="checkbox-label"><input id="include-exam-training" type="checkbox" /> 包含考试训练与模考安排（约占总课时 20%）</span></label
-                >
-              </div>
-              <section id="sat-english-context" class="subject-context-card ai-workflow-only hidden" aria-labelledby="sat-english-context-title">
-                <div class="subject-context-heading">
-                  <div>
-                    <h3 id="sat-english-context-title">学生语言基础（选填）</h3>
-                    <p>语言成绩只作为阅读与语言基础参考，不会直接换算成 SAT 英语分数。</p>
+                  <div class="field-grid">
+                    <label>学生姓名<input id="student-name" required /></label>
+                    <div class="subject-field">
+                      <span class="label-text">课程科目</span>
+                      <div class="subject-combobox" id="subject-combobox">
+                        <input id="subject-search" type="text" role="combobox" aria-autocomplete="list" aria-expanded="false" aria-controls="subject-options" autocomplete="off" placeholder="搜索科目，如：物理、CSP" />
+                        <button id="subject-toggle" type="button" aria-label="展开科目列表">⌄</button>
+                        <div id="subject-options" class="subject-options hidden" role="listbox"></div>
+                      </div>
+                      <select id="subject-select" hidden aria-hidden="true"></select>
+                    </div>
+                    <label
+                      ><span id="score-label-current"
+                        >当前 SAT 数学成绩（可选）</span
+                      ><input id="current-score" placeholder="例如：680"
+                    /></label>
+                    <label
+                      ><span id="score-label-target">目标成绩（可选）</span
+                      ><input id="target-score"
+                    /></label>
+                    <label
+                      ><span id="exam-date-label">目标考试日期（可选）</span
+                      ><input
+                        id="exam-date"
+                        placeholder="例如：2026年10月" /><select
+                        id="ap-exam-date"
+                        class="hidden"
+                        disabled
+                        required
+                      ></select
+                    ></label>
                   </div>
-                  <span>仅 SAT 英语</span>
-                </div>
-                <div class="subject-context-grid">
-                  <label>语言考试<select id="language-test-type"><option value="">未提供</option><option value="toefl_ibt">TOEFL iBT</option><option value="ielts_academic">IELTS Academic</option></select></label>
-                  <label id="language-score-scale-field" class="hidden">成绩分制<select id="language-score-scale"><option value="new_1_6">1–6 新制（2026 年起）</option><option value="legacy_0_120">0–120 旧制 / 兼容分</option></select></label>
-                  <label id="language-overall-field" class="hidden"><span id="language-overall-label">总分</span><input id="language-overall-score" type="text" inputmode="decimal" /></label>
-                  <label id="language-reading-field" class="hidden"><span id="language-reading-label">阅读单项（选填）</span><input id="language-reading-score" type="text" inputmode="decimal" /></label>
-                  <label id="language-test-date-field" class="hidden">考试月份（选填）<input id="language-test-date" type="month" /></label>
-                </div>
-                <p class="subject-context-note">SAT 模考、课堂表现和老师判断的优先级高于语言成绩。</p>
-              </section>
-              <section id="sat-math-context" class="subject-context-card ai-workflow-only hidden" aria-labelledby="sat-math-context-title">
-                <div class="subject-context-heading">
-                  <div>
-                    <h3 id="sat-math-context-title">SAT 数学课时分配</h3>
-                    <p>直接填写各领域课时，总课时自动汇总；系统据此生成每节教学内容。</p>
-                  </div>
-                </div>
-                <div id="sat-math-hours-grid" class="sat-math-hours-grid"></div>
-                <div id="sat-math-hours-summary" class="sat-math-hours-summary" aria-live="polite">填写各领域课时后，系统自动汇总总课时；不安排的项目请填写 0。</div>
-              </section>
-              <section id="course-plan-upload-panel" class="course-plan-upload-panel hidden">
-                <div>
-                  <strong>上传老师已有课程规划</strong>
-                  <p>支持 DOCX、XLSX 和文本型 PDF，单个文件不超过 8MB。文件仅用于本次解析，不会保存。</p>
-                </div>
-                <div class="course-plan-upload-actions">
-                  <label id="course-plan-dropzone" class="course-plan-dropzone" for="course-plan-file">
-                    <input id="course-plan-file" type="file" accept=".docx,.xlsx,.pdf" />
-                    <span class="course-plan-drop-icon">⇧</span>
-                    <strong>拖拽文件到这里，或点击选择文件</strong>
-                    <small id="course-plan-file-name">尚未选择文件</small>
-                  </label>
-                </div>
-                <div id="course-plan-upload-status" class="course-plan-upload-status" aria-live="polite"></div>
-                <div id="course-plan-upload-review" class="course-plan-upload-review hidden"></div>
-              </section>
-              <div id="ai-generation-fields">
-                <div class="section-heading spacing">
-                  <span>02</span>
-                  <div>
-                    <h2 id="feedback-section-title">学生背景与试听课反馈</h2>
-                    <p id="feedback-section-description">
-                      像写微信反馈一样描述即可。系统会整理成报告与销售跟进话术。
+                  <section id="sat-english-context" class="subject-context-card ai-workflow-only hidden" aria-labelledby="sat-english-context-title">
+                    <div class="subject-context-heading">
+                      <div>
+                        <h3 id="sat-english-context-title">学生语言基础（选填）</h3>
+                        <p>语言成绩只作为阅读与语言基础参考，不会直接换算成 SAT 英语分数。</p>
+                      </div>
+                      <span>仅 SAT 英语</span>
+                    </div>
+                    <div class="subject-context-grid">
+                      <label>语言考试<select id="language-test-type"><option value="">未提供</option><option value="toefl_ibt">TOEFL iBT</option><option value="ielts_academic">IELTS Academic</option></select></label>
+                      <label id="language-score-scale-field" class="hidden">成绩分制<select id="language-score-scale"><option value="new_1_6">1–6 新制（2026 年起）</option><option value="legacy_0_120">0–120 旧制 / 兼容分</option></select></label>
+                      <label id="language-overall-field" class="hidden"><span id="language-overall-label">总分</span><input id="language-overall-score" type="text" inputmode="decimal" /></label>
+                      <label id="language-reading-field" class="hidden"><span id="language-reading-label">阅读单项（选填）</span><input id="language-reading-score" type="text" inputmode="decimal" /></label>
+                      <label id="language-test-date-field" class="hidden">考试月份（选填）<input id="language-test-date" type="month" /></label>
+                    </div>
+                    <p class="subject-context-note">SAT 模考、课堂表现和老师判断的优先级高于语言成绩。</p>
+                  </section>
+                  <div class="module-actions"><button type="button" class="primary-btn" data-form-next="feedback">下一步 · 试听反馈</button></div>
+                </section>
+                <section id="form-feedback" data-form-panel="feedback" aria-labelledby="feedback-section-title" hidden>
+                  <div id="ai-generation-fields">
+                    <div class="section-heading">
+
+                      <div>
+                        <h2 id="feedback-section-title">学生背景与试听课反馈</h2>
+                        <p id="feedback-section-description">
+                          像写微信反馈一样描述即可。系统会整理成报告与销售跟进话术。
+                        </p>
+                      </div>
+                    </div>
+                    <div class="feedback-review">
+                      <label class="textarea-label">内部群反馈<textarea id="feedback-internal" rows="4" maxlength="6000"></textarea></label>
+                      <label class="textarea-label">学生群反馈<textarea id="feedback-family" rows="4" maxlength="6000"></textarea></label>
+                      <p>粘贴任意一份即可识别。核对后可直接补充课堂证据、课时或测评结果。</p>
+                      <button type="button" class="secondary-btn" id="review-feedback">识别反馈</button>
+                      <button type="button" class="text-btn" id="manual-feedback">跳过识别，手动填写课堂记录</button>
+                      <div id="feedback-review-status" role="status"></div>
+                    </div>
+                    <label class="textarea-label"
+                      ><span id="teacher-notes-label">核对后的课堂记录</span><textarea id="teacher-notes"
+                        rows="9"
+                        minlength="20"
+                        maxlength="6000"
+                        required
+                      ></textarea>
+                    </label>
+                    <p class="scenario-sample-hint ai-planning-only" id="scenario-sample-hint">
+                      当前提供 SAT 数学的预习、同步和冲刺样例
                     </p>
+                    <div class="quick-actions ai-planning-only">
+                      <button type="button" class="text-btn" data-scenario-sample="preview">
+                        载入“预习”样例</button
+                      ><button type="button" class="text-btn" data-scenario-sample="synchronous">
+                        载入“同步”样例</button
+                      ><button type="button" class="text-btn" data-scenario-sample="intensive">
+                        载入“冲刺”样例
+                      </button>
+                    </div>
                   </div>
-                </div>
-                <fieldset class="planning-focus-selector ai-planning-only">
-                  <legend>课程规划侧重点（选填，最多 3 项）</legend>
-                  <div id="planning-focus-options" class="planning-focus-options"></div>
-                  <small id="planning-focus-hint">未选择时，系统将根据课堂记录安排课程重点</small>
-                </fieldset>
-                <div class="feedback-review">
-                  <label class="textarea-label">内部群反馈<textarea id="feedback-internal" rows="4" maxlength="6000"></textarea></label>
-                  <label class="textarea-label">学生群反馈<textarea id="feedback-family" rows="4" maxlength="6000"></textarea></label>
-                  <p>粘贴任意一份即可识别。核对后可直接补充课堂证据、课时或测评结果。</p>
-                  <button type="button" class="secondary-btn" id="review-feedback">识别反馈</button>
-                  <button type="button" class="text-btn" id="manual-feedback">跳过识别，手动填写课堂记录</button>
-                  <div id="feedback-review-status" role="status"></div>
-                </div>
-                <label class="textarea-label"
-                  ><span id="teacher-notes-label">核对后的课堂记录</span><textarea id="teacher-notes"
-                    rows="14"
-                    minlength="20"
-                    maxlength="6000"
-                    required
-                  ></textarea>
-                </label>
-                <p class="scenario-sample-hint ai-planning-only" id="scenario-sample-hint">
-                  当前提供 SAT 数学的预习、同步和冲刺样例
-                </p>
-                <div class="quick-actions ai-planning-only">
-                  <button type="button" class="text-btn" data-scenario-sample="preview">
-                    载入“预习”样例</button
-                  ><button type="button" class="text-btn" data-scenario-sample="synchronous">
-                    载入“同步”样例</button
-                  ><button type="button" class="text-btn" data-scenario-sample="intensive">
-                    载入“冲刺”样例
-                  </button>
-                </div>
+                  <div class="module-actions"><button type="button" class="secondary-btn" data-form-next="student">返回学生信息</button><button type="button" class="primary-btn" data-form-next="planning">下一步 · 课程规划</button></div>
+                </section>
+                <section id="form-planning" data-form-panel="planning" aria-labelledby="planning-module-title" hidden>
+                  <div class="section-heading"><div><h2 id="planning-module-title">课程规划</h2><p>选择 AI 制定课程规划，或上传已经排好的课程。</p></div></div>
+                  <div class="generation-mode-tabs" role="tablist" aria-label="报告生成方式">
+                    <label role="tab"><input type="radio" name="planning-source" value="ai" checked /><span><b>AI 主导生成</b><small>根据试听记录生成总结与课程规划</small></span></label>
+                    <label role="tab"><input type="radio" name="planning-source" value="upload" /><span><b>老师上传已有规划</b><small>忠实整理文件并生成排版报告</small></span></label>
+                  </div>
+                  <div class="field-grid">
+                    <label class="ai-workflow-only"
+                      >辅导场景（必填）<select id="planning-scenario" required>
+                        <option value="" disabled>请选择辅导场景</option>
+                        <option value="preview">预习</option>
+                        <option value="synchronous" selected>同步</option>
+                        <option value="intensive">冲刺</option>
+                      </select></label
+                    >
+                    <label class="ai-workflow-only"
+                      ><span id="total-hours-label">总课时（必填）</span><input
+                        id="total-hours"
+                        type="text"
+                        inputmode="decimal"
+                        placeholder="例如：50"
+                        required
+                    /></label>
+                    <label class="ai-workflow-only"
+                      >预计课次（必填）<input
+                        id="lesson-count"
+                        type="text"
+                        inputmode="numeric"
+                        placeholder="例如：50"
+                        required
+                      /><small id="lesson-count-hint">请根据实际授课安排独立填写，单次支持 0.5–2 小时</small></label
+                    >
+                    <label class="ai-workflow-only planning-exam-training-toggle"
+                      ><span>考试训练安排</span><span class="checkbox-label"><input id="include-exam-training" type="checkbox" /> 包含考试训练与模考安排（约占总课时 20%）</span></label
+                    >
+                  </div>
+                  <section id="sat-math-context" class="subject-context-card ai-workflow-only hidden" aria-labelledby="sat-math-context-title">
+                    <div class="subject-context-heading">
+                      <div>
+                        <h3 id="sat-math-context-title">SAT 数学课时分配</h3>
+                        <p>直接填写各领域课时，总课时自动汇总；系统据此生成每节教学内容。</p>
+                      </div>
+                    </div>
+                    <div id="sat-math-hours-grid" class="sat-math-hours-grid"></div>
+                    <div id="sat-math-hours-summary" class="sat-math-hours-summary" aria-live="polite">填写各领域课时后，系统自动汇总总课时；不安排的项目请填写 0。</div>
+                  </section>
+                  <section id="course-plan-upload-panel" class="course-plan-upload-panel hidden">
+                    <div>
+                      <strong>上传老师已有课程规划</strong>
+                      <p>支持 DOCX、XLSX 和文本型 PDF，单个文件不超过 8MB。文件仅用于本次解析，不会保存。</p>
+                    </div>
+                    <div class="course-plan-upload-actions">
+                      <label id="course-plan-dropzone" class="course-plan-dropzone" for="course-plan-file">
+                        <input id="course-plan-file" type="file" accept=".docx,.xlsx,.pdf" />
+                        <span class="course-plan-drop-icon">⇧</span>
+                        <strong>拖拽文件到这里，或点击选择文件</strong>
+                        <small id="course-plan-file-name">尚未选择文件</small>
+                      </label>
+                    </div>
+                    <div id="course-plan-upload-status" class="course-plan-upload-status" aria-live="polite"></div>
+                    <div id="course-plan-upload-review" class="course-plan-upload-review hidden"></div>
+                  </section>
+                    <fieldset class="planning-focus-selector ai-planning-only">
+                      <legend>课程规划侧重点（选填，最多 3 项）</legend>
+                      <div id="planning-focus-options" class="planning-focus-options"></div>
+                      <small id="planning-focus-hint">未选择时，系统将根据课堂记录安排课程重点</small>
+                    </fieldset>
+                  <fieldset class="planning-focus-selector regeneration-options hidden" id="regeneration-options">
+                    <legend>本次修改如何处理课程规划</legend>
+                    <label><input type="radio" name="regeneration-plan-mode" value="preserve" checked> 保留现有规划，仅更新试听反馈（推荐）</label>
+                    <label><input type="radio" name="regeneration-plan-mode" value="replace"> 重新制定全部课程规划</label>
+                    <p>修改科目、成绩目标、课时或其他规划条件时，系统会根据新条件重新规划。</p>
+                  </fieldset>
+                  <div class="module-actions"><button type="button" class="secondary-btn" data-form-next="feedback">返回试听反馈</button><button type="button" class="primary-btn" data-form-next="review">下一步 · 确认生成</button></div>
+                </section>
+                <section id="form-review" data-form-panel="review" aria-labelledby="generation-module-title" hidden>
+                  <div class="section-heading"><div><h2 id="generation-module-title">确认生成</h2><p>核对报告输入，可返回相应模块修改。</p></div></div>
+                  <div id="form-review-summary" class="form-review-summary"></div>
+                  <div class="module-actions">
+                    <button class="primary-btn" id="generate-report" type="submit">
+                      AI 生成个性化报告 <span>→</span>
+                    </button>
+                    <button class="secondary-btn quick-preview-btn" id="quick-preview-report" type="button">
+                      快速预览报告样式
+                    </button>
+                  </div>
+                </section>
+                  <div class="notice" id="generation-notice">
+                    <strong>生成原则：</strong>总课时由老师决定，AI
+                    仅负责规划内容与课时分配。
+                  </div>
               </div>
-              <fieldset class="planning-focus-selector regeneration-options hidden" id="regeneration-options">
-                <legend>本次修改如何处理课程规划</legend>
-                <label><input type="radio" name="regeneration-plan-mode" value="preserve" checked> 保留现有规划，仅更新试听反馈（推荐）</label>
-                <label><input type="radio" name="regeneration-plan-mode" value="replace"> 重新制定全部课程规划</label>
-                <p>修改科目、成绩目标、课时或其他规划条件时，系统会根据新条件重新规划。</p>
-              </fieldset>
-              <div class="notice" id="generation-notice">
-                <strong>生成原则：</strong>总课时由老师决定，AI
-                仅负责规划内容与课时分配。
-              </div>
-              <button class="primary-btn" id="generate-report" type="submit">
-                AI 生成个性化报告 <span>→</span>
-              </button>
-              <button class="secondary-btn quick-preview-btn" id="quick-preview-report" type="button">
-                快速预览报告样式
-              </button>
             </form>
 
-            <aside class="workflow-card">
-              <p class="eyebrow">老师只需 3 步</p>
-              <ol id="workflow-steps">
-                <li><b>自然语言记录</b><span>无需填写冗长表单</span></li>
-                <li>
-                  <b>确认 AI 整理结果</b><span>可逐段编辑，避免虚构</span>
-                </li>
-                <li><b>导出并交付</b><span>家长报告与销售卡分开</span></li>
-              </ol>
-              <div class="callout">
-                <strong id="workflow-title">本版功能</strong
-                ><span id="workflow-description"
-                  >支持 SAT、AP 等 32
-                  个考试科目；动态课程规划与路觅数据页。</span
-                >
-              </div>
-            </aside>
           </div>
         </section>
 
@@ -241,31 +250,32 @@
         </section>
 
         <section id="report-view" class="view">
-          <header class="topbar report-topbar">
-            <div>
-              <p class="eyebrow">报告已生成</p>
-              <h1 id="report-title">阮同学个性化学习报告</h1>
-            </div>
-            <div class="report-actions">
-              <button class="secondary-btn save-report-btn" id="save-report">
-                保存报告</button
-              ><button class="secondary-btn" id="edit-summary">
-                编辑试听总结</button
-              ><button class="secondary-btn" id="edit-course-plan">
-                编辑课程规划</button
-              ><button class="secondary-btn" id="regenerate-report">
-                返回修改并重新生成</button
-              ><button class="secondary-btn" id="back-edit">返回老师工作台</button
-              ><button class="secondary-btn" id="preview-report">预览家长版</button
-              ><button class="secondary-btn" id="print-report">导出 PDF</button>
-            </div>
-          </header>
-          <div class="tabs">
-            <button class="tab active" data-report-tab="parent">
-              报告内容</button
-            ><button class="tab" data-report-tab="sales">
-              销售跟进卡 <span>内部</span>
-            </button>
+          <div class="report-navigation">
+            <header class="topbar report-topbar">
+              <div>
+                <p class="eyebrow">报告已生成</p>
+                <h1 id="report-title">阮同学个性化学习报告</h1>
+              </div>
+              <div class="report-actions">
+                <button class="secondary-btn save-report-btn" id="save-report">
+                  保存报告</button
+                ><button class="secondary-btn" id="edit-summary">
+                  编辑试听总结</button
+                ><button class="secondary-btn" id="edit-course-plan">
+                  编辑课程规划</button
+                ><button class="secondary-btn" id="regenerate-report">
+                  返回修改并重新生成</button
+                ><button class="secondary-btn" id="back-edit">返回老师工作台</button
+                ><button class="secondary-btn" id="preview-report">预览家长版</button
+                ><button class="secondary-btn" id="print-report">导出 PDF</button>
+              </div>
+            </header>
+            <nav class="module-nav report-module-nav" aria-label="报告内容模块">
+              <button type="button" data-report-tab="summary" aria-controls="summary-editor-modal" aria-current="page">试听总结</button>
+              <button type="button" data-report-tab="plan" aria-controls="course-plan-modal">课程规划</button>
+              <button type="button" data-report-tab="parent" aria-controls="parent-reading parent-report">家长版预览</button>
+              <button type="button" data-report-tab="sales" aria-controls="sales-card">销售跟进卡 <small>内部</small></button>
+            </nav>
           </div>
           <div id="report-operation-notice" class="notice hidden" role="alert"></div>
           <div id="report-critical-warning" class="report-critical-warning hidden" role="alert"></div>
@@ -804,6 +814,6 @@
         </footer>
       </div>
     </div>
-    <script type="module" src="app.js?v=stage-assessment-2-pdf-retry-1"></script>
+    <script type="module" src="app.js?v=stage-assessment-2-pdf-retry-modules-1"></script>
   </body>
 </html>
