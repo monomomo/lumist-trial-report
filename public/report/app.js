@@ -10,7 +10,7 @@ import { SAT_MATH_AREA_CONFIG, createEmptySatMathHours, sumSatMathHours, validat
 import { normalizeGenerationInput, getGenerationAction, sameCoursePlan } from './generation-policy.js';
 import { requestReportJson, requestFailureMetadata } from './request-utils.js';
 import { getWorkflowError } from './workflow-errors.js';
-import { waitForImage } from './export-utils.js';
+import { waitForPrintImage } from './export-utils.js';
 
 const $ = (selector) => document.querySelector(selector);
 const setText = (selector, value) => { $(selector).textContent = value; };
@@ -108,6 +108,9 @@ const GENERATION_CHECKPOINT_STORAGE_KEY = 'lumist-report-generation-checkpoint-v
 function showWorkflowError(element, error, operation, progress = '') {
   error.requestId ||= globalThis.crypto?.randomUUID?.() || `support-${Date.now().toString(36)}`;
   const message = getWorkflowError(error, { operation });
+  if (operation === 'export' && error.imageLabel) {
+    message.reason = `${error.imageLabel}未能加载。导出已自动重试一次。`;
+  }
   const labels = { generate: '继续生成', save: '重新保存', upload: '重新解析', history: '重试读取', export: '重试导出', input: '检查填写内容', profile: '重新读取资料', 'edit-plan': '检查课程规划', 'edit-summary': '检查试听总结', 'quick-preview': '重试样式预览' };
   const action = message.actionId === 'login'
     ? '<a href="/" target="_blank" rel="noopener">在新窗口重新登录</a>'
@@ -2755,8 +2758,14 @@ $('#quick-preview-report').addEventListener('click', () => {
   }
 });
 async function waitForReportImages() {
-  const images = [...document.querySelectorAll('#parent-report img')];
-  await Promise.all(images.map((image) => waitForImage(image)));
+  const report = $('#parent-report');
+  const isAp = report.classList.contains('ap-report');
+  const images = [...report.querySelectorAll('img')].filter((image) => isAp || !image.closest('.ap-only'));
+  const results = await Promise.allSettled(images.map((image) => waitForPrintImage(image, () => {
+    $('#print-report').textContent = '正在重试加载图片…';
+  })));
+  const failure = results.find((result) => result.status === 'rejected');
+  if (failure) throw failure.reason;
 }
 
 function switchReportImageSources(mode) {
