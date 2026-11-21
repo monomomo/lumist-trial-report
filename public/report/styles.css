@@ -636,9 +636,26 @@ body.modal-open { overflow:hidden; }
 .feedback-review { display:grid; gap:10px; margin:16px 0; }
 .feedback-review p, #feedback-review-status { margin:0; }
 .feedback-review button { justify-self:start; }
+@media screen and (max-width:900px) {
+  .app-shell { flex-direction:column; }
+  .sidebar { width:100%; flex:0 0 auto; padding:8px 12px; }
+  .sidebar .brand,.sidebar .brand-note,.sidebar-footer { display:none; }
+  .sidebar nav { grid-template-columns:1fr 1fr; }
+  .sidebar .nav-item { font-size:14px; text-align:center; height:44px; }
+  .sidebar .nav-item::after { content:none; }
+}
 .plan-detail-cell .plan-stage-inline { display:block; padding:5px 8px; background:#fff7de; }
 .plan-detail-cell .plan-stage-inline > strong { display:block; font-size:14px; }
 .plan-detail-cell .plan-stage-inline > span { display:block; margin-top:3px; }
 .stage-assessment { margin:6px 0; }
 .plan-overview-stage { padding:5px 0; border-bottom:1px solid #e8ddbd; }
 .plan-overview-stage h3, .plan-overview-stage p { margin:3px 0; }
+.phase-start { border-left:4px solid #e3ad13; background:#fff7de; padding:9px 12px; }
+.plan-overview-stage { position:relative; margin-left:14px; padding:9px 0 14px 24px; border-left:3px solid #e3ad13; }
+.plan-overview-stage::before { content:attr(data-number); position:absolute; top:8px; left:-14px; width:25px; line-height:25px; border-radius:50%; text-align:center; background:#2c2513; color:#fff7de; font:bold 12px/25px Arial; }
+.plan-overview-stage::after { content:""; position:absolute; left:-9px; bottom:0; border-left:8px solid transparent; border-right:8px solid transparent; border-top:10px solid #e3ad13; }
+.phase-route { margin:6px 0 10px; print-color-adjust:exact; }
+.phase-route small { color:#766a4f; }
+.phase-route>div { display:flex; flex-wrap:wrap; gap:2px; }
+.phase-route span { flex-basis:0; min-width:57px; padding:4px 6px; text-align:center; background:#fff1bf; color:#514727; font:bold 10px/1.4 Arial; clip-path:polygon(0 0,calc(100% - 7px) 0,100% 50%,calc(100% - 7px) 100%,0 100%,7px 50%); }
+.phase-route .here { color:#2c2513; background:#ffc928; }

@@ -565,7 +565,7 @@ function updateFollowingPageNumbers(planPageCount) {
 function stageAssessmentHtml(stage) {
   if (!stage.assessment) return '';
   const { task, target, adjustment } = stage.assessment;
-  return `<div class="stage-assessment"><p><b>计划阶段测 · ${escapeHtml(target)}</b></p><p>${escapeHtml(task)}</p><p><b>未达标时：</b>${escapeHtml(adjustment)}</p></div>`;
+  return `<div class="stage-assessment"><p><b>阶段预期成果：</b>${escapeHtml(target)}</p><p><b>检验方式：</b>${escapeHtml(task)}</p><p><b>未达标时：</b>${escapeHtml(adjustment)}</p></div>`;
 }
 
 function renderCoursePlan(coursePlan) {
@@ -626,6 +626,15 @@ function renderCoursePlan(coursePlan) {
   };
 
   const rebuildPageRows = (page, lessonRows) => {
+    page.querySelector('.phase-route')?.remove();
+    const activeStages = new Set(lessonRows.map(row => Number(row.dataset.stageIndex)));
+    const route = document.createElement('div');
+    route.className = 'phase-route';
+    route.innerHTML = '<small>课时路线 · 金色为本页阶段</small><div>' + coursePlan.stages.map((stage,i) => {
+      const hours = calculateTotalHours({ stages:[stage] });
+      return `<span class="${activeStages.has(i) ? 'here' : ''}" style="flex-grow:${Number(hours) || 1}">${String(i+1).padStart(2,'0')} · ${hours}h</span>`;
+    }).join('') + '</div>';
+    page.querySelector('table').before(route);
     const tableBody = page.querySelector('tbody');
     tableBody.innerHTML = '';
     let previousStageIndex = -1;
@@ -675,15 +684,35 @@ function renderCoursePlan(coursePlan) {
     measurementHost.remove();
     return { oversizedLesson };
   }
-  if (coursePlan.stages.some((stage) => stage.assessment)) {
+  if (coursePlan.stages.length) {
     const overviewPages = [];
-    for (let offset = 0; offset < coursePlan.stages.length; offset += 6) {
+    const newOverview = () => {
       const page = document.createElement('article');
       page.className = 'report-page hour-plan reference-plan-page';
-      const items = coursePlan.stages.slice(offset, offset + 6).map((stage) =>
-        `<section class="plan-overview-stage"><h3>${escapeHtml(stage.title)} · ${calculateTotalHours({ stages: [stage] })}h</h3><p>${escapeHtml(stage.description)}</p>${stage.assessment ? `<p><b>阶段测目标：</b>${escapeHtml(stage.assessment.target)}</p>` : ''}</section>`).join('');
-      page.innerHTML = `<div class="plan-page-body"><img class="report-brand-header" src="assets/lumist-report-header-black.png" alt="路觅教育" /><div class="page-kicker"></div><div class="plan-page-heading"><div><h2>课程阶段总览${offset ? ' · 续' : ''}</h2><p>阶段测目标为计划验收标准。</p></div><div class="plan-total-hours"><span>规划总课时</span><b>${calculateTotalHours(coursePlan)}h</b></div></div>${items}</div>`;
+      page.innerHTML = `<div class="plan-page-body"><img class="report-brand-header" src="assets/lumist-report-header-black.png" alt="路觅教育" /><div class="page-kicker">课程规划</div><div class="plan-page-heading"><div><h2>课程阶段总览${overviewPages.length ? ' · 续' : ''}</h2><p>阶段测目标为计划验收标准。</p></div><div class="plan-total-hours"><span>规划总课时</span><b>${calculateTotalHours(coursePlan)}h</b></div></div></div>`;
+      measurementHost.appendChild(page);
+      if (!overviewPages.length) {
+        const start = document.createElement('p');
+        start.className = 'phase-start';
+        start.textContent = '试听起点 · ' + (currentReportData?.overview || '本次试听后，从阶段 01 开始规划。');
+        page.querySelector('.plan-page-body').appendChild(start);
+      }
       overviewPages.push(page);
+      return page;
+    };
+    let overview = newOverview();
+    for (const [index,stage] of coursePlan.stages.entries()) {
+      const item = document.createElement('section');
+      item.className = 'plan-overview-stage';
+      item.dataset.number = String(index + 1).padStart(2,'0');
+      item.innerHTML = `<h3>${escapeHtml(stage.title)} · ${calculateTotalHours({ stages: [stage] })}h</h3><p>${escapeHtml(stage.description)}</p>${stage.assessment ? `<p><b>阶段测目标：</b>${escapeHtml(stage.assessment.target)}</p>` : ''}`;
+      const body = overview.querySelector('.plan-page-body');
+      const hasStages = Boolean(body.querySelector('section'));
+      body.appendChild(item);
+      if (hasStages && pageOverflows(overview)) {
+        overview = newOverview();
+        overview.querySelector('.plan-page-body').appendChild(item);
+      }
     }
     pages.unshift(...overviewPages);
   }
@@ -2381,6 +2410,13 @@ const feedbackInputs = () => ({
 });
 let reviewedFeedbackKey = '';
 
+$('#manual-feedback').addEventListener('click', () => {
+  reviewedFeedbackKey = JSON.stringify(feedbackInputs());
+  $('#feedback-review-status').textContent = '已跳过识别，原反馈已保留。请在下方填写或核对课堂记录，再生成规划。';
+  scheduleFormDraftSave();
+  $('#teacher-notes').focus();
+});
+
 $('#review-feedback').addEventListener('click', async () => {
   const input = feedbackInputs();
   const key = JSON.stringify(input);
@@ -2395,6 +2431,7 @@ $('#review-feedback').addEventListener('click', async () => {
   const button = $('#review-feedback');
   button.disabled = true;
   status.textContent = '正在整理反馈…';
+  $('#manual-feedback').disabled = true;
   try {
     const result = await requestReportJson('/api/review-feedback', input);
     if (key !== JSON.stringify(feedbackInputs()) || previousNotes !== $('#teacher-notes').value) {
@@ -2412,6 +2449,7 @@ $('#review-feedback').addEventListener('click', async () => {
     const guidance = getWorkflowError(error).reason;
     status.textContent = `${guidance}。原反馈仍在，请重新识别；也可直接在下方填写课堂记录。`;
   } finally {
+    $('#manual-feedback').disabled = false;
     button.disabled = false;
   }
 });
@@ -2422,7 +2460,7 @@ $('#report-form').addEventListener('submit', async (event) => {
   const notice = $('#generation-notice');
   const feedback = feedbackInputs();
   if ((feedback.internal || feedback.family) && reviewedFeedbackKey !== JSON.stringify(feedback)) {
-    $('#feedback-review-status').textContent = '反馈尚未识别或已改动，请先点击“识别反馈”并核对。';
+    $('#feedback-review-status').textContent = '反馈尚未识别或已改动。请选择“识别反馈”，或跳过识别并手动填写课堂记录。';
     $('#review-feedback').focus();
     return;
   }

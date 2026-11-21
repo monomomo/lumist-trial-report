@@ -82,7 +82,10 @@ async function submit() {
 try {
   await page.goto((process.env.REPORT_TEST_URL || 'http://localhost:3011') + '/report/index.html', { waitUntil: 'domcontentloaded' });
   console.log('Opened report form');
+  await page.setViewportSize({ width:390, height:844 });
   await page.getByRole('button', { name: '历史报告', exact: true }).click();
+  await page.locator('#history-view').waitFor({ state:'visible' });
+  await page.setViewportSize({ width:1440, height:1000 });
   await page.locator('[data-history-id]').click();
   await page.locator('#report-view').waitFor({ state: 'visible' });
   await page.locator('#regenerate-report').click();
@@ -109,6 +112,10 @@ try {
   await page.locator('#review-feedback').click();
   await page.locator('#feedback-review-status').getByText(/可安排初测/).waitFor();
   assert.equal(await page.locator('#teacher-notes').inputValue(), input.teacherNotes);
+  await page.locator('#feedback-family').fill(input.teacherNotes + '补充观察。');
+  await page.locator('#generate-report').click();
+  assert.match(await page.locator('#feedback-review-status').textContent(), /跳过识别/);
+  await page.locator('#manual-feedback').click();
   await submit();
   await page.waitForFunction(() => document.querySelector('#report-view .eyebrow').textContent === '报告已保存');
   assert.equal(requests.filter((item) => item.path === '/api/generate-report-batch').length, 2);
@@ -288,6 +295,21 @@ try {
   assert.equal(await page.locator('#save-report').isVisible(), false);
   assert.deepEqual(errors, []);
   console.log('PASS: style preview failures can retry without saving example content as an AI report');
+  const longStages = Array.from({ length:8 }, (_, index) => ({
+    ...report.coursePlan.stages[0], title:'阶段' + index + '阶段主题'.repeat(12),
+    description:'本阶段练习与课堂反馈'.repeat(12),
+    assessment:{ task:'完成阶段测', target:'根据阶段测试检验学习表现'.repeat(9), adjustment:'复练后再次测评' },
+    lessons:[report.coursePlan.stages[0].lessons[0]],
+  }));
+  const longPlan = { ...report.coursePlan, stages:longStages };
+  record = { ...record, course_plan:longPlan, report_data:{ ...record.report_data, coursePlan:longPlan } };
+  await page.getByRole('button', {name:'历史报告', exact:true}).click();
+  await page.locator('[data-history-id]').click();
+  await page.waitForFunction(() => document.querySelectorAll('.plan-overview-stage').length === 8);
+  await page.emulateMedia({ media:'print' });
+  const sizes = await page.locator('.reference-plan-page:has(.plan-overview-stage)').evaluateAll(pages => pages.map(p => [p.scrollHeight,p.clientHeight]));
+  assert.ok(sizes.length > 1 && sizes.every(([content,height]) => height > 0 && content <= height + 1), JSON.stringify(sizes));
+  console.log('PASS: eight verbose stage cards paginate without overflowing print pages');
 } catch (error) {
   console.error({ errors, apiRequests: requests.map(({ path, method }) => ({ path, method })), history: await page.locator('#history-list').textContent(), examOptions: await page.locator('#ap-exam-date').innerHTML() });
   throw error;
