@@ -224,7 +224,10 @@ export async function generateReportOutline(input: GenerationInput) {
 本次只生成报告摘要与课程阶段骨架，不生成详细 lessons。所有关于学生课堂行为、答题过程、提示前后变化和已掌握内容的陈述，都必须能在 teacherNotes 中找到直接依据；不得把未来课程计划改写成已经发生的课堂事实。每个阶段最多 10 个课次，所有 stage.lessonCount 之和必须严格等于 ${context.lessonDurations.length}。${examTrainingGuidance}`;
   const userPrompt = `${buildUserInput(context.subject, context.promptData)}
 
-请返回摘要字段、rationale 和阶段数组。阶段标题体现可观察的能力变化，description 说明优先解决的问题。assessment.task 写具体阶段测内容、时间和评分依据，assessment.target 写合理的建议达标线（如 8/10 或限时正确率），assessment.adjustment 写未达标后如何调整。按当前学生、科目及本阶段课时制定，不套用固定分数。仅在老师提供可比起点时写进步幅度；否则安排阶段初测。所有目标均为计划，不声称已达成或保证最终成绩。`;
+${input.subjectCode.startsWith('ap_') ? `先确定本次教学范围，再依据考纲知识点和先修关系划阶段，不预设三个阶段或均分课时。以老师明确的范围、顺序、各模块课时为硬约束；在其余可分配课时中，结合单元教学难度、近期校内考试范围、已掌握内容和具体作答证据决定各阶段的课次数。用给定 lessonDurations 顺序核算每阶段实际小时。相等只有在教学需要相近时才合理；不要为了外观而制造差异。
+每个阶段标题直接点明考纲知识点或题型，不单用“基础诊断 / 专项突破 / 综合提升”。description 用家长能懂的一句话解释为何此时为该模块安排这些课时；尚未测过的知识点写成待确认，不可把提及某个 Unit 当成学生的弱项。同步课程优先近期范围与必要先修，不为覆盖全纲扩展到无关单元。超过单批课次上限时，按不同子知识点拆分。阶段测只检验该阶段实际教授的内容。
+
+` : ''}请返回摘要字段、rationale 和阶段数组。阶段标题体现可观察的能力变化，description 说明优先解决的问题。assessment.task 写具体阶段测内容、时间和评分依据，assessment.target 写合理的建议达标线（如 8/10 或限时正确率），assessment.adjustment 写未达标后如何调整。按当前学生、科目及本阶段课时制定，不套用固定分数。仅在老师提供可比起点时写进步幅度；否则安排阶段初测。所有目标均为计划，不声称已达成或保证最终成绩。`;
   try {
     const outline = await requestStructuredOutput(client, generationOutlineSchema, 'trial_report_outline', systemPrompt, userPrompt, 9000, normalizeOutlineResult);
     if (!outline) throw new GenerationRequestError('EMPTY_MODEL_OUTPUT', 502, 'AI 没有返回可用的阶段规划。');

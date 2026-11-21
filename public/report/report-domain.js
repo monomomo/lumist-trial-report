@@ -80,7 +80,9 @@ export function buildFallbackReport(subjectCode, formData) {
   const planningFocusAreas = normalizePlanningFocusAreas(formData.planningFocusAreas, subjectCode);
   const lessonDurations = buildLessonDurationSlots(totalHours, formData.lessonCount);
   const coursePlan = applyFallbackPlanningFocus(
-    resizeFallbackCoursePlan(buildGenericCoursePlan(vm), totalHours, lessonDurations),
+    vm.code.startsWith('ap_')
+      ? buildTopicPreview(vm, notes, totalHours, lessonDurations, planningScenario)
+      : resizeFallbackCoursePlan(buildGenericCoursePlan(vm), totalHours, lessonDurations),
     planningFocusAreas,
   );
 
@@ -328,4 +330,38 @@ function buildSatMathFallbackPlan() {
     rationale: '先建立完整知识框架，再根据套题错因、用时与实际掌握度动态调整专项训练。',
     stages,
   };
+}
+
+function buildTopicPreview(vm, notes, totalHours, durations, scenario) {
+  const calc = /^ap_calculus_/.test(vm.code);
+  const names = ['极限与连续性','导数定义与基本求导法则','链式法则、隐函数与反函数求导','变化率与线性近似','单调性、极值与函数分析','定积分与累积变化','微分方程','积分应用','参数方程、极坐标与向量值函数','无穷数列与级数'];
+  const units = [...notes.matchAll(/\bunit\s*(\d+)\b/gi)].map(m => Number(m[1]) - 1);
+  const topics = vm.modules.map((module,i) => {
+    const title = calc ? names[i] || module : module;
+    const mentioned = notes.toLowerCase().includes(module.toLowerCase()) || title.split(/[、与]/).some(term => term && notes.includes(term)) || (calc && units.includes(i));
+    return { i,title,mentioned };
+  });
+  const mentionedTopics = topics.filter(t => t.mentioned);
+  const scoped = scenario === 'synchronous' && mentionedTopics.length ? mentionedTopics.flatMap(t =>
+    calc && t.i === 2 ? ['复合函数识别与链式法则','隐函数求导','反函数求导'].map((title,j) => ({...t,title,weight:notes.includes(title) ? 4 : [3,2,1][j]})) : [t]) : topics;
+  const selected = scoped.sort((a,b) => Number(b.mentioned)-Number(a.mentioned) || a.i-b.i)
+    .slice(0, Math.min(durations.length, Math.max(1, Math.ceil(durations.length/4))));
+  const assigned = selected.map(() => 1);
+  for (let n = selected.length; n < durations.length; n++) {
+    const scores = selected.map((t,i) => (t.weight || (t.mentioned ? 2 : 1))/(assigned[i]+1));
+    assigned[scores.indexOf(Math.max(...scores))]++;
+  }
+  const sequence = selected.flatMap((t,i) => Array(assigned[i]).fill(t));
+  const stages = [];
+  sequence.forEach((t,i) => {
+    let stage = stages.at(-1);
+    if (!stage || stage.title !== t.title) {
+      stage = { title:t.title, description:t.locked ? '按老师指定的模块课时安排。' : t.mentioned ? '反馈提及此模块，优先安排练习；先用短题确认掌握程度。' : '考纲模块示例；课时暂定，待初测后调整。',
+        assessment:{ task:'独立完成 4 道与「'+t.title+'」相关的新题，并说明依据。', target:'建议至少 3 道作答正确且能说明依据。', adjustment:'按失分原因补练，再用同知识点的新题复测。' }, lessons:[] };
+      stages.push(stage);
+    }
+    const activity = ['起点短测','例题与方法','独立应用','迁移与复测'][Math.min(stage.lessons.length,3)];
+    stage.lessons.push({duration:durations[i],theme:t.title+' · '+activity,content:(t.locked || t.title)+'：'+activity,goal:'独立完成对应任务并说明依据。',difficulty:'区分题目条件，核对方法的适用范围。'});
+  });
+  return {totalHours,stages,rationale:'此为知识点排课预览；正式规划依据教师记录、考纲范围和阶段检验调整课时。'};
 }

@@ -11,6 +11,16 @@ const baseForm = {
   teacherNotes: '学生课堂互动积极，能够完成部分中等难度题目，需要继续确认各模块掌握情况。',
 };
 
+test('equal budgets can prioritize different syllabus modules without changing the lesson budget', () => {
+  const preview = teacherNotes => buildFallbackReport('ap_calculus_ab', { ...baseForm, totalHours:30, lessonCount:30, teacherNotes }).coursePlan;
+  const a = preview('近期 Unit 3 Quiz，需要同步复习。');
+  const b = preview('近期 Unit 6 Quiz，需要同步复习。');
+  assert.match(a.stages[0].title,/链式法则/);
+  assert.match(b.stages[0].title,/积分/);
+  assert.ok(a.stages[0].lessons.length > a.stages[1].lessons.length);
+  assert.ok(a.stages.every(stage => stage.assessment.target));
+});
+
 test('fallback plans honor the requested total hours for every subject', () => {
   for (const subjectCode of SUBJECT_CODES) {
     for (const totalHours of [2, 2.5, 30, 50, 60]) {
