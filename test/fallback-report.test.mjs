@@ -11,13 +11,28 @@ const baseForm = {
   teacherNotes: '学生课堂互动积极，能够完成部分中等难度题目，需要继续确认各模块掌握情况。',
 };
 
+test('AP previews distinguish numbered units, history periods, and school-specific numbering', () => {
+  const stages = (subject,teacherNotes) => buildFallbackReport(subject,{...baseForm,teacherNotes,totalHours:30,lessonCount:30}).coursePlan.stages;
+  assert.equal(stages('ap_chemistry','Unit 3，近期 Quiz').length,7);
+  assert.equal(stages('ap_csa','Unit 3，只补这次 Quiz').length,1);
+  assert.equal(stages('ap_us_history','目前 Period 5').length,5);
+  assert.equal(stages('ap_csp','学校 Unit 3').length,5);
+  assert.equal(stages('ap_english_language','学校 Unit 3').length,8);
+  assert.match(stages('ap_physics_2','Unit 11')[0].title,/Circuits/);
+  assert.equal(stages('ap_precalculus','Unit 2').length,2);
+});
+
 test('equal budgets can prioritize different syllabus modules without changing the lesson budget', () => {
   const preview = teacherNotes => buildFallbackReport('ap_calculus_ab', { ...baseForm, totalHours:30, lessonCount:30, teacherNotes }).coursePlan;
   const a = preview('近期 Unit 3 Quiz，需要同步复习。');
   const b = preview('近期 Unit 6 Quiz，需要同步复习。');
   assert.match(a.stages[0].title,/链式法则/);
   assert.match(b.stages[0].title,/积分/);
-  assert.ok(a.stages[0].lessons.length > a.stages[1].lessons.length);
+  assert.equal(a.stages.length,6);
+  assert.equal(b.stages.length,3);
+  assert.match(a.stages.at(-1).title,/积分应用/);
+  assert.ok(a.stages[0].lessons.length < 10);
+  assert.equal(preview('Unit 3，只上到这次 Quiz').stages.length,1);
   assert.ok(a.stages.every(stage => stage.assessment.target));
 });
 

@@ -1,4 +1,6 @@
 import { SUBJECT_CATALOG, type SubjectCode } from './catalog.js';
+import { apExamSections } from '../../public/report/ap-plan-scope.js';
+import { apCedVersion } from './ap-ced-version.js';
 
 type FrameworkType = 'units' | 'bigIdeas' | 'skillAreas';
 
@@ -82,18 +84,21 @@ export function getApFramework(subjectCode: string) {
   };
 }
 
-export function buildApFrameworkPrompt(subjectCode: string) {
+export function buildApFrameworkPrompt(subjectCode: string, notes = '') {
   const framework = getApFramework(subjectCode);
   if (!framework) return null;
   return {
     catalogSnapshot: framework.catalogSnapshot,
     effectiveSchoolYear: framework.effectiveSchoolYear,
+    ced: apCedVersion(subjectCode),
     officialSource: framework.source,
     officialSources: framework.sources,
     frameworkType: framework.frameworkType,
     allowedSections: framework.sections,
+    examPlanningSections: apExamSections(subjectCode, framework.sections.map(s=>s.title), notes).map(n=>framework.sections[n-1].code),
     practices: framework.practices,
     rules: [
+      '默认从当前进度规划到大考，近期测验只影响优先级。examPlanningSections 是参考范围，老师明确限定的范围或上传规划优先。以 section 标题识别知识点，code 是内部标识。Big Ideas、技能框架和微宏观合并课程不能直接用校内 Unit 编号推断已掌握或可跳过的内容。',
       '每个 lesson 的 unitCodes 必须填写一个或多个 allowedSections 中的 code',
       'unitCodes 只标记本节实际教学、练习或检测的考纲部分，不得虚假标记',
       'theme、content、difficulty 和 goal 必须与 unitCodes 指向的考纲内容一致',

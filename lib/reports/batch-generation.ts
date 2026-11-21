@@ -225,7 +225,7 @@ export async function generateReportOutline(input: GenerationInput) {
   const userPrompt = `${buildUserInput(context.subject, context.promptData)}
 
 ${input.subjectCode.startsWith('ap_') ? `先确定本次教学范围，再依据考纲知识点和先修关系划阶段，不预设三个阶段或均分课时。以老师明确的范围、顺序、各模块课时为硬约束；在其余可分配课时中，结合单元教学难度、近期校内考试范围、已掌握内容和具体作答证据决定各阶段的课次数。用给定 lessonDurations 顺序核算每阶段实际小时。相等只有在教学需要相近时才合理；不要为了外观而制造差异。
-每个阶段标题直接点明考纲知识点或题型，不单用“基础诊断 / 专项突破 / 综合提升”。description 用家长能懂的一句话解释为何此时为该模块安排这些课时；尚未测过的知识点写成待确认，不可把提及某个 Unit 当成学生的弱项。同步课程优先近期范围与必要先修，不为覆盖全纲扩展到无关单元。超过单批课次上限时，按不同子知识点拆分。阶段测只检验该阶段实际教授的内容。
+每个阶段标题直接点明考纲知识点或题型，不单用“基础诊断 / 专项突破 / 综合提升”。description 用家长能懂的一句话解释为何此时为该模块安排这些课时；尚未测过的知识点写成待确认，不可把提及某个 Unit 当成学生的弱项。老师提到学到 Unit N 时，这是当前教学起点，默认规划到 AP 大考：按顺序覆盖当前及后续所有统考单元，近期 Quiz 只影响优先级。前面单元仅按证据回补；只有明确说“只补 Unit N”或“只到本次 Quiz”才限制范围。先预留后续单元课时，再安排当前模块；不以重复课次填满预算。超过单批课次上限时，按不同子知识点拆分。阶段测只检验该阶段实际教授的内容。
 
 ` : ''}请返回摘要字段、rationale 和阶段数组。阶段标题体现可观察的能力变化，description 说明优先解决的问题。assessment.task 写具体阶段测内容、时间和评分依据，assessment.target 写合理的建议达标线（如 8/10 或限时正确率），assessment.adjustment 写未达标后如何调整。按当前学生、科目及本阶段课时制定，不套用固定分数。仅在老师提供可比起点时写进步幅度；否则安排阶段初测。所有目标均为计划，不声称已达成或保证最终成绩。`;
   try {
@@ -281,6 +281,7 @@ ${JSON.stringify({
     durations: input.durations,
     satMathLessonAllocations,
     allowedUnitCodes,
+    ...(input.subjectCode.startsWith('ap_') ? {syllabus:buildCalculusSyllabusPrompt(input.subjectCode,input.planningScenario,input.teacherNotes) || buildApFrameworkPrompt(input.subjectCode,input.teacherNotes)} : {}),
   }, null, 2)}
 
 只返回 lessons 数组。每个 lesson 必须包含 theme、content、difficulty、goal、unitCodes、satMathAllocations，并保持相邻课次内容递进且不重复。`;

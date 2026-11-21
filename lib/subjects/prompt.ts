@@ -297,7 +297,7 @@ export function buildUserInput(subject: SubjectDefinition, data: ReportPromptDat
   const planningFocusAreas = normalizePlanningFocusAreas(data.planningFocusAreas, subject.code)
     .map((code) => ({ code, ...PLANNING_FOCUS_AREAS[code] }));
   const syllabus = buildCalculusSyllabusPrompt(subject.code, planningScenario, data.teacherNotes)
-    || buildApFrameworkPrompt(subject.code);
+    || buildApFrameworkPrompt(subject.code, data.teacherNotes);
   const input = {
     studentName: data.studentName,
     currentScore: formatOptional(data.currentScore),

@@ -3,6 +3,7 @@
  * 纯函数，不依赖 DOM 或 fetch，方便测试和复用。
  */
 import { SUBJECT_CATALOG, SUBJECT_CODES, resolveSubject } from './catalog.js';
+import { apExamSections } from './ap-plan-scope.js';
 import { PLANNING_FOCUS_AREAS, buildLessonDurationSlots, normalizePlanningFocusAreas, resolvePlanningScenario } from './planning-context.js';
 
 /**
@@ -341,11 +342,12 @@ function buildTopicPreview(vm, notes, totalHours, durations, scenario) {
     const mentioned = notes.toLowerCase().includes(module.toLowerCase()) || title.split(/[、与]/).some(term => term && notes.includes(term)) || (calc && units.includes(i));
     return { i,title,mentioned };
   });
-  const mentionedTopics = topics.filter(t => t.mentioned);
-  const scoped = scenario === 'synchronous' && mentionedTopics.length ? mentionedTopics.flatMap(t =>
-    calc && t.i === 2 ? ['复合函数识别与链式法则','隐函数求导','反函数求导'].map((title,j) => ({...t,title,weight:notes.includes(title) ? 4 : [3,2,1][j]})) : [t]) : topics;
-  const selected = scoped.sort((a,b) => Number(b.mentioned)-Number(a.mentioned) || a.i-b.i)
-    .slice(0, Math.min(durations.length, Math.max(1, Math.ceil(durations.length/4))));
+  const scoped = apExamSections(vm.code, vm.modules, notes).map(n => topics[n-1]);
+  const groupCount = Math.min(scoped.length,durations.length);
+  const selected = Array.from({length:groupCount},(_,i) => {
+    const group = scoped.slice(Math.floor(i*scoped.length/groupCount),Math.floor((i+1)*scoped.length/groupCount));
+    return {...group[0],title:group.map(t=>t.title).join(' / '),weight:group.reduce((sum,t)=>sum+(calc ? [2,2,3,2,4,5,2,3,4,5][t.i] : t.mentioned ? 2 : 1),0)};
+  });
   const assigned = selected.map(() => 1);
   for (let n = selected.length; n < durations.length; n++) {
     const scores = selected.map((t,i) => (t.weight || (t.mentioned ? 2 : 1))/(assigned[i]+1));
@@ -360,7 +362,9 @@ function buildTopicPreview(vm, notes, totalHours, durations, scenario) {
         assessment:{ task:'独立完成 4 道与「'+t.title+'」相关的新题，并说明依据。', target:'建议至少 3 道作答正确且能说明依据。', adjustment:'按失分原因补练，再用同知识点的新题复测。' }, lessons:[] };
       stages.push(stage);
     }
-    const activity = ['起点短测','例题与方法','独立应用','迁移与复测'][Math.min(stage.lessons.length,3)];
+    const skills = calc && t.i === 2 ? ['分解复合函数并选择求导顺序','链式法则与乘积法则的组合','隐函数求导与切线斜率','利用反函数关系求导'] : ['概念辨析','方法选择与比较','独立应用','错因订正与同类题复测'];
+    const k = stage.lessons.length;
+    const activity = skills[k % skills.length] + (k >= skills.length ? ' · 变式 '+Math.floor(k/skills.length) : '');
     stage.lessons.push({duration:durations[i],theme:t.title+' · '+activity,content:(t.locked || t.title)+'：'+activity,goal:'独立完成对应任务并说明依据。',difficulty:'区分题目条件，核对方法的适用范围。'});
   });
   return {totalHours,stages,rationale:'此为知识点排课预览；正式规划依据教师记录、考纲范围和阶段检验调整课时。'};

@@ -38,7 +38,8 @@ test('AP Calculus AB and BC expose the official unit boundaries and weights', ()
 test('scenario requirements use explicit units, preview foundations, and full intensive coverage', () => {
   assert.deepEqual(extractExplicitCalculusUnits('学校正在学习 Unit 4，并复习 U2。', 'ap_calculus_ab'), ['calc_u4', 'calc_u2']);
   assert.deepEqual(getRequiredCalculusUnits('ap_calculus_ab', 'preview', ''), ['calc_u1', 'calc_u2', 'calc_u3']);
-  assert.deepEqual(getRequiredCalculusUnits('ap_calculus_ab', 'synchronous', '校内 Unit 5'), ['calc_u5']);
+  assert.deepEqual(getRequiredCalculusUnits('ap_calculus_ab', 'synchronous', '校内 Unit 5'), ['calc_u5','calc_u6','calc_u7','calc_u8']);
+  assert.deepEqual(getRequiredCalculusUnits('ap_calculus_ab', 'synchronous', '校内 Unit 5，只补这次 Quiz'), ['calc_u5']);
   assert.equal(getRequiredCalculusUnits('ap_calculus_bc', 'intensive', '').length, 10);
 });
 

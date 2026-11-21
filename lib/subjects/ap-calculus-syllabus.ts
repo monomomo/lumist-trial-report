@@ -1,3 +1,6 @@
+import { apPlanScope } from '../../public/report/ap-plan-scope.js';
+import { apCedVersion } from './ap-ced-version.js';
+
 type CalculusSubjectCode = 'ap_calculus_ab' | 'ap_calculus_bc';
 
 interface CalculusUnit {
@@ -110,6 +113,8 @@ export function extractExplicitCalculusUnits(notes: string, subjectCode: string)
 export function getRequiredCalculusUnits(subjectCode: string, scenario: string, notes: string): string[] {
   const units = getCalculusUnits(subjectCode);
   if (!units.length) return [];
+  const scope = apPlanScope(notes, units.length);
+  if (scope.length) return scope.map((n: number) => units[n-1].code);
   if (scenario === 'intensive') return units.map((unit) => unit.code);
   const explicitUnits = extractExplicitCalculusUnits(notes, subjectCode);
   if (explicitUnits.length) return explicitUnits;
@@ -123,6 +128,7 @@ export function buildCalculusSyllabusPrompt(subjectCode: string, scenario: strin
   return {
     catalogSnapshot: '2026-10-02',
     effectiveSchoolYear: '2026-27',
+    ced: apCedVersion(subjectCode),
     officialSource: `https://apcentral.collegeboard.org/courses/${subjectCode === 'ap_calculus_bc' ? 'ap-calculus-bc' : 'ap-calculus-ab'}`,
     practices: ['Determine expressions and values using mathematical procedures and rules', 'Translate mathematical information within and across representations', 'Justify reasoning and solutions', 'Communicate results using correct notation, language, and mathematical conventions'],
     allowedUnits: units.map((unit) => ({
