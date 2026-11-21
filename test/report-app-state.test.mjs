@@ -437,7 +437,7 @@ test('generation mode stays immutable from request creation through report savin
   assert.match(appSource, /if \(source === 'upload'\) \{[\s\S]*if \(!formData\.lockedCoursePlan\) throw new Error\('LOCKED_PLAN_REQUIRED'\)/);
   assert.match(appSource, /if \(formData\.lockedCoursePlan\) throw new Error\('AI_MODE_LOCKED_PLAN_FORBIDDEN'\)/);
   assert.match(appSource, /const reportSource = currentReportData\.planningContext\?\.source === 'upload' \? 'upload' : 'ai';/);
-  assert.match(appSource, /teacherNotes: \$\('#teacher-notes'\)\.value\.trim\(\)/);
+  assert.match(appSource, /teacherNotes: \[\$\('#teacher-notes'\)\.value\.trim\(\), \.\.\.schoolExams\(\)/);
   assert.doesNotMatch(appSource, /teacherNotes: (?:reportSource|planningSource) === 'upload'/);
 });
 

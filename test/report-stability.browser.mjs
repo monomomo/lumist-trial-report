@@ -354,21 +354,32 @@ try {
   assert.equal(await page.locator('#new-view').isVisible(), true);
   assert.deepEqual(errors, []);
   console.log('PASS: style preview can retry and return to the form from the complete layout');
-  const longStages = Array.from({ length:8 }, (_, index) => ({
+  const longStages = Array.from({ length:20 }, (_, index) => ({
     ...report.coursePlan.stages[0], title:'阶段' + index + '阶段主题'.repeat(12),
     description:'本阶段练习与课堂反馈'.repeat(12),
     assessment:{ task:'完成阶段测', target:'根据阶段测试检验学习表现'.repeat(9), adjustment:'复练后再次测评' },
     lessons:[report.coursePlan.stages[0].lessons[0]],
   }));
   const longPlan = { ...report.coursePlan, stages:longStages };
-  record = { ...record, course_plan:longPlan, report_data:{ ...record.report_data, coursePlan:longPlan } };
+  record = { ...record, course_plan:longPlan, report_data:{ ...record.report_data, coursePlan:longPlan,
+    generationInput:{ ...input, teacherNotes:input.teacherNotes+'\n【校内考试】{"name":"校内单元测验","date":"","scope":"连续性","hours":"2"}' },
+  } };
   await page.getByRole('button', {name:'历史报告', exact:true}).click();
   await page.locator('[data-history-id]').click();
-  await page.waitForFunction(() => document.querySelectorAll('.plan-overview-stage').length === 8);
+  await page.waitForFunction(() => document.querySelectorAll('.plan-overview-stage').length === 20);
+  await page.locator('.reference-plan-page').getByRole('heading',{name:'校内考试安排',exact:true,includeHidden:true}).waitFor({state:'attached'});
+  assert.match(await page.locator('.reference-plan-page').getByText('校内单元测验 · 日期待确认',{exact:true}).textContent(),/日期待确认/);
   await page.emulateMedia({ media:'print' });
   const sizes = await page.locator('.reference-plan-page:has(.plan-overview-stage)').evaluateAll(pages => pages.map(p => [p.scrollHeight,p.clientHeight]));
   assert.ok(sizes.length > 1 && sizes.every(([content,height]) => height > 0 && content <= height + 1), JSON.stringify(sizes));
-  console.log('PASS: eight verbose stage cards paginate without overflowing print pages');
+  const rails = await page.locator('.phase-route').evaluateAll(routes => routes.map(route => {
+    const visible = [...route.querySelectorAll(':scope > div')].filter(el => getComputedStyle(el).display !== 'none');
+    const strip = visible[0];
+    const tags = [...strip.children];
+    return visible.length === 1 && strip.querySelector('.route-gap') && strip.querySelectorAll('.here').length === route.querySelectorAll('.phase-brief').length && tags.every(el => el.offsetTop === tags[0].offsetTop);
+  }));
+  assert.ok(rails.length && rails.every(Boolean));
+  console.log('PASS: twenty stages paginate with compact single-line print routes and all current stages highlighted');
   await page.emulateMedia({ media:'screen' });
   expireProfile = true;
   await page.reload({ waitUntil:'domcontentloaded' });

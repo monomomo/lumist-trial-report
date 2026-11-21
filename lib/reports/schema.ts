@@ -84,7 +84,7 @@ const reportSaveShape = {
   currentScore: z.string().trim().max(30),
   targetScore: z.string().trim().max(30),
   examDate: z.string().trim().max(50),
-  teacherNotes: z.string().trim().min(20).max(6000),
+  teacherNotes: z.string().trim().min(20).max(8000),
   reportData: reportDataSchema,
   coursePlan: coursePlanSchema,
   salesFollowUp: salesFollowUpSchema,

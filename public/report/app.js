@@ -346,6 +346,7 @@ function getSubjectTrack(code) {
 }
 
 function resetFormForTrackChange({ clearRecovery = true } = {}) {
+  $('#school-exams').replaceChildren();
   pendingRegenerationReportId = null;
   reportGenerationBaseline = null;
   $('#regeneration-options').classList.add('hidden');
@@ -614,10 +615,18 @@ function renderCoursePlan(coursePlan) {
     return page;
   };
 
-  const createStageLabel = (stage, continued) => {
-    const label = document.createElement('div');
-    label.className = 'plan-stage-inline';
-    label.innerHTML = `<strong>${escapeHtml(stage.title)}${continued ? ' · 续' : ` · ${calculateTotalHours({ stages: [stage] })}h`}</strong>${!continued && stage.description ? `<span>${escapeHtml(stage.description)}</span>` : ''}${continued ? '' : stageAssessmentHtml(stage)}`;
+  const createStageLabel = (stage, index, rows) => {
+    const label = document.createElement('section');
+    label.className = 'phase-brief';
+    const number = row => row.querySelector('.plan-sequence-cell b').textContent;
+    const range = rows.length === 1 ? number(rows[0]) : number(rows[0]) + '–' + number(rows.at(-1));
+    const continued = Number(rows[0].dataset.stageLessonIndex) > 0;
+    const assessment = stage.assessment;
+    label.innerHTML = `<small>阶段 ${String(index+1).padStart(2,'0')}${continued ? ' · 续' : ''}　｜　本页第 ${range} 课　｜　阶段共 ${calculateTotalHours({stages:[stage]})}h</small><h3>阶段内容 · ${escapeHtml(stage.title)}</h3>`;
+    if (!continued) {
+      if (stage.description) label.innerHTML += `<p><b>阶段重点：</b>${escapeHtml(stage.description)}</p>`;
+      if (assessment) label.innerHTML += `<p><b>最终验收：</b>${escapeHtml(assessment.task)}　<b>达标标准：</b>${escapeHtml(assessment.target)}</p><p><b>未达标时：</b>${escapeHtml(assessment.adjustment)}</p>`;
+    }
     return label;
   };
 
@@ -654,21 +663,27 @@ function renderCoursePlan(coursePlan) {
     const activeStages = new Set(lessonRows.map(row => Number(row.dataset.stageIndex)));
     const route = document.createElement('div');
     route.className = 'phase-route';
-    route.innerHTML = '<small>课时路线 · 金色为本页阶段</small><div>' + coursePlan.stages.map((stage,i) => {
+    const arrows = coursePlan.stages.map((stage,i) => {
       const hours = calculateTotalHours({ stages:[stage] });
       return `<span class="${activeStages.has(i) ? 'here' : ''}" style="flex-grow:${Number(hours) || 1}">${String(i+1).padStart(2,'0')} · ${hours}h</span>`;
-    }).join('') + '</div>';
+    });
+    const first = Math.min(...activeStages), last = Math.max(...activeStages);
+    const rail = (radius, name) => {
+      const start = Math.max(0,first-radius), end = Math.min(arrows.length-1,last+radius);
+      const parts = arrows.slice(start,end+1);
+      if (start) parts.unshift(`<span class="route-gap">前 ${start} 阶段</span>`);
+      if (end < arrows.length-1) parts.push(`<span class="route-gap">后 ${arrows.length-end-1} 阶段</span>`);
+      return {html:`<div class="rail-${name}">${parts.join('')}</div>`,width:parts.length*59-2};
+    };
+    const near = rail(1,'near'), focus = rail(0,'focus');
+    const key = `route-${arrows.length}-${near.width}`;
+    route.classList.add(key);
+    route.innerHTML = `<style>@container phase-line (width < ${arrows.length*59-2}px){.${key}>.rail-full{display:none}.${key}>.rail-near{display:flex}}@container phase-line (width < ${Math.min(near.width,arrows.length*59-2)}px){.${key}>.rail-near{display:none}.${key}>.rail-focus{display:flex}}</style><small>课时路线 · 金色为本页阶段</small><div class="rail-full">${arrows.join('')}</div>${near.html}${focus.html}`;
+    activeStages.forEach(index => route.appendChild(createStageLabel(coursePlan.stages[index], index, lessonRows.filter(row => Number(row.dataset.stageIndex) === index))));
     page.querySelector('table').before(route);
     const tableBody = page.querySelector('tbody');
     tableBody.innerHTML = '';
-    let previousStageIndex = -1;
-    lessonRows.forEach((row) => {
-      const stageIndex = Number(row.dataset.stageIndex);
-      row.querySelector('.plan-stage-inline')?.remove();
-      if (stageIndex !== previousStageIndex) row.querySelector('.plan-detail-cell').prepend(createStageLabel(coursePlan.stages[stageIndex], Number(row.dataset.stageLessonIndex) > 0));
-      tableBody.appendChild(row);
-      previousStageIndex = stageIndex;
-    });
+    tableBody.append(...lessonRows);
   };
 
   let currentPage = createPage();
@@ -736,6 +751,27 @@ function renderCoursePlan(coursePlan) {
       if (hasStages && pageOverflows(overview)) {
         overview = newOverview();
         overview.querySelector('.plan-page-body').appendChild(item);
+      }
+    }
+    const exams = schoolExamsFromNotes(currentReportData?.generationInput?.teacherNotes)
+      .filter(exam => !exam.date || exam.date >= new Date().toLocaleDateString('sv-SE',{timeZone:'Asia/Shanghai'}))
+      .sort((a,b) => (a.date || '9999').localeCompare(b.date || '9999'));
+    if (exams.length) {
+      const page = newOverview();
+      page.querySelector('h2').textContent = '校内考试安排';
+      page.querySelector('.plan-page-heading p').textContent = '校内考试本身不计入辅导课时，与阶段测和正式大考分开。';
+      for (const exam of exams) {
+        const item = document.createElement('section');
+        item.className = 'phase-brief';
+        item.innerHTML = `<h3>${escapeHtml(exam.name || '校内考试')} · ${escapeHtml(exam.date || '日期待确认')}</h3><p><b>范围：</b>${escapeHtml(exam.scope || '待学校确认')}　<b>考前可用课时：</b>${escapeHtml(exam.hours === '' || exam.hours == null ? '未确认' : exam.hours+'h')}</p>`;
+        const active = overviewPages.at(-1);
+        active.querySelector('.plan-page-body').appendChild(item);
+        if (pageOverflows(active)) {
+          const next = newOverview();
+          next.querySelector('h2').textContent = '校内考试安排 · 续';
+          next.querySelector('.plan-page-heading p').textContent = '校内考试本身不计入辅导课时。';
+          next.querySelector('.plan-page-body').appendChild(item);
+        }
       }
     }
     pages.unshift(...overviewPages);
@@ -940,6 +976,7 @@ function setQuickPreviewActions(enabled) {
 function openQuickPreview() {
   const formData = collectFormData();
   currentReportData = buildFallbackReport(currentSubjectCode, formData);
+  currentReportData.generationInput = normalizeGenerationInput({...formData,subjectCode:currentSubjectCode,source:planningSource});
   currentReportId = null;
   historicalTeacherProfile = null;
   originalAiCoursePlan = cloneCoursePlan(currentReportData.coursePlan);
@@ -1420,7 +1457,7 @@ async function saveReport({ automatic = false } = {}) {
     currentScore: $('#current-score').value.trim(),
     targetScore: resolveTargetScore(currentSubjectCode, $('#target-score').value),
     examDate: getSelectedExamDate(),
-    teacherNotes: $('#teacher-notes').value.trim(),
+    teacherNotes: currentReportData.generationInput?.teacherNotes || collectFormData(reportSource).teacherNotes,
     subject: createSubjectViewModel(currentSubjectCode).displayName,
     reportData,
     coursePlan,
@@ -1460,7 +1497,7 @@ function collectFormData(source = planningSource) {
     planningScenario: resolvePlanningScenario($('#planning-scenario').value),
     planningFocusAreas: getSelectedPlanningFocusAreas(),
     includeExamTraining: source === 'ai' && currentSubjectCode !== 'sat_math' && $('#include-exam-training').checked,
-    teacherNotes: $('#teacher-notes').value.trim(),
+    teacherNotes: [$('#teacher-notes').value.trim(), ...schoolExams().map(exam => '【校内考试】'+JSON.stringify(exam))].filter(Boolean).join('\n'),
     ...(source === 'ai' && currentSubjectCode === 'sat_english' && languageAssessment.valid && languageAssessment.assessment ? { satEnglishAssessment: languageAssessment.assessment } : {}),
     ...(source === 'ai' && currentSubjectCode === 'sat_math' && mathHours.valid ? { satMathHours: mathHours.hours } : {}),
     ...(source === 'upload' && uploadedCoursePlanConfirmed ? { lockedCoursePlan: cloneCoursePlan(uploadedCoursePlan) } : {}),
@@ -1521,6 +1558,7 @@ function collectFormDraft() {
     satEnglishAssessment: collectSatEnglishAssessment(),
     satMathHours: collectSatMathHours(),
     teacherNotes: $('#teacher-notes').value,
+    schoolExams: schoolExams(),
     feedback: feedbackInputs(),
     feedbackReviewed: reviewedFeedbackKey === JSON.stringify(feedbackInputs()),
   };
@@ -1561,7 +1599,7 @@ function applySavedFormData(data) {
   $('#language-test-date').value = languageAssessment.testDate || '';
   renderSatMathHoursInputs(data.satMathHours && typeof data.satMathHours === 'object' ? data.satMathHours : createEmptySatMathHours());
   configureSatSubjectContext();
-  $('#teacher-notes').value = String(data.teacherNotes || '');
+  restoreSchoolExams(data);
   $('#feedback-internal').value = data.feedback?.internal || '';
   $('#feedback-family').value = data.feedback?.family || '';
   reviewedFeedbackKey = data.feedbackReviewed ? JSON.stringify(feedbackInputs()) : '';
@@ -1690,7 +1728,7 @@ function restoreAiModeDraft(draft) {
   $('#lesson-count').value = String(data.lessonCount || '');
   $('#planning-scenario').value = PLANNING_SCENARIOS[data.planningScenario] ? data.planningScenario : '';
   $('#include-exam-training').checked = data.includeExamTraining === true;
-  $('#teacher-notes').value = String(data.teacherNotes || '');
+  restoreSchoolExams(data);
   $('#feedback-internal').value = data.feedback?.internal || '';
   $('#feedback-family').value = data.feedback?.family || '';
   $('#feedback-review-status').textContent = '';
@@ -2213,7 +2251,7 @@ async function openHistoricalReport(reportId) {
   $('#student-name').value = record.student_name || '';
   $('#current-score').value = record.current_score || '';
   $('#target-score').value = record.target_score || '';
-  $('#teacher-notes').value = record.original_notes === LEGACY_UPLOAD_REPORT_NOTE ? '' : (record.original_notes || '');
+  restoreSchoolExams({teacherNotes:record.report_data?.generationInput?.teacherNotes || (record.original_notes === LEGACY_UPLOAD_REPORT_NOTE ? '' : record.original_notes)});
   $('#feedback-internal').value = '';
   $('#feedback-family').value = '';
   $('#feedback-review-status').textContent = '';
@@ -2523,6 +2561,32 @@ const feedbackInputs = () => ({
   family: $('#feedback-family').value.trim(),
   subject: currentSubjectCode,
 });
+const schoolExamFields = [['name','考试名称','text',48],['date','考试日期','date',0],['scope','考试范围','text',100],['hours','考前可上课时（小时）','number',0]];
+function schoolExamsFromNotes(notes) {
+  return String(notes || '').split('\n').flatMap(line => {
+    if (!line.startsWith('【校内考试】')) return [];
+    try { const item = JSON.parse(line.slice('【校内考试】'.length)); return item && typeof item === 'object' ? [item] : []; } catch { return []; }
+  });
+}
+function schoolExams() {
+  return [...$('#school-exams').children].map(row => Object.fromEntries(schoolExamFields.map(([key]) => [key,row.querySelector('[data-exam="'+key+'"]').value.trim()]))).filter(item => Object.values(item).some(Boolean));
+}
+function addSchoolExam(item = {}) {
+  if ($('#school-exams').children.length >= 8) return;
+  const row = document.createElement('fieldset');
+  row.className = 'school-exam';
+  row.innerHTML = '<legend>校内考试</legend>' + schoolExamFields.map(([key,label,type,max]) => `<label>${label}<input data-exam="${key}" type="${type}" ${max ? 'maxlength="'+max+'"' : ''} ${key === 'hours' ? 'min="0" max="60" step="0.5"' : ''}></label>`).join('') + '<button type="button" class="text-btn">移除此考试</button>';
+  for (const [key] of schoolExamFields) row.querySelector('[data-exam="'+key+'"]').value = String(item[key] ?? '');
+  row.querySelector('button').onclick = () => { row.remove(); scheduleFormDraftSave(); };
+  $('#school-exams').appendChild(row);
+}
+function restoreSchoolExams(data) {
+  $('#school-exams').replaceChildren();
+  $('#teacher-notes').value = String(data.teacherNotes || '').split('\n').filter(line => !line.startsWith('【校内考试】')).join('\n');
+  const exams = Array.isArray(data.schoolExams) ? data.schoolExams : schoolExamsFromNotes(data.teacherNotes);
+  exams.forEach(addSchoolExam);
+}
+$('#add-school-exam').onclick = () => addSchoolExam();
 let reviewedFeedbackKey = '';
 
 $('#manual-feedback').addEventListener('click', () => {
@@ -2554,6 +2618,11 @@ $('#review-feedback').addEventListener('click', async () => {
       return;
     }
     $('#teacher-notes').value = result.notes;
+    const existingExams = new Set(schoolExams().map(exam => JSON.stringify(exam)));
+    for (const exam of result.schoolExams || []) {
+      const key = JSON.stringify(Object.fromEntries(schoolExamFields.map(([field])=>[field,String(exam[field] ?? '')])));
+      if (!existingExams.has(key)) { addSchoolExam(exam); existingExams.add(key); }
+    }
     reviewedFeedbackKey = key;
     status.textContent = result.missing?.length
       ? `请核对下方记录并补充：${result.missing.join('；')}`
@@ -2593,7 +2662,8 @@ $('#report-form').addEventListener('submit', async (event) => {
   const nextInput = normalizeGenerationInput({ ...generationInput.formData, subjectCode: generationInput.subjectCode, source: generationSource });
   const forceNewPlan = generationSource === 'ai' && !$('#regeneration-options').classList.contains('hidden')
     && $('[name="regeneration-plan-mode"]:checked')?.value === 'replace';
-  let action = getGenerationAction(reportGenerationBaseline, nextInput, { forceNewPlan });
+  const examsChanged = JSON.stringify(schoolExamsFromNotes(reportGenerationBaseline?.teacherNotes)) !== JSON.stringify(schoolExamsFromNotes(nextInput.teacherNotes));
+  let action = getGenerationAction(reportGenerationBaseline, nextInput, { forceNewPlan:forceNewPlan || (generationSource === 'ai' && examsChanged) });
   if (generationSource === 'upload' && !sameCoursePlan(currentReportData?.coursePlan, generationInput.formData.lockedCoursePlan)) action = 'new-plan';
   if (action === 'reuse' && currentReportData && !isQuickPreview) {
     changeView('report');

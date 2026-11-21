@@ -1,4 +1,5 @@
 export function apPlanScope(notes, unitCount) {
+  notes = notes.split('\n').filter(line => !line.startsWith('【校内考试】')).join('\n');
   const token = /(?:\b(?:unit|u)\s*(\d+)\b|第\s*(\d+)\s*单元)/gi;
   const read = text => [...text.matchAll(token)].map(m => Number(m[1] || m[2])).filter(n => n >= 1 && n <= unitCount);
   const limit = notes.match(/(?:只|仅)(?:需要|需)?(?:补习|复习|学习|安排|规划|上到|学到|覆盖|准备|到|补|学|上|做|考)[^。；，,;\n]{0,40}/i);
