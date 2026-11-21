@@ -432,7 +432,7 @@ test('generation mode stays immutable from request creation through report savin
   assert.match(appSource, /const generationSource = planningSource;/);
   assert.match(appSource, /formData: collectFormData\(generationSource\)/);
   assert.match(appSource, /setGenerationControlsLocked\(true, generationSource\)/);
-  assert.match(appSource, /document\.querySelectorAll\('#report-form input, #report-form select, #report-form textarea'\)/);
+  assert.match(appSource, /document\.querySelectorAll\('#report-form input, #report-form select, #report-form textarea,[^']*\[data-form-next\][^']*'\)/);
   assert.match(appSource, /const report = await generateAiReport\(generationInput\)/);
   assert.match(appSource, /if \(source === 'upload'\) \{[\s\S]*if \(!formData\.lockedCoursePlan\) throw new Error\('LOCKED_PLAN_REQUIRED'\)/);
   assert.match(appSource, /if \(formData\.lockedCoursePlan\) throw new Error\('AI_MODE_LOCKED_PLAN_FORBIDDEN'\)/);

@@ -48,7 +48,6 @@ nav { display:grid; gap:9px; }.nav-item { text-align:left; border:0; color:#c6ce
 .workspace-inline-editor .summary-editor-content>.summary-editor-section { grid-column:1 / -1; }
 .workspace-inline-editor .summary-editor-section>header { padding:13px 16px; }
 .workspace-inline-editor .summary-editor-fields { gap:12px; padding:15px 16px; }
-.workspace-inline-editor .summary-editor-field:first-child { grid-column:1 / -1; }
 .workspace-inline-editor .summary-editor-field textarea { min-height:92px; }
 .workspace-inline-editor .summary-list-editor { margin:0 16px 16px; }
 .workspace-inline-editor .plan-editor-layout { grid-template-columns:minmax(0,1fr); align-items:start; }
@@ -62,7 +61,7 @@ nav { display:grid; gap:9px; }.nav-item { text-align:left; border:0; color:#c6ce
 }
 .quality-notice { max-width:920px; margin:-10px auto 20px; padding:16px 18px; border:1px solid #dce4d4; border-left:4px solid #49a36f; border-radius:10px; background:#fbfdf9; color:#394b3e; font-size:12px; line-height:1.6; }
 .quality-notice.has-warnings { border-color:#efd87c; border-left-color:#e3ad13; background:#fff9df; color:#66571a; }
-.quality-notice-header { display:flex; align-items:center; justify-content:space-between; gap:12px; margin-bottom:10px; }
+.quality-notice-header { display:flex; align-items:center; gap:12px; min-height:28px; }
 .quality-notice-header strong { color:#263b2c; font-size:14px; }
 .quality-notice.has-warnings .quality-notice-header strong { color:#5f4b0b; }
 .quality-notice-summary { color:#58705f; font-size:11px; font-weight:700; }
@@ -432,7 +431,7 @@ body.modal-open { overflow:hidden; }
 .summary-editor-section>header p { margin:4px 0 0; color:#766d56; font-size:11px; }
 .summary-editor-fields { display:grid; grid-template-columns:1fr 1fr; gap:16px; padding:18px; }
 .summary-editor-field { display:grid; gap:7px; color:#625a45; font-size:11px; font-weight:700; position:relative; }
-.summary-editor-field:first-child,.summary-editor-section:nth-child(2) .summary-editor-field:nth-child(2),.summary-editor-section:nth-child(2) .summary-editor-field:nth-child(3) { grid-column:1 / -1; }
+.summary-title-field { grid-column:1 / -1; }
 .summary-editor-field>small { position:absolute; right:0; top:0; color:#9a9075; font-size:10px; font-weight:500; }
 .summary-editor-field textarea,.summary-list-row textarea { width:100%; border:1px solid #ded8c6; border-radius:8px; padding:11px 12px; color:#2f2a1e; background:#fff; outline:none; resize:vertical; line-height:1.65; font-weight:400; }
 .summary-editor-field textarea:focus,.summary-list-row textarea:focus { border-color:#c28a00; box-shadow:0 0 0 3px rgba(194,138,0,.12); }
@@ -612,12 +611,10 @@ body.modal-open { overflow:hidden; }
 .avatar-placeholder { width:100%;height:380px;display:grid;place-items:center;background:#e8e1c5;color:#5c5133;font-size:120px;font-weight:800; }
 
 .quality-notice-header { cursor:pointer; }
-.quality-notice-header::before { content:"▸"; margin-right:6px; }
-.quality-notice details[open] .quality-notice-header::before { content:"▾"; }
+
 .plan-lesson-fields[hidden] { display:none; }
 .lesson-editor-toggle { border:0; padding:4px 0; background:none; color:inherit; text-align:left; font:inherit; font-weight:700; }
-.lesson-editor-toggle::before { content:"▸"; margin-right:6px; }
-.lesson-editor-toggle[aria-expanded="true"]::before { content:"▾"; }
+
 .parent-reading { width:min(100%,920px); margin:0 auto 24px; color:#2c2513; }
 .reading-nav { display:flex; gap:8px; margin-bottom:12px; flex-wrap:wrap; }
 .reading-nav a { padding:7px 12px; border:1px solid #e2d5aa; border-radius:8px; color:#665014; background:#fff; text-decoration:none; }
@@ -718,3 +715,54 @@ body.modal-open { overflow:hidden; }
   #new-view .topbar { flex-direction:column; gap:10px; }
 }
 @media print { .account-notice { display:none !important; } }
+
+
+.generation-progress[hidden] { display:none; }
+.generation-progress { display:grid; grid-template-columns:36px minmax(0,1fr); gap:14px; align-items:start; margin:20px 0 0; padding:16px 18px; border:1px solid #ecd89b; border-radius:12px; background:#fffaf0; color:#4e3a12; }
+.generation-progress strong { font-size:15px; }
+.generation-progress p { margin:4px 0 11px; font-size:13px; line-height:1.55; }
+.generation-spinner { width:32px; height:32px; border:3px solid #f2e3bb; border-top-color:#ad7500; border-radius:50%; animation:generation-spin .85s linear infinite; }
+@keyframes generation-spin { to { transform:rotate(360deg); } }
+.generation-progress progress { display:block; width:100%; height:6px; accent-color:#ad7500; }
+.generation-progress progress:indeterminate { visibility:hidden; }
+.generation-in-progress #generate-report,.generation-in-progress #generation-notice:not(.error) { display:none; }
+.form-module-nav button:disabled { cursor:default; }
+@media (prefers-reduced-motion:reduce) { .generation-spinner { animation:none; } }
+
+.quality-notice-header,.editor-disclosure { list-style:none; cursor:pointer; }
+.quality-notice-header::-webkit-details-marker,.editor-disclosure::-webkit-details-marker { display:none; }
+.quality-notice-header strong { margin-right:auto; }
+.quality-notice details[open] .quality-notice-header { margin-bottom:10px; }
+.quality-notice-header::after,.editor-disclosure::after,.lesson-editor-toggle::before,.editor-icon-actions [data-stage-action="collapse"]::before { content:""; display:inline-block; flex:0 0 auto; width:7px; height:7px; border:solid currentColor; border-width:0 1.6px 1.6px 0; transform:rotate(45deg); transform-origin:center; margin-top:-4px; }
+details[open]> .quality-notice-header::after,details[open]> .editor-disclosure::after,.lesson-editor-toggle[aria-expanded="true"]::before,.editor-icon-actions [data-stage-action="collapse"][aria-expanded="true"]::before { transform:rotate(225deg); margin-top:4px; }
+.editor-disclosure { display:flex; align-items:center; justify-content:space-between; gap:12px; padding:12px 16px; color:#493a1a; font-weight:750; }
+.editor-disclosure:hover { background:#fff7de; }
+.editor-disclosure:focus-visible,.quality-notice-header:focus-visible,.lesson-editor-toggle:focus-visible { outline:2px solid #b9800d; outline-offset:-2px; }
+.workspace-inline-editor .plan-editor-header { padding:14px 20px; box-shadow:none; }
+.workspace-inline-editor .plan-editor-header h2 { margin:0 0 4px; font-size:20px; }
+.workspace-inline-editor .plan-editor-header p { margin:0; font-size:12px; }
+.workspace-inline-editor .summary-editor-content,.workspace-inline-editor .plan-editor-content { gap:10px; padding:14px 18px 22px; }
+.workspace-inline-editor .summary-editor-fields,.plan-stage-fields,.plan-lesson-fields { align-items:start; }
+.summary-editor-field,.plan-stage-fields label,.plan-lesson-fields label { min-width:0; align-content:start; }
+.workspace-inline-editor .summary-editor-field textarea { min-height:0; }
+.stage-settings { margin:10px 14px; border:1px solid #e9dfc3; border-radius:8px; background:#fffdf7; }
+.stage-settings .plan-stage-fields { padding:4px 14px 14px; }
+.stage-assessment-fields { grid-column:1 / -1; display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:12px; }
+.stage-settings textarea { min-height:0; }
+.editor-icon-actions [data-stage-action="collapse"] { display:inline-flex; align-items:center; gap:7px; }
+.workspace-stage-shortcuts { flex-wrap:wrap; overflow:visible; }
+.workspace-stage-shortcuts button { flex:0 1 auto; max-width:calc(100% - 12px); overflow:hidden; text-overflow:ellipsis; }
+.workspace-stage-shortcuts button[aria-pressed="true"] { color:#593d00; border-color:#c38b15; background:#fff0bb; }
+.plan-stage-editor { scroll-margin-top:155px; }
+#plan-editor-content:has(.plan-stage-editor:not(.is-collapsed)) .plan-stage-editor.is-collapsed { display:none; }
+.lesson-editor-toggle { display:flex; align-items:center; gap:10px; min-height:34px; min-width:0; padding:3px 0; overflow-wrap:anywhere; }
+.plan-lesson-editor:not(.is-expanded)>header>.editor-icon-actions { display:none; }
+.plan-lesson-editor:not(.is-expanded)>header { border-bottom:0; }
+
+@media screen and (max-width:700px) {
+  .workspace-inline-editor .plan-editor-header { padding:12px 14px; }
+  .workspace-inline-editor .summary-editor-content,.workspace-inline-editor .plan-editor-content { padding:12px; }
+  .plan-lesson-editor.is-expanded>header { flex-wrap:wrap; }
+  .stage-assessment-fields { grid-template-columns:1fr; }
+  .workspace-stage-shortcuts button { flex:1 1 40%; text-align:left; }
+}

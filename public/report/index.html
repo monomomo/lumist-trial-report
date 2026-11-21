@@ -4,7 +4,7 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>路觅教育｜试听课报告生成器</title>
-    <link rel="stylesheet" href="styles.css?v=stage-assessment-2-modules-2" />
+    <link rel="stylesheet" href="styles.css?v=stage-assessment-2-modules-3" />
   </head>
   <body>
     <div class="app-shell">
@@ -228,6 +228,14 @@
                     </button>
                   </div>
                 </section>
+                  <section id="generation-progress" class="generation-progress" role="status" hidden>
+                    <span class="generation-spinner" aria-hidden="true"></span>
+                    <div>
+                      <strong id="generation-progress-title">正在准备报告</strong>
+                      <p id="generation-progress-detail"></p>
+                      <progress id="generation-progress-meter" aria-label="阶段生成进度"></progress>
+                    </div>
+                  </section>
                   <div class="notice" id="generation-notice">
                     <strong>生成原则：</strong>总课时由老师决定，AI
                     仅负责规划内容与课时分配。
@@ -736,13 +744,11 @@
       <div class="plan-editor-shell summary-editor-shell">
         <header class="plan-editor-header">
           <div>
-            <p class="eyebrow">试听总结编辑器</p>
-            <h2 id="summary-editor-title">调整课堂诊断与学习成果</h2>
-            <p>直接编辑试听反馈，内容会同步到报告和 PDF；修改会自动保存，保存状态显示在报告顶部。</p>
+            <h2 id="summary-editor-title">试听总结</h2>
+            <p>展开要修改的部分，修改会自动保存。</p>
           </div>
           <div class="plan-editor-summary">
             <span id="summary-editor-student-name">学生</span>
-            <span>01 / 学生信息与试听课总结</span>
           </div>
         </header>
         <main id="summary-editor-content" class="summary-editor-content"></main>
@@ -767,10 +773,9 @@
         <nav id="workspace-stage-shortcuts" class="workspace-stage-shortcuts" aria-label="课程阶段快捷选择"></nav>
         <header class="plan-editor-header">
           <div>
-            <p class="eyebrow">课程规划编辑器</p>
-            <h2 id="course-plan-editor-title">调整阶段与课次</h2>
+            <h2 id="course-plan-editor-title">阶段与课次</h2>
             <p>
-              选择阶段后，展开要修改的课次。修改会自动保存，保存状态显示在报告顶部。
+              选择阶段后，展开要修改的课次。
             </p>
           </div>
           <div class="plan-editor-summary">
@@ -815,6 +820,6 @@
         </footer>
       </div>
     </div>
-    <script type="module" src="app.js?v=stage-assessment-2-pdf-retry-modules-2"></script>
+    <script type="module" src="app.js?v=stage-assessment-2-pdf-retry-modules-3"></script>
   </body>
 </html>

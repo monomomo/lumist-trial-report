@@ -31,6 +31,7 @@ const requests = [];
 let reusableId = null;
 let failReuse = false;
 let failGeneration = false;
+let batchGate = null;
 let failSave = false;
 let failHistory = false;
 let uploadError = 'EMPTY_DOCUMENT';
@@ -67,6 +68,7 @@ await page.route('**/api/**', async (route) => {
     response = { report: { ...report, overview: '我根据补充的课堂观察更新了本次试听总结。', coursePlan: body.lockedCoursePlan } };
   } else if (path === '/api/generate-report-batch') {
     if (failGeneration) return route.abort('failed');
+    if (batchGate) await batchGate[body.operation]?.promise;
     const stage = report.coursePlan.stages[0];
     response = body.operation === 'outline'
       ? { outline: { ...report, rationale: report.coursePlan.rationale, stages: [{ title: stage.title, description: stage.description, lessonCount: 2, startLessonNumber: 1, durations: [1, 1], assessment: { task: '限时完成两道连续性判断题，按判断依据计分。', target: '至少 8/10', adjustment: '未达标时复练左右极限的判断依据。' } }] }, targetScore: '5' }
@@ -112,7 +114,7 @@ try {
   await page.locator('#regenerate-report').click();
   await page.locator('#teacher-notes').fill(input.teacherNotes + '补充：学生能独立检查边界条件。');
   await submit();
-  await page.waitForFunction(() => document.querySelector('#report-view .eyebrow').textContent === '报告已保存');
+  await page.waitForFunction(() => document.querySelector('#report-view.active .eyebrow')?.textContent === '报告已保存');
   assert.deepEqual(record.course_plan, report.coursePlan);
   assert.equal(requests.filter((item) => item.path === '/api/generate-report').length, 1);
   assert.equal(requests.filter((item) => item.path === '/api/generate-report-batch').length, 0);
@@ -131,12 +133,36 @@ try {
   await requestGeneration();
   assert.match(await page.locator('#feedback-review-status').textContent(), /跳过识别/);
   await page.locator('#manual-feedback').click();
-  await submit();
-  await page.waitForFunction(() => document.querySelector('#report-view .eyebrow').textContent === '报告已保存');
+  batchGate = { outline:Promise.withResolvers(), stage:Promise.withResolvers() };
+  await requestGeneration();
+  await page.locator('[data-checklist-action="confirm"]').click();
+  await page.getByText('正在制定课程大纲', { exact:true }).waitFor();
+  assert.equal(await page.locator('[data-form-module="planning"]').isDisabled(), true);
+  assert.equal(await page.locator('#generation-notice').isVisible(), false);
+  batchGate.outline.resolve();
+  await page.getByText('正在生成课次', { exact:true }).waitFor();
+  assert.equal(await page.locator('#generation-progress-meter').getAttribute('max'), '1');
+  batchGate.stage.resolve();
+  batchGate = null;
+  await page.waitForFunction(() => document.querySelector('#report-view.active .eyebrow')?.textContent === '报告已保存');
   assert.equal(requests.filter((item) => item.path === '/api/generate-report-batch').length, 2);
   assert.equal(record.course_plan.stages[0].assessment.target, '至少 8/10');
   assert.match(await page.locator('.plan-overview-stage').first().textContent(), /至少 8\/10/);
   console.log('PASS: explicit replanning calls outline and stage generation');
+  const summarySection = page.locator('[data-summary-section="conclusion"]');
+  assert.equal(await page.locator('[data-summary-section][open]').count(), 1);
+  const tops = await summarySection.locator('[data-summary-path="overview"], [data-summary-path="classroomStatus"]').evaluateAll((fields) => fields.map((field) => field.getBoundingClientRect().top));
+  assert.equal(tops[0], tops[1]);
+  await page.locator('[data-summary-section="outcomes"] summary').click();
+  assert.equal(await page.locator('[data-summary-action="add"]').first().isVisible(), true);
+  await page.locator('[data-report-tab="plan"]').click();
+  await page.locator('.stage-settings summary').click();
+  const stageTops = await page.locator('.stage-settings [data-path="stages.0.title"], .stage-settings [data-path="stages.0.description"]').evaluateAll((fields) => fields.map((field) => field.getBoundingClientRect().top));
+  assert.equal(stageTops[0], stageTops[1]);
+  assert.equal(await page.locator('[data-lesson-action="copy"]').first().isVisible(), false);
+  await page.locator('[data-lesson-action="toggle"]').first().click();
+  assert.equal(await page.locator('[data-lesson-action="copy"]').first().isVisible(), true);
+  console.log('PASS: summary and stage fields align, and collapsed editors retain their actions');
 
   reusableId = id;
   await page.reload({ waitUntil: 'domcontentloaded' });
@@ -197,7 +223,7 @@ try {
   const reuseCount = requests.filter((item) => item.path === '/api/reports/reuse').length;
   const batchCount = requests.filter((item) => item.path === '/api/generate-report-batch').length;
   await submit();
-  await page.waitForFunction(() => document.querySelector('#report-view .eyebrow').textContent === '报告已保存');
+  await page.waitForFunction(() => document.querySelector('#report-view.active .eyebrow')?.textContent === '报告已保存');
   assert.equal(requests.filter((item) => item.path === '/api/reports/reuse').length - reuseCount, 2);
   assert.equal(requests.filter((item) => item.path === '/api/generate-report-batch').length - batchCount, 2);
   console.log('PASS: a persistent reuse lookup network failure retries twice and still generates the report');

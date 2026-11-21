@@ -977,7 +977,8 @@ function createSummaryEditorField(field, rule) {
   label.innerHTML = `<span>${escapeHtml(rule.label)}</span><small>${draftSummary[field].length} / ${rule.maximum}</small>`;
   const textarea = document.createElement('textarea');
   textarea.value = draftSummary[field];
-  textarea.rows = field === 'overview' || field === 'lessonSummary' || field === 'performance' ? 5 : 3;
+  textarea.rows = field === 'lessonTitle' ? 1 : 4;
+  if (field === 'lessonTitle') label.classList.add('summary-title-field');
   textarea.dataset.summaryPath = field;
   label.appendChild(textarea);
   return label;
@@ -1000,15 +1001,28 @@ function createSummaryListEditor(field, title, maximum) {
 
 function renderSummaryEditor() {
   const content = $('#summary-editor-content');
-  content.innerHTML = '';
-  const summary = document.createElement('section');
-  summary.className = 'summary-editor-section';
-  summary.innerHTML = '<header><span>01</span><div><b>试听课堂观察与学习建议</b><p>集中核对课堂表现、本节课内容、学习收获和后续安排</p></div></header>';
-  const observationFields = document.createElement('div');
-  observationFields.className = 'summary-editor-fields';
-  ['lessonTitle', 'overview', 'classroomStatus', 'strength', 'currentFocus', 'lessonSummary', 'performance'].forEach((field) => observationFields.appendChild(createSummaryEditorField(field, SUMMARY_FIELD_RULES[field])));
-  summary.append(observationFields, createSummaryListEditor('outcomes', '本节课收获', 5), createSummaryListEditor('priorityAreas', '后续需要优先提升的内容', 6));
-  content.append(summary);
+  const previous = new Map([...content.querySelectorAll('details[data-summary-section]')].map((section) => [section.dataset.summarySection, section.open]));
+  const sections = [
+    ['conclusion', '课堂结论', ['lessonTitle', 'overview', 'classroomStatus', 'strength', 'currentFocus']],
+    ['observation', '课堂内容与学生表现', ['lessonSummary', 'performance']],
+    ['outcomes', '学习收获与提升项', []],
+  ];
+  content.replaceChildren(...sections.map(([key, title, fields], index) => {
+    const section = document.createElement('details');
+    section.className = 'summary-editor-section';
+    section.dataset.summarySection = key;
+    section.open = previous.get(key) ?? index === 0;
+    section.innerHTML = `<summary class="editor-disclosure">${title}</summary>`;
+    if (fields.length) {
+      const group = document.createElement('div');
+      group.className = 'summary-editor-fields';
+      group.append(...fields.map((field) => createSummaryEditorField(field, SUMMARY_FIELD_RULES[field])));
+      section.append(group);
+    } else {
+      section.append(createSummaryListEditor('outcomes', '本节课收获', 5), createSummaryListEditor('priorityAreas', '后续需要优先提升的内容', 6));
+    }
+    return section;
+  }));
   $('#summary-editor-student-name').textContent = $('#student-name').value.trim() || '学生';
 }
 
@@ -1059,6 +1073,8 @@ function showSummaryValidationErrors(errors) {
   errors.forEach((error) => {
     const field = $(`[data-summary-path="${error.path}"]`);
     const target = field || $(`[data-summary-field="${error.path}"]`)?.closest('.summary-list-editor');
+    const group = target?.closest('details');
+    if (group) group.open = true;
     target?.classList.add('is-invalid');
     const reason = document.createElement('span');
     reason.className = 'editor-field-error';
@@ -1148,29 +1164,42 @@ function createEditorField(labelText, value, path, multiline = false) {
 
 function renderPlanEditor() {
   const content = $('#plan-editor-content');
+  const openSettings = new Set([...content.querySelectorAll('.stage-settings[open]')].map((element) => Number(element.closest('[data-stage-editor]').dataset.stageEditor)));
   content.innerHTML = '';
   draftCoursePlan.stages.forEach((stage, stageIndex) => {
     const section = document.createElement('section');
-    section.className = 'plan-stage-editor';
+    section.className = collapsedStages.has(stage) ? 'plan-stage-editor is-collapsed' : 'plan-stage-editor';
     section.tabIndex = -1;
     section.dataset.stageEditor = String(stageIndex);
     const header = document.createElement('div');
     header.className = 'plan-stage-editor-header';
-    header.innerHTML = `<div><span>阶段 ${String(stageIndex + 1).padStart(2, '0')}</span><b>${escapeHtml(stage.title || '未命名阶段')}</b></div><div class="editor-icon-actions"><button type="button" data-stage-action="up" data-stage-index="${stageIndex}" ${stageIndex === 0 ? 'disabled' : ''}>上移</button><button type="button" data-stage-action="down" data-stage-index="${stageIndex}" ${stageIndex === draftCoursePlan.stages.length - 1 ? 'disabled' : ''}>下移</button><button type="button" data-stage-action="collapse" data-stage-index="${stageIndex}">${collapsedStages.has(stage) ? '展开' : '折叠'}</button><button type="button" data-stage-action="delete" data-stage-index="${stageIndex}" ${draftCoursePlan.stages.length === 1 ? 'disabled' : ''}>删除</button></div>`;
+    header.innerHTML = `<div><span>阶段 ${String(stageIndex + 1).padStart(2, '0')}</span><b>${escapeHtml(stage.title || '未命名阶段')}</b></div><div class="editor-icon-actions"><button type="button" data-stage-action="up" data-stage-index="${stageIndex}" ${stageIndex === 0 ? 'disabled' : ''}>上移</button><button type="button" data-stage-action="down" data-stage-index="${stageIndex}" ${stageIndex === draftCoursePlan.stages.length - 1 ? 'disabled' : ''}>下移</button><button type="button" data-stage-action="collapse" data-stage-index="${stageIndex}" aria-expanded="${!collapsedStages.has(stage)}">${collapsedStages.has(stage) ? '展开' : '折叠'}</button><button type="button" data-stage-action="delete" data-stage-index="${stageIndex}" ${draftCoursePlan.stages.length === 1 ? 'disabled' : ''}>删除</button></div>`;
     section.appendChild(header);
     if (!collapsedStages.has(stage)) {
       const fields = document.createElement('div');
       fields.className = 'plan-stage-fields';
-      fields.append(createEditorField('阶段名称', stage.title, `stages.${stageIndex}.title`), createEditorField('阶段说明', stage.description, `stages.${stageIndex}.description`, true));
+      const description = createEditorField('阶段说明', stage.description, `stages.${stageIndex}.description`, true);
+      description.querySelector('textarea').rows = 3;
+      fields.append(createEditorField('阶段名称', stage.title, `stages.${stageIndex}.title`), description);
       if (stage.assessment) {
+        const assessment = document.createElement('div');
+        assessment.className = 'stage-assessment-fields';
         for (const [field, label, limit] of [['task', '阶段测任务与评分依据', 120], ['target', '计划达标线', 100], ['adjustment', '未达标时怎么调整', 120]]) {
           const path = `stages.${stageIndex}.assessment.${field}`;
           const control = createEditorField(label, stage.assessment[field], path, true);
-          control.querySelector('textarea').maxLength = limit;
-          fields.append(control);
+          const textarea = control.querySelector('textarea');
+          textarea.maxLength = limit;
+          textarea.rows = 3;
+          assessment.append(control);
         }
+        fields.append(assessment);
       }
-      section.appendChild(fields);
+      const settings = document.createElement('details');
+      settings.className = 'stage-settings';
+      settings.open = openSettings.has(stageIndex);
+      settings.innerHTML = `<summary class="editor-disclosure">${stage.assessment ? '阶段名称、说明与测评' : '阶段名称与说明'}</summary>`;
+      settings.append(fields);
+      section.append(settings);
       const lessonList = document.createElement('div');
       lessonList.className = 'plan-lesson-list';
       stage.lessons.forEach((lesson, lessonIndex) => lessonList.appendChild(createLessonEditor(lesson, stageIndex, lessonIndex)));
@@ -1191,12 +1220,12 @@ function renderPlanEditor() {
 function renderWorkspaceStageShortcuts() {
   const shortcuts = $('#workspace-stage-shortcuts');
   if (!shortcuts || !draftCoursePlan?.stages?.length) return;
-  shortcuts.innerHTML = `<span>课程阶段</span>${draftCoursePlan.stages.map((stage, index) => `<button type="button" data-workspace-stage="${index}">阶段 ${index + 1} · ${escapeHtml(stage.title || '未命名阶段')}</button>`).join('')}`;
+  shortcuts.innerHTML = `<span>课程阶段</span>${draftCoursePlan.stages.map((stage, index) => `<button type="button" data-workspace-stage="${index}" aria-pressed="${!collapsedStages.has(stage)}">阶段 ${index + 1} · ${escapeHtml(stage.title || '未命名阶段')}</button>`).join('')}`;
 }
 
 function createLessonEditor(lesson, stageIndex, lessonIndex) {
   const card = document.createElement('article');
-  card.className = 'plan-lesson-editor';
+  card.className = expandedLessons.has(lesson) ? 'plan-lesson-editor is-expanded' : 'plan-lesson-editor';
   const globalIndex = draftCoursePlan.stages.slice(0, stageIndex).reduce((total, stage) => total + stage.lessons.length, 0) + lessonIndex + 1;
   card.innerHTML = `<header><button class="lesson-editor-toggle" type="button" data-lesson-action="toggle" data-stage-index="${stageIndex}" data-lesson-index="${lessonIndex}" aria-expanded="${expandedLessons.has(lesson)}">第 ${globalIndex} 课 · ${escapeHtml(lesson.theme || '未填写主题')} · ${escapeHtml(lesson.duration)}h</button><div class="editor-icon-actions"><button type="button" data-lesson-action="up" data-stage-index="${stageIndex}" data-lesson-index="${lessonIndex}" ${lessonIndex === 0 ? 'disabled' : ''}>上移</button><button type="button" data-lesson-action="down" data-stage-index="${stageIndex}" data-lesson-index="${lessonIndex}" ${lessonIndex === draftCoursePlan.stages[stageIndex].lessons.length - 1 ? 'disabled' : ''}>下移</button><button type="button" data-lesson-action="copy" data-stage-index="${stageIndex}" data-lesson-index="${lessonIndex}">复制</button><button type="button" data-lesson-action="delete" data-stage-index="${stageIndex}" data-lesson-index="${lessonIndex}">删除</button></div></header>`;
   const grid = document.createElement('div');
@@ -1307,7 +1336,11 @@ function showValidationErrors(errors) {
     const reason = document.createElement('span');
     reason.className = 'editor-field-error';
     reason.textContent = error.message;
-    if (field) field.insertAdjacentElement('afterend', reason);
+    if (field) {
+      const group = field.closest('details');
+      if (group) group.open = true;
+      field.insertAdjacentElement('afterend', reason);
+    }
     else target?.querySelector('.plan-stage-editor-header')?.insertAdjacentElement('afterend', reason);
   });
 }
@@ -1694,9 +1727,23 @@ function switchPlanningSource(value) {
   scheduleFormDraftSave();
 }
 
+function showGenerationProgress(title, detail, completed, total) {
+  $('#generation-progress-title').textContent = title;
+  $('#generation-progress-detail').textContent = detail;
+  const meter = $('#generation-progress-meter');
+  if (total > 0) {
+    meter.max = total;
+    meter.value = completed;
+  } else {
+    meter.removeAttribute('value');
+  }
+}
+
 function setGenerationControlsLocked(locked, source = null) {
   activeGenerationSource = locked ? source : null;
-  document.querySelectorAll('#report-form input, #report-form select, #report-form textarea').forEach((control) => {
+  $('#generation-progress').hidden = !locked;
+  $('#report-form').classList.toggle('generation-in-progress', locked);
+  document.querySelectorAll('#report-form input, #report-form select, #report-form textarea, [data-form-next], [data-form-module], [data-scenario-sample], #review-feedback, #manual-feedback, #quick-preview-report').forEach((control) => {
     if (locked) {
       control.dataset.disabledBeforeGeneration = String(control.disabled);
       control.disabled = true;
@@ -2268,7 +2315,7 @@ async function generateAiReport({ source, formData, subjectCode, preserveCourseP
       () => requestGeneratedJson('/api/generate-report-batch', { ...commonPayload, operation: 'outline' }),
       2,
       (attempt, attempts) => {
-        $('#generation-notice').innerHTML = `<strong>正在生成阶段规划：</strong>AI 请求 ${attempt}/${attempts}。完成后会自动保存进度。`;
+        showGenerationProgress('正在制定课程大纲', attempt === 1 ? '根据试听反馈和课时安排划分课程阶段。' : `正在重试（${attempt}/${attempts}）。`);
       },
     );
     checkpoint = null;
@@ -2287,8 +2334,8 @@ async function generateAiReport({ source, formData, subjectCode, preserveCourseP
     const activeText = [...activeStageAttempts.entries()]
       .map(([stageIndex, attempt]) => `第 ${stageIndex + 1} 阶段${attempt > 1 ? `（第 ${attempt}/3 次尝试）` : ''}`)
       .join('、');
-    const status = activeText ? `当前：${activeText}。` : '';
-    $('#generation-notice').innerHTML = `<strong>正在分批生成：</strong>已完成 ${completedStages}/${stages.length} 个阶段。${status}若页面刷新，再次生成会从已完成阶段继续。`;
+    const status = activeText ? `正在处理${activeText}。` : '';
+    showGenerationProgress('正在生成课次', `已完成 ${completedStages}/${stages.length} 个阶段。${status}`, completedStages, stages.length);
   };
   updateProgress();
   const worker = async () => {
@@ -2524,6 +2571,7 @@ $('#review-feedback').addEventListener('click', async () => {
 
 $('#report-form').addEventListener('submit', async (event) => {
   event.preventDefault();
+  if (activeGenerationSource) return;
   const button = $('#generate-report');
   const notice = $('#generation-notice');
   const feedback = feedbackInputs();
@@ -2559,11 +2607,11 @@ $('#report-form').addEventListener('submit', async (event) => {
   }
   setGenerationControlsLocked(true, generationSource);
   button.disabled = true;
-  button.textContent = generationSource === 'upload' ? 'AI 正在整理试听总结并合并课程规划…' : 'AI 正在分析并生成课程规划…';
-  notice.classList.remove('error');
-  notice.innerHTML = generationSource === 'upload'
-    ? '<strong>正在生成：</strong>课程规划已锁定，AI 正在根据试听反馈生成首页总结并合并完整报告。'
-    : '<strong>正在分阶段生成：</strong>每个完成阶段会自动保存进度，刷新后可继续生成。';
+  notice.classList.remove('error', 'workflow-error');
+  notice.textContent = '';
+  showGenerationProgress('正在准备报告', generationSource === 'upload'
+    ? '使用已确认的课程规划，整理试听反馈。'
+    : '正在检查是否已有相同的报告。');
   try {
     if (!forceNewPlan && !generationInput.preserveCoursePlan) {
       let existing = {};
@@ -2575,7 +2623,7 @@ $('#report-form').addEventListener('submit', async (event) => {
       } catch (error) {
         if ([401, 403].includes(error.status) || ['UNAUTHORIZED', 'FORBIDDEN'].includes(error.message)) throw error;
         console.warn('report-reuse-check-unavailable', requestFailureMetadata(error, 'reuse-check'));
-        notice.innerHTML = '<strong>正在继续生成：</strong>暂时无法检查历史结果，系统将按本次填写的信息生成报告。';
+        showGenerationProgress('正在生成新报告', '暂时无法检查历史结果，继续使用本次填写的信息。');
       }
       if (existing.id) {
         try {
@@ -2586,11 +2634,13 @@ $('#report-form').addEventListener('submit', async (event) => {
         } catch (error) {
           if (!error.requestPath?.startsWith('/api/reports?') || [401, 403].includes(error.status)) throw error;
           console.warn('report-reuse-open-unavailable', requestFailureMetadata(error, 'reuse-open'));
-          notice.innerHTML = '<strong>正在继续生成：</strong>暂时无法读取历史报告，系统将按本次填写的信息生成报告。';
+          showGenerationProgress('正在生成新报告', '暂时无法读取历史报告，继续使用本次填写的信息。');
         }
       }
     }
+    if (generationInput.preserveCoursePlan) showGenerationProgress('正在更新试听总结', '沿用当前课程规划。');
     const report = await generateAiReport(generationInput);
+    showGenerationProgress('正在排版并保存报告', '排版完成后将打开报告工作台。');
     try {
       await presentGeneratedReport(report, generationSource, notice, generationInput);
     } catch (error) {
@@ -3064,7 +3114,9 @@ $('#plan-editor-content').addEventListener('click', (event) => {
       if (open) expandedLessons.add(lesson);
       else expandedLessons.delete(lesson);
       event.target.setAttribute('aria-expanded', String(open));
-      event.target.closest('.plan-lesson-editor').querySelector('.plan-lesson-fields').hidden = !open;
+      const card = event.target.closest('.plan-lesson-editor');
+      card.classList.toggle('is-expanded', open);
+      card.querySelector('.plan-lesson-fields').hidden = !open;
       return;
     }
     if (lessonAction === 'up' || lessonAction === 'down') draftCoursePlan.stages[stageIndex].lessons = moveItem(lessons, lessonIndex, lessonIndex + (lessonAction === 'up' ? -1 : 1));
