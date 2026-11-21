@@ -34,13 +34,17 @@ let failGeneration = false;
 let failSave = false;
 let failHistory = false;
 let uploadError = 'EMPTY_DOCUMENT';
+let expireProfile = false;
 await page.route('**/api/**', async (route) => {
   const request = route.request();
   const path = new URL(request.url()).pathname;
   const body = request.method() === 'GET' || !request.headers()['content-type']?.includes('application/json') ? null : request.postDataJSON();
   requests.push({ path, method: request.method(), body });
   let response;
-  if (path === '/api/me') response = { accountId: 'mock-teacher', displayName: '测试老师' };
+  if (path === '/api/me') {
+    if (expireProfile) return route.fulfill({ status: 401, json: { error: 'UNAUTHORIZED' } });
+    response = { accountId: 'mock-teacher', displayName: '测试老师' };
+  }
   else if (path === '/api/review-feedback') response = { notes: input.teacherNotes, missing: ['请核对已有阶段测成绩，未测时可安排初测。'] };
   else if (path === '/api/reports/reuse') {
     if (failReuse) return route.abort('failed');
@@ -318,8 +322,12 @@ try {
   await page.locator('#report-view').waitFor({ state: 'visible' });
   assert.match(await page.locator('#report-view .eyebrow').first().textContent(), /未生成、未保存/);
   assert.equal(await page.locator('#save-report').isVisible(), false);
+  await page.locator('[data-preview-mode="preview"]').click();
+  assert.equal(await page.locator('#back-edit').isVisible(), true);
+  await page.locator('#back-edit').click();
+  assert.equal(await page.locator('#new-view').isVisible(), true);
   assert.deepEqual(errors, []);
-  console.log('PASS: style preview failures can retry without saving example content as an AI report');
+  console.log('PASS: style preview can retry and return to the form from the complete layout');
   const longStages = Array.from({ length:8 }, (_, index) => ({
     ...report.coursePlan.stages[0], title:'阶段' + index + '阶段主题'.repeat(12),
     description:'本阶段练习与课堂反馈'.repeat(12),
@@ -335,6 +343,27 @@ try {
   const sizes = await page.locator('.reference-plan-page:has(.plan-overview-stage)').evaluateAll(pages => pages.map(p => [p.scrollHeight,p.clientHeight]));
   assert.ok(sizes.length > 1 && sizes.every(([content,height]) => height > 0 && content <= height + 1), JSON.stringify(sizes));
   console.log('PASS: eight verbose stage cards paginate without overflowing print pages');
+  await page.emulateMedia({ media:'screen' });
+  expireProfile = true;
+  await page.reload({ waitUntil:'domcontentloaded' });
+  const accountNotice = page.locator('.main > #account-notice');
+  await accountNotice.getByRole('link', { name:'在新窗口重新登录' }).waitFor();
+  assert.equal(await page.locator('#sidebar-teacher').isVisible(), false);
+  for (const width of [390, 1440]) {
+    await page.setViewportSize({ width, height:900 });
+    assert.ok(await accountNotice.evaluate((notice) => notice.scrollWidth <= notice.clientWidth));
+    assert.equal(await page.locator('#quick-preview-report').isVisible(), true);
+  }
+  assert.equal(await page.locator('#draft-status').textContent(), '草稿暂未保存');
+  expireProfile = false;
+  await accountNotice.getByRole('link', { name:'在新窗口重新登录' }).evaluate((link) => {
+    link.addEventListener('click', (event) => event.preventDefault(), { once:true });
+    link.click();
+    document.dispatchEvent(new Event('visibilitychange'));
+  });
+  await accountNotice.waitFor({ state:'hidden' });
+  assert.equal(await page.locator('#sidebar-teacher').isVisible(), true);
+  console.log('PASS: expired teacher session is readable and is rechecked after returning');
 } catch (error) {
   console.error({ errors, apiRequests: requests.map(({ path, method }) => ({ path, method })), history: await page.locator('#history-list').textContent(), examOptions: await page.locator('#ap-exam-date').innerHTML() });
   throw error;

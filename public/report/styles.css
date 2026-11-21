@@ -661,6 +661,8 @@ body.modal-open { overflow:hidden; }
 .module-nav button:hover { background:#fffbef; }
 .module-nav button[aria-current] { background:#fff; border-color:#d8bc67; color:#483307; }
 .module-nav button span,.module-nav button small { font-size:11px; color:#7b652e; }
+.form-module-nav button span { display:grid; place-items:center; flex:0 0 25px; height:25px; border-radius:50%; background:#fff; }
+.form-module-nav button[aria-current] span { background:#ffdf76; color:#443000; font-weight:800; }
 .form-module-nav { position:sticky; top:16px; }
 .module-actions { display:flex; justify-content:flex-end; flex-wrap:wrap; gap:8px; margin-top:20px; }
 .module-actions button { width:auto; margin:0; }
@@ -672,8 +674,7 @@ body.modal-open { overflow:hidden; }
 .report-module-nav { grid-template-columns:repeat(4,minmax(0,1fr)); max-width:920px; margin:0 auto 18px; }
 .report-module-nav button { justify-content:center; text-align:center; }
 #report-mode-banner.hidden,#sales-card.hidden { display:none; }
-#preview-report,#back-edit { display:none; }
-#report-view:has(#parent-reading:not(.hidden)) #back-edit { display:inline-flex; }
+#preview-report { display:none; }
 @media screen and (max-width:900px) {
   .app-shell { flex-direction:column; }
   .sidebar { width:auto; flex:0 0 auto; padding:8px 16px; flex-direction:row; align-items:center; justify-content:space-between; gap:8px; }
@@ -697,3 +698,23 @@ body.modal-open { overflow:hidden; }
   #report-view #summary-editor-modal.workspace-inline-editor .plan-editor-header { position:static; }
 }
 @media print { .report-navigation { display:none !important; } }
+
+
+.sidebar-footer[hidden] { display:none; }
+.form-toolbar { display:flex; flex-wrap:wrap; align-items:center; justify-content:flex-end; gap:8px; }
+.account-notice:not(.hidden) { width:calc(100% - 96px); max-width:1204px; margin:16px auto 0; display:grid; grid-template-columns:minmax(0,1fr) auto; gap:3px 20px; padding:13px 16px; }
+.account-notice>strong,.account-notice>p,.account-notice>details { grid-column:1; margin:0; overflow-wrap:anywhere; }
+.account-notice .workflow-actions { grid-column:2; grid-row:1 / span 3; align-self:center; margin:0; }
+.account-notice .workflow-actions a { display:inline-block; padding:8px 12px; border:1px solid #e8aba0; border-radius:8px; background:#fff; text-decoration:none; }
+.report-actions #print-report { background:#ffc928; border-color:#d49b10; color:#332607; }
+@media screen and (max-width:900px) {
+  .account-notice:not(.hidden) { width:calc(100% - 40px); }
+}
+@media screen and (max-width:600px) {
+  .account-notice:not(.hidden) { grid-template-columns:minmax(0,1fr); }
+  .account-notice .workflow-actions { grid-column:1; grid-row:auto; margin:5px 0; }
+  #report-form { padding:16px; }
+  .form-toolbar { justify-content:flex-start; }
+  #new-view .topbar { flex-direction:column; gap:10px; }
+}
+@media print { .account-notice { display:none !important; } }

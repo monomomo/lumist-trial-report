@@ -111,6 +111,10 @@ function showWorkflowError(element, error, operation, progress = '') {
   if (operation === 'export' && error.imageLabel) {
     message.reason = `${error.imageLabel}未能加载。导出已自动重试一次。`;
   }
+  if (element.id === 'account-notice' && message.actionId === 'login') {
+    message.reason = '请保留当前页面。登录后切回本页，即可继续填写。';
+    message.action = '';
+  }
   const labels = { generate: '继续生成', save: '重新保存', upload: '重新解析', history: '重试读取', export: '重试导出', input: '检查填写内容', profile: '重新读取资料', 'edit-plan': '检查课程规划', 'edit-summary': '检查试听总结', 'quick-preview': '重试样式预览' };
   const action = message.actionId === 'login'
     ? '<a href="/" target="_blank" rel="noopener">在新窗口重新登录</a>'
@@ -120,7 +124,7 @@ function showWorkflowError(element, error, operation, progress = '') {
   element.setAttribute('role', 'alert');
   element.classList.add('error', 'workflow-error');
   const reloadAction = message.category === 'render' ? '<button type="button" class="secondary-btn" data-workflow-action="render">重新加载报告</button>' : '';
-  element.innerHTML = `<strong>${escapeHtml(message.title)}</strong><p>${escapeHtml(message.reason)}</p><p>下一步：${escapeHtml(message.action)}</p>${progress ? `<p>${escapeHtml(progress)}</p>` : ''}<div class="workflow-actions">${action}${reloadAction}</div>${error.requestId ? `<details><summary>多次尝试仍失败？查看问题编号</summary>参考编号：${escapeHtml(error.requestId)}</details>` : ''}`;
+  element.innerHTML = `<strong>${escapeHtml(message.title)}</strong><p>${escapeHtml(message.reason)}</p>${message.action ? `<p>下一步：${escapeHtml(message.action)}</p>` : ''}${progress ? `<p>${escapeHtml(progress)}</p>` : ''}<div class="workflow-actions">${action}${reloadAction}</div>${error.requestId ? `<details><summary>多次尝试仍失败？查看问题编号</summary>参考编号：${escapeHtml(error.requestId)}</details>` : ''}`;
   console.warn('report-workflow-failure', requestFailureMetadata(error, operation));
   return message;
 }
@@ -430,6 +434,11 @@ async function loadTeacherProfile() {
     const data = await requestReportJson('/api/me', undefined, { method: 'GET', timeoutMs: 15000 });
     recoveryStorageScope = typeof data.accountId === 'string' ? data.accountId : '';
     teacherProfile = normalizeTeacherProfile(data);
+    $('#account-notice').classList.add('hidden');
+    if (recoveryStorageScope && $('#draft-status').textContent === '草稿暂未保存') {
+      $('#draft-status').textContent = '草稿自动保存';
+    }
+    $('#sidebar-teacher').hidden = !teacherProfile;
     if (teacherProfile) {
       renderSidebarTeacher();
       renderTeacherProfile();
@@ -437,10 +446,22 @@ async function loadTeacherProfile() {
     }
     return Boolean(recoveryStorageScope);
   } catch (error) {
-    showWorkflowError($('#sidebar-teacher'), error, 'profile');
+    $('#sidebar-teacher').hidden = true;
+    $('#draft-status').textContent = '草稿暂未保存';
+    showWorkflowError($('#account-notice'), error, 'profile');
     return false;
   }
 }
+
+let recheckProfileOnReturn = false;
+$('#account-notice').addEventListener('click', (event) => {
+  if (event.target.closest('a[target="_blank"]')) recheckProfileOnReturn = true;
+});
+document.addEventListener('visibilitychange', async () => {
+  if (document.hidden || !recheckProfileOnReturn) return;
+  recheckProfileOnReturn = false;
+  if (await loadTeacherProfile() && formHasUserInput) saveFormDraft();
+});
 
 function renderSidebarTeacher() {
   if (!teacherProfile) return;
@@ -2892,6 +2913,7 @@ function setReportDisplayMode(mode, { resetEditors = true } = {}) {
   $('#sales-card').classList.add('hidden');
   $('#report-mode-banner').classList.toggle('hidden', !isPreview);
   $('#print-report').classList.toggle('hidden', isQuickPreview);
+  $('#back-edit').classList.toggle('hidden', !isPreview);
   $('#parent-report').classList.toggle('teacher-workspace-mode', !isPreview);
   $('#parent-report').classList.toggle('parent-preview-mode', isPreview);
   $('#parent-report').classList.toggle('hidden', !isPreview || isReading);
@@ -3107,6 +3129,7 @@ $('.report-module-nav').addEventListener('click', (event) => {
       ['#parent-report', '#parent-reading', '#teacher-workspace-editor', '#report-mode-banner'].forEach((selector) => $(selector).classList.add('hidden'));
       $('#sales-card').classList.remove('hidden');
       $('#print-report').classList.add('hidden');
+      $('#back-edit').classList.add('hidden');
     } else {
       teacherReportModule = module;
       setReportDisplayMode('workspace', { resetEditors: false });

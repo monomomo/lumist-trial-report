@@ -4,7 +4,7 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>路觅教育｜试听课报告生成器</title>
-    <link rel="stylesheet" href="styles.css?v=stage-assessment-2-modules-1" />
+    <link rel="stylesheet" href="styles.css?v=stage-assessment-2-modules-2" />
   </head>
   <body>
     <div class="app-shell">
@@ -22,13 +22,17 @@
       </aside>
 
       <main class="main">
+        <div id="account-notice" class="account-notice hidden" role="alert"></div>
         <section id="new-view" class="view active">
           <header class="topbar">
             <div>
               <p class="eyebrow" id="form-eyebrow">SAT 数学试听</p>
               <h1>新建个性化学习报告</h1>
             </div>
-            <span class="status-dot" id="draft-status">草稿自动保存</span>
+            <div class="form-toolbar">
+              <span class="status-dot" id="draft-status">草稿自动保存</span>
+              <button class="secondary-btn" id="quick-preview-report" type="button">预览报告样式</button>
+            </div>
           </header>
           <div class="workspace">
             <form id="report-form" class="input-card">
@@ -222,9 +226,6 @@
                     <button class="primary-btn" id="generate-report" type="submit">
                       AI 生成个性化报告 <span>→</span>
                     </button>
-                    <button class="secondary-btn quick-preview-btn" id="quick-preview-report" type="button">
-                      快速预览报告样式
-                    </button>
                   </div>
                 </section>
                   <div class="notice" id="generation-notice">
@@ -265,7 +266,7 @@
                   编辑课程规划</button
                 ><button class="secondary-btn" id="regenerate-report">
                   返回修改并重新生成</button
-                ><button class="secondary-btn" id="back-edit">返回老师工作台</button
+                ><button class="secondary-btn hidden" id="back-edit">返回老师工作台</button
                 ><button class="secondary-btn" id="preview-report">预览家长版</button
                 ><button class="secondary-btn" id="print-report">导出 PDF</button>
               </div>
@@ -814,6 +815,6 @@
         </footer>
       </div>
     </div>
-    <script type="module" src="app.js?v=stage-assessment-2-pdf-retry-modules-1"></script>
+    <script type="module" src="app.js?v=stage-assessment-2-pdf-retry-modules-2"></script>
   </body>
 </html>
