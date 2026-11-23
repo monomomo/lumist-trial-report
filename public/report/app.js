@@ -1,3 +1,4 @@
+import { mountPaperWorkspace } from './paper-workspace.js?v=1';
 import { ALLOWED_DURATIONS, cloneCoursePlan, calculateTotalHours, validateCoursePlan, moveItem, moveLesson, rebalanceFinalPage, createStage, createLesson } from './course-plan-utils.js';
 import { SUBJECT_CODES, SUBJECT_CATALOG, resolveSubject, validateSubjectScores } from './catalog.js';
 import { createSubjectViewModel, normalizeTeacherProfile, buildFallbackReport, resolveTargetScore } from './report-domain.js';
@@ -347,12 +348,15 @@ function getSubjectTrack(code) {
 
 function resetFormForTrackChange({ clearRecovery = true } = {}) {
   $('#school-exams').replaceChildren();
-  pendingRegenerationReportId = null;
-  reportGenerationBaseline = null;
-  $('#regeneration-options').classList.add('hidden');
-  currentReportId = null;
-  currentReportData = null;
-  historicalTeacherProfile = null;
+  if ($('#parent-conclusion')) $('#parent-conclusion').value = '';
+  if (!editingReportSource) {
+    pendingRegenerationReportId = null;
+    reportGenerationBaseline = null;
+    $('#regeneration-options').classList.add('hidden');
+    currentReportId = null;
+    currentReportData = null;
+    historicalTeacherProfile = null;
+  }
   $('#student-name').value = '';
   $('#current-score').value = '';
   $('#target-score').value = '';
@@ -587,10 +591,11 @@ function updateFollowingPageNumbers(planPageCount) {
   document.querySelector('.teacher-page .page-kicker').textContent = `${String(teacherNumber).padStart(2, '0')} / 任课教师`;
 }
 
-function stageAssessmentHtml(stage) {
+function stageAssessmentHtml(stage, stageIndex) {
   if (!stage.assessment) return '';
   const { task, target, adjustment } = stage.assessment;
-  return `<div class="stage-assessment"><p><b>阶段预期成果：</b>${escapeHtml(target)}</p><p><b>检验方式：</b>${escapeHtml(task)}</p><p><b>未达标时：</b>${escapeHtml(adjustment)}</p></div>`;
+  const value = (field, text) => stageIndex === undefined ? escapeHtml(text) : `<span class="layout-value" data-layout-path="plan.${stageIndex}.assessment.${field}">${escapeHtml(text)}</span>`;
+  return `<div class="stage-assessment"><p><b>阶段预期成果：</b>${value('target', target)}</p><p><b>检验方式：</b>${value('task', task)}</p><p><b>未达标时：</b>${value('adjustment', adjustment)}</p></div>`;
 }
 
 function renderCoursePlan(coursePlan) {
@@ -622,10 +627,11 @@ function renderCoursePlan(coursePlan) {
     const range = rows.length === 1 ? number(rows[0]) : number(rows[0]) + '–' + number(rows.at(-1));
     const continued = Number(rows[0].dataset.stageLessonIndex) > 0;
     const assessment = stage.assessment;
-    label.innerHTML = `<small>阶段 ${String(index+1).padStart(2,'0')}${continued ? ' · 续' : ''}　｜　本页第 ${range} 课　｜　阶段共 ${calculateTotalHours({stages:[stage]})}h</small><h3>阶段内容 · ${escapeHtml(stage.title)}</h3>`;
+    const stageField = (field, value) => `<span class="layout-value" data-layout-path="plan.${index}.${field}">${escapeHtml(value)}</span>`;
+    label.innerHTML = `<small>阶段 ${String(index+1).padStart(2,'0')}${continued ? ' · 续' : ''}　｜　本页第 ${range} 课　｜　阶段共 ${calculateTotalHours({stages:[stage]})}h</small><h3>阶段内容 · ${stageField('title', stage.title)}</h3>`;
     if (!continued) {
-      if (stage.description) label.innerHTML += `<p><b>阶段重点：</b>${escapeHtml(stage.description)}</p>`;
-      if (assessment) label.innerHTML += `<p><b>最终验收：</b>${escapeHtml(assessment.task)}　<b>达标标准：</b>${escapeHtml(assessment.target)}</p><p><b>未达标时：</b>${escapeHtml(assessment.adjustment)}</p>`;
+      if (stage.description) label.innerHTML += `<p><b>阶段重点：</b>${stageField('description', stage.description)}</p>`;
+      if (assessment) label.innerHTML += `<p><b>最终验收：</b>${stageField('assessment.task', assessment.task)}　<b>达标标准：</b>${stageField('assessment.target', assessment.target)}</p><p><b>未达标时：</b>${stageField('assessment.adjustment', assessment.adjustment)}</p>`;
     }
     return label;
   };
@@ -636,12 +642,10 @@ function renderCoursePlan(coursePlan) {
     row.className = 'plan-lesson-row';
     row.dataset.stageIndex = String(stageIndex);
     row.dataset.stageLessonIndex = String(stageLessonIndex);
-    const details = [
-      lesson.goal ? `<p><span>目标：</span>${escapeHtml(lesson.goal)}</p>` : '',
-      lesson.content ? `<p><span>内容：</span>${escapeHtml(lesson.content)}</p>` : '',
-      lesson.difficulty ? `<p><span>重难点：</span>${escapeHtml(lesson.difficulty)}</p>` : ''
-    ].join('');
-    row.innerHTML = `<td class="plan-sequence-cell"><b>${String(lessonIndex).padStart(2, '0')}</b><span>课次</span></td><td class="plan-duration-cell">${escapeHtml(lesson.duration)}h</td><td class="plan-detail-cell"><b>${escapeHtml(lesson.theme)}</b>${details}</td>`;
+    const path = `plan.${stageIndex}.lessons.${stageLessonIndex}`;
+    const details = [['goal', '目标'], ['content', '内容'], ['difficulty', '重难点']]
+      .map(([field, label]) => lesson[field] ? `<p><span>${label}：</span><span class="layout-value" data-layout-path="${path}.${field}">${escapeHtml(lesson[field])}</span></p>` : '').join('');
+    row.innerHTML = `<td class="plan-sequence-cell"><b>${String(lessonIndex).padStart(2, '0')}</b><span>课次</span></td><td class="plan-duration-cell">${escapeHtml(lesson.duration)}h</td><td class="plan-detail-cell"><b data-layout-path="${path}.theme">${escapeHtml(lesson.theme)}</b>${details}</td>`;
     return row;
   };
 
@@ -744,7 +748,7 @@ function renderCoursePlan(coursePlan) {
       const item = document.createElement('section');
       item.className = 'plan-overview-stage';
       item.dataset.number = String(index + 1).padStart(2,'0');
-      item.innerHTML = `<h3>${escapeHtml(stage.title)} · ${calculateTotalHours({ stages: [stage] })}h</h3><p>${escapeHtml(stage.description)}</p>${stage.assessment ? `<p><b>阶段测目标：</b>${escapeHtml(stage.assessment.target)}</p>` : ''}`;
+      item.innerHTML = `<h3><span data-layout-path="plan.${index}.title">${escapeHtml(stage.title)}</span> · ${calculateTotalHours({ stages: [stage] })}h</h3><p data-layout-path="plan.${index}.description">${escapeHtml(stage.description)}</p>${stage.assessment ? `<p><b>阶段测目标：</b><span data-layout-path="plan.${index}.assessment.target">${escapeHtml(stage.assessment.target)}</span></p>` : ''}`;
       const body = overview.querySelector('.plan-page-body');
       const hasStages = Boolean(body.querySelector('section'));
       body.appendChild(item);
@@ -924,8 +928,8 @@ function renderReportContent(data) {
   setText('#lesson-title', data.lessonTitle);
   setText('#lesson-text', data.lessonSummary);
   setText('#performance-text', data.performance);
-  $('#outcomes-list').innerHTML = data.outcomes.map((item) => `<li>${escapeHtml(item)}</li>`).join('');
-  $('#needs-list').innerHTML = data.priorityAreas.map((item) => `<span>${escapeHtml(item)}</span>`).join('');
+  $('#outcomes-list').innerHTML = data.outcomes.map((item, index) => `<li data-layout-path="summary.outcomes.${index}">${escapeHtml(item)}</li>`).join('');
+  $('#needs-list').innerHTML = data.priorityAreas.map((item, index) => `<span data-layout-path="summary.priorityAreas.${index}">${escapeHtml(item)}</span>`).join('');
   setText('#sales-positive', data.salesFollowUp.positive);
   setText('#sales-urgent', data.salesFollowUp.urgent);
   setText('#sales-angle', data.salesFollowUp.angle);
@@ -976,6 +980,8 @@ function setQuickPreviewActions(enabled) {
 function openQuickPreview() {
   const formData = collectFormData();
   currentReportData = buildFallbackReport(currentSubjectCode, formData);
+  const parentConclusion = $('#parent-conclusion').value.trim();
+  if (parentConclusion) currentReportData.overview = parentConclusion;
   currentReportData.generationInput = normalizeGenerationInput({...formData,subjectCode:currentSubjectCode,source:planningSource});
   currentReportId = null;
   historicalTeacherProfile = null;
@@ -1558,6 +1564,7 @@ function collectFormDraft() {
     satEnglishAssessment: collectSatEnglishAssessment(),
     satMathHours: collectSatMathHours(),
     teacherNotes: $('#teacher-notes').value,
+    parentConclusion: $('#parent-conclusion')?.value || '',
     schoolExams: schoolExams(),
     feedback: feedbackInputs(),
     feedbackReviewed: reviewedFeedbackKey === JSON.stringify(feedbackInputs()),
@@ -1574,6 +1581,7 @@ function saveFormDraft() {
 }
 
 function scheduleFormDraftSave() {
+  if (editingReportSource) return;
   formHasUserInput = true;
   window.clearTimeout(formDraftSaveTimer);
   formDraftSaveTimer = window.setTimeout(saveFormDraft, 400);
@@ -1600,6 +1608,7 @@ function applySavedFormData(data) {
   renderSatMathHoursInputs(data.satMathHours && typeof data.satMathHours === 'object' ? data.satMathHours : createEmptySatMathHours());
   configureSatSubjectContext();
   restoreSchoolExams(data);
+  if ($('#parent-conclusion')) $('#parent-conclusion').value = String(data.parentConclusion || '');
   $('#feedback-internal').value = data.feedback?.internal || '';
   $('#feedback-family').value = data.feedback?.family || '';
   reviewedFeedbackKey = data.feedbackReviewed ? JSON.stringify(feedbackInputs()) : '';
@@ -1729,6 +1738,7 @@ function restoreAiModeDraft(draft) {
   $('#planning-scenario').value = PLANNING_SCENARIOS[data.planningScenario] ? data.planningScenario : '';
   $('#include-exam-training').checked = data.includeExamTraining === true;
   restoreSchoolExams(data);
+  if ($('#parent-conclusion')) $('#parent-conclusion').value = String(data.parentConclusion || '');
   $('#feedback-internal').value = data.feedback?.internal || '';
   $('#feedback-family').value = data.feedback?.family || '';
   $('#feedback-review-status').textContent = '';
@@ -2049,7 +2059,6 @@ function renderFormReview() {
 function showFormModule(module, { focus = false } = {}) {
   const panel = $(`#form-${module}`);
   if (!panel?.matches('[data-form-panel]')) return;
-  document.querySelectorAll('[data-form-panel]').forEach((item) => { item.hidden = item !== panel; });
   document.querySelectorAll('[data-form-module]').forEach((button) => {
     if (button.dataset.formModule === module) button.setAttribute('aria-current', 'step');
     else button.removeAttribute('aria-current');
@@ -2067,6 +2076,7 @@ function revealFormField(field) {
   const module = field?.closest('[data-form-panel]')?.dataset.formPanel;
   if (!module) return;
   showFormModule(module);
+  if (field.closest('details')) field.closest('details').open = true;
   field.scrollIntoView({ block: 'center' });
 }
 
@@ -2484,6 +2494,8 @@ async function requestGeneratedJson(path, payload, method = 'POST') {
 }
 
 async function presentGeneratedReport(report, generationSource, notice, generationInput) {
+  const parentConclusion = $('#parent-conclusion').value.trim();
+  if (parentConclusion) report.overview = parentConclusion;
   pendingReportSaveToken = null;
   $('[name="regeneration-plan-mode"][value="preserve"]').checked = true;
   report.generationInput = normalizeGenerationInput({
@@ -2504,6 +2516,7 @@ async function presentGeneratedReport(report, generationSource, notice, generati
   setReportDisplayMode('workspace');
   document.querySelector('#report-view .eyebrow').textContent = 'AI 报告已生成 · 未云端保存';
   $('#save-report').textContent = '保存报告';
+  editingReportSource = false;
   const reportSaved = await saveReport({ automatic: true });
   if (reportSaved) pendingRegenerationReportId = null;
   if (generationSource === 'ai' && reportSaved) clearGenerationRecovery();
@@ -2666,10 +2679,15 @@ $('#report-form').addEventListener('submit', async (event) => {
   let action = getGenerationAction(reportGenerationBaseline, nextInput, { forceNewPlan:forceNewPlan || (generationSource === 'ai' && examsChanged) });
   if (generationSource === 'upload' && !sameCoursePlan(currentReportData?.coursePlan, generationInput.formData.lockedCoursePlan)) action = 'new-plan';
   if (action === 'reuse' && currentReportData && !isQuickPreview) {
+    const conclusion = $('#parent-conclusion').value.trim();
+    const conclusionChanged = conclusion && conclusion !== currentReportData.overview;
+    if (conclusionChanged) currentReportData.overview = conclusion;
+    editingReportSource = false;
     changeView('report');
     setReportDisplayMode('workspace');
     renderReport(currentReportData);
-    document.querySelector('#report-view .eyebrow').textContent = '输入未变化 · 已保留当前报告与人工修改';
+    if (conclusionChanged) await saveReport({ automatic: true });
+    else document.querySelector('#report-view .eyebrow').textContent = '输入未变化 · 已保留当前报告与人工修改';
     return;
   }
   if (action === 'summary-only' && generationSource === 'ai' && currentReportData && !isQuickPreview) {
@@ -2683,7 +2701,7 @@ $('#report-form').addEventListener('submit', async (event) => {
     ? '使用已确认的课程规划，整理试听反馈。'
     : '正在检查是否已有相同的报告。');
   try {
-    if (!forceNewPlan && !generationInput.preserveCoursePlan) {
+    if (!forceNewPlan && !generationInput.preserveCoursePlan && !editingReportSource && !$('#parent-conclusion').value.trim()) {
       let existing = {};
       try {
         existing = await requestGeneratedJson('/api/reports/reuse', {
@@ -2899,7 +2917,7 @@ $('#back-edit').addEventListener('click', () => {
   setReportDisplayMode('workspace', { resetEditors: false });
   window.scrollTo({ top: 0 });
 });
-$('#regenerate-report').addEventListener('click', async () => {
+async function prepareSourceEdit() {
   if (reportAutoSaveTimer) {
     clearTimeout(reportAutoSaveTimer);
     reportAutoSaveTimer = null;
@@ -2917,7 +2935,9 @@ $('#regenerate-report').addEventListener('click', async () => {
     lessonCount: currentReportData.coursePlan.stages.reduce((total, stage) => total + stage.lessons.length, 0),
   };
   $('[name="regeneration-plan-mode"][value="preserve"]').checked = true;
-  changeView('new');
+  editingReportSource = true;
+  clearTimeout(formDraftSaveTimer);
+  $('#parent-conclusion').value = currentReportData.overview || '';
   showFormModule('feedback');
   const reportSource = currentReportData?.planningContext?.source === 'upload' ? 'upload' : 'ai';
   if (reportSource === 'upload') {
@@ -2935,8 +2955,33 @@ $('#regenerate-report').addEventListener('click', async () => {
     ? '<strong>重新生成当前报告：</strong>修改下方原始信息后再次生成，系统将更新当前历史报告，不会新增重复记录。'
     : '<strong>重新生成当前报告：</strong>修改下方原始信息后再次生成；生成成功后将保存为一条历史报告。';
   $('#generate-report').innerHTML = '重新生成并更新报告 <span>→</span>';
-  document.querySelector('#new-view .topbar')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
-});
+  return true;
+}
+function cancelSourceEdit(snapshot) {
+  const originalPlan = currentReportData?.coursePlan;
+  applySavedFormData(snapshot);
+  if (snapshot.planningSource === 'upload' && originalPlan) {
+    uploadedCoursePlan = cloneCoursePlan(originalPlan);
+    uploadedCoursePlanConfirmed = true;
+    setPlanningSource('upload');
+  }
+  editingReportSource = false;
+  pendingRegenerationReportId = null;
+}
+
+function getCoursePlanForEditing() {
+  return {
+    plan: cloneCoursePlan(currentReportData.coursePlan),
+    original: originalAiCoursePlan ? cloneCoursePlan(originalAiCoursePlan) : null,
+    uploaded: currentReportData.planningContext?.source === 'upload',
+  };
+}
+
+function commitCoursePlanFromPaper(plan) {
+  draftCoursePlan = cloneCoursePlan(plan);
+  syncWorkspaceCoursePlan();
+  setReportDisplayMode('layout');
+}
 $('#save-report').addEventListener('click', saveReport);
 $('#quick-preview-report').addEventListener('click', () => {
   try {
@@ -3010,6 +3055,146 @@ function renderParentReading(data) {
     </section>`;
 }
 
+const layoutPlanFieldRules = {
+  title: { label: '阶段名称', maximum: 100, required: true },
+  description: { label: '阶段说明', maximum: 300 },
+  theme: { label: '课次主题', maximum: 120, required: true },
+  content: { label: '授课内容', maximum: 600 },
+  goal: { label: '当课目标', maximum: 180 },
+  difficulty: { label: '重难点', maximum: 180 },
+  task: { label: '阶段测任务与评分依据', maximum: 120, required: true },
+  target: { label: '计划达标线', maximum: 100, required: true },
+  adjustment: { label: '未达标时怎么调整', maximum: 120, required: true },
+};
+const layoutListFieldRules = {
+  outcomes: { label: '本节课收获', maximum: 120, required: true },
+  priorityAreas: { label: '后续优先提升', maximum: 80, required: true },
+};
+let activeLayoutEdit = null;
+let editingReportSource = false;
+
+function getLayoutField(path) {
+  const [scope, ...parts] = path.split('.');
+  const key = parts.at(-1);
+  if (scope === 'student') {
+    return key === 'name'
+      ? { label: '学生姓名', maximum: 30, required: true, control: $('#student-name') }
+      : { label: '目标分数', maximum: 10, control: $('#target-score') };
+  }
+  if (scope === 'summary') {
+    const field = parts.length === 1
+      ? { ...SUMMARY_FIELD_RULES[key], required: true } : layoutListFieldRules[parts[0]];
+    return { ...field, parts };
+  }
+  const rules = layoutPlanFieldRules[key];
+  const required = rules.required || (parts[1] === 'lessons' && currentReportData.planningContext?.source !== 'upload');
+  return { ...rules, required, parts: ['coursePlan', 'stages', ...parts] };
+}
+
+function configureLayoutFields(enabled) {
+  document.querySelectorAll('#parent-report [data-layout-path]').forEach((element) => {
+    if (enabled) {
+      element.tabIndex = 0;
+      element.setAttribute('role', 'button');
+      element.setAttribute('aria-label', `编辑${getLayoutField(element.dataset.layoutPath).label}`);
+    } else {
+      ['tabindex', 'role', 'aria-label'].forEach((attribute) => element.removeAttribute(attribute));
+    }
+  });
+}
+
+function findLayoutFieldTarget(report, parts) {
+  return parts.slice(0, -1).reduce((target, part) => target[part], report);
+}
+
+function openLayoutEdit(anchor) {
+  const path = anchor.dataset.layoutPath;
+  const field = getLayoutField(path);
+  const dialog = $('#layout-edit-dialog');
+  const input = $('#layout-edit-value');
+  const value = field.control?.value ?? findLayoutFieldTarget(currentReportData, field.parts)[field.parts.at(-1)];
+  activeLayoutEdit = { anchor, field, path };
+  $('#layout-edit-title').textContent = field.label;
+  $('#layout-edit-error').hidden = true;
+  input.value = value || '';
+  if (path === 'student.target') input.placeholder = '留空使用科目默认值';
+  else input.removeAttribute('placeholder');
+  dialog.showModal();
+  const bounds = anchor.getBoundingClientRect();
+  dialog.style.left = `${Math.max(12, Math.min(bounds.left, window.innerWidth - dialog.offsetWidth - 12))}px`;
+  dialog.style.top = `${Math.max(12, Math.min(bounds.bottom + 8, window.innerHeight - dialog.offsetHeight - 12))}px`;
+  input.focus();
+  input.select();
+}
+
+$('#parent-report').addEventListener('click', (event) => {
+  const anchor = event.target.closest('[data-layout-path]');
+  if (anchor && $('#parent-report').classList.contains('layout-edit-mode')) openLayoutEdit(anchor);
+});
+$('#parent-report').addEventListener('keydown', (event) => {
+  const anchor = event.target.closest('[data-layout-path]');
+  if (anchor && $('#parent-report').classList.contains('layout-edit-mode') && ['Enter', ' '].includes(event.key)) {
+    event.preventDefault();
+    openLayoutEdit(anchor);
+  }
+});
+$('#layout-edit-cancel').addEventListener('click', () => $('#layout-edit-dialog').close());
+$('#layout-edit-dialog').addEventListener('close', () => {
+  activeLayoutEdit?.anchor?.focus({ preventScroll: true });
+  activeLayoutEdit = null;
+});
+$('#layout-edit-form').addEventListener('submit', (event) => {
+  event.preventDefault();
+  const { anchor, field, path } = activeLayoutEdit;
+  const value = $('#layout-edit-value').value.trim();
+  const errorText = $('#layout-edit-error');
+  let error = value.length > field.maximum ? `${field.label}最多 ${field.maximum} 字。` : '';
+  if (field.required && !value) error = `请填写${field.label}。`;
+  if (!error && path === 'student.target' && value) {
+    const validation = validateSubjectScores(currentSubjectCode, $('#current-score').value, value);
+    error = validation.errors.find((item) => item.path === 'targetScore')?.message || '';
+  }
+  if (error) {
+    errorText.textContent = error;
+    errorText.hidden = false;
+    return;
+  }
+
+  const selector = `#parent-report [data-layout-path="${path}"]`;
+  const position = [...document.querySelectorAll(selector)].indexOf(anchor);
+  const previousTop = anchor.getBoundingClientRect().top;
+  const previousReport = currentReportData;
+  const previousValue = field.control?.value;
+  if (field.control) {
+    field.control.value = value;
+  } else {
+    const nextReport = structuredClone(currentReportData);
+    findLayoutFieldTarget(nextReport, field.parts)[field.parts.at(-1)] = value;
+    currentReportData = nextReport;
+  }
+  try {
+    renderReport(currentReportData);
+    configureLayoutFields(true);
+    initializeWorkspaceEditors();
+  } catch {
+    currentReportData = previousReport;
+    if (field.control) field.control.value = previousValue;
+    renderReport(currentReportData);
+    configureLayoutFields(true);
+    activeLayoutEdit.anchor = document.querySelectorAll(selector)[position] || $(selector);
+    errorText.textContent = '修改后的报告暂时无法排版，请缩短文字后重试。';
+    errorText.hidden = false;
+    return;
+  }
+
+  const updated = document.querySelectorAll(selector)[position] || $(selector);
+  activeLayoutEdit.anchor = updated;
+  $('#layout-edit-dialog').close();
+  if (updated) window.scrollBy({ top: updated.getBoundingClientRect().top - previousTop, behavior: 'instant' });
+  document.querySelector('#report-view .eyebrow').textContent = '版面已编辑 · 未云端保存';
+  scheduleReportAutoSave();
+});
+
 let teacherReportModule = 'summary';
 
 function selectReportModule(module) {
@@ -3022,14 +3207,22 @@ function selectReportModule(module) {
 function setReportDisplayMode(mode, { resetEditors = true } = {}) {
   const isPreview = mode !== 'workspace';
   const isReading = mode === 'reading';
+  const isLayout = mode === 'layout' && !isQuickPreview;
   const isUploadedPlan = currentReportData?.planningContext?.source === 'upload';
+  const wasLayout = $('#parent-report').classList.contains('layout-edit-mode');
+  $('#parent-report').classList.toggle('layout-edit-mode', isLayout);
+  $('#parent-report').classList.toggle('paper-readonly', mode === 'preview');
+  document.body.classList.toggle('editing-report-a4', isLayout || mode === 'preview');
   if (isPreview && currentReportData) renderReport(currentReportData);
+  configureLayoutFields(isLayout);
+  if (isLayout || wasLayout) switchReportImageSources(isLayout ? 'print' : 'screen');
   if (!isPreview && currentReportData && resetEditors) initializeWorkspaceEditors();
   if (isUploadedPlan) teacherReportModule = 'plan';
   $('[data-report-tab="summary"]').hidden = Boolean(isUploadedPlan) || isQuickPreview;
   $('[data-report-tab="plan"]').hidden = isQuickPreview;
   $('[data-report-tab="sales"]').hidden = isQuickPreview;
-  selectReportModule(isPreview ? 'parent' : teacherReportModule);
+  $('[data-report-tab="layout"]').hidden = isQuickPreview;
+  selectReportModule(isLayout ? 'layout' : isPreview ? 'parent' : teacherReportModule);
   $('#sales-card').classList.add('hidden');
   $('#report-mode-banner').classList.toggle('hidden', !isPreview);
   $('#print-report').classList.toggle('hidden', isQuickPreview);
@@ -3044,7 +3237,9 @@ function setReportDisplayMode(mode, { resetEditors = true } = {}) {
   $('#summary-editor-modal').classList.toggle('hidden', isPreview || teacherReportModule !== 'summary');
   $('#course-plan-modal').classList.toggle('hidden', isPreview || teacherReportModule !== 'plan');
   $('#report-mode-banner').classList.toggle('preview-mode', isPreview);
-  $('#report-mode-banner').innerHTML = isReading
+  $('#report-mode-banner').innerHTML = isLayout
+    ? '<div><strong>在 A4 版面上编辑</strong><span>点击带下划线的文字。应用修改后，报告按 PDF 页宽重新排版。</span></div><div class="layout-jumps"><button type="button" class="secondary-btn" data-layout-jump="summary">跳到试听总结</button><button type="button" class="secondary-btn" data-layout-jump="plan">跳到课程规划</button></div>'
+    : isReading
     ? '<div><strong>家长版阅读预览</strong></div><button type="button" class="secondary-btn" data-preview-mode="preview">查看完整排版</button>'
     : isPreview
     ? '<div><strong>家长版预览</strong><span>当前展示完整交付版内容，导出的 PDF 将采用相同页面顺序。</span></div><button type="button" class="secondary-btn" data-preview-mode="reading">返回阅读预览</button>'
@@ -3056,6 +3251,11 @@ function setReportDisplayMode(mode, { resetEditors = true } = {}) {
 }
 
 $('#report-mode-banner').addEventListener('click', (event) => {
+  const jump = event.target.closest('[data-layout-jump]')?.dataset.layoutJump;
+  if (jump) {
+    $(jump === 'summary' ? '.summary-page' : '.reference-plan-page')?.scrollIntoView({ block: 'start' });
+    return;
+  }
   const mode = event.target.closest('[data-preview-mode]')?.dataset.previewMode;
   if (!mode) return;
   try {
@@ -3082,7 +3282,8 @@ $('#preview-report').addEventListener('click', () => {
 $('#print-report').addEventListener('click', async () => {
   const printButton = $('#print-report');
   const previousButtonText = printButton.textContent;
-  const previousMode = !$('#parent-reading').classList.contains('hidden') ? 'reading'
+  const previousMode = $('#parent-report').classList.contains('layout-edit-mode') ? 'layout'
+    : !$('#parent-reading').classList.contains('hidden') ? 'reading'
     : $('#parent-report').classList.contains('parent-preview-mode') ? 'preview' : 'workspace';
   let restored = false;
   const restorePrintState = () => {
@@ -3244,9 +3445,11 @@ $('.report-module-nav').addEventListener('click', (event) => {
   const module = event.target.closest('[data-report-tab]')?.dataset.reportTab;
   if (!module || module === $('[data-report-tab][aria-current]')?.dataset.reportTab) return;
   try {
-    if (module === 'parent') {
-      setReportDisplayMode('reading', { resetEditors: false });
+    if (module === 'parent' || module === 'layout') {
+      setReportDisplayMode(module === 'layout' ? 'layout' : 'reading', { resetEditors: false });
     } else if (module === 'sales') {
+      $('#parent-report').classList.remove('layout-edit-mode');
+      document.body.classList.remove('editing-report-a4');
       selectReportModule(module);
       ['#parent-report', '#parent-reading', '#teacher-workspace-editor', '#report-mode-banner'].forEach((selector) => $(selector).classList.add('hidden'));
       $('#sales-card').classList.remove('hidden');
@@ -3256,7 +3459,8 @@ $('.report-module-nav').addEventListener('click', (event) => {
       teacherReportModule = module;
       setReportDisplayMode('workspace', { resetEditors: false });
     }
-    window.scrollTo({ top: 0 });
+    if (module === 'layout') $('.summary-page')?.scrollIntoView({ block: 'start' });
+    else window.scrollTo({ top: 0 });
   } catch (error) {
     error.generationStage = 'render';
     showWorkflowError($('#report-operation-notice'), error, 'generate');
@@ -3280,6 +3484,10 @@ document.addEventListener('click', async (event) => {
     if (action === 'generate') $('#report-form').requestSubmit();
     if (action === 'render') {
       renderReport(currentReportData);
+      if (editingReportSource) {
+        editingReportSource = false;
+        setReportDisplayMode('workspace');
+      }
       notice.classList.add('hidden');
     }
     if (action === 'save') {
@@ -3333,4 +3541,10 @@ function initializeApp() {
   });
 }
 
+mountPaperWorkspace({
+  setReportDisplayMode, prepareSourceEdit, cancelSourceEdit, collectFormDraft,
+  getCoursePlan: getCoursePlanForEditing, commitCoursePlan: commitCoursePlanFromPaper,
+  isQuickPreview: () => isQuickPreview,
+  reportError: (error) => showWorkflowError($('#report-operation-notice'), error, 'generate'),
+});
 initializeApp();

@@ -80,7 +80,11 @@ await page.route('**/api/**', async (route) => {
 });
 
 async function showFormModule(module) {
-  await page.locator(`[data-form-module="${module}"]`).click();
+  if (module === 'review') return;
+  const paper = page.locator('.view.active .paper-rail');
+  await paper.locator(`[data-paper-chapter="${module === 'planning' ? 'plan' : 'summary'}"]`).click();
+  if (module === 'student') await page.locator('#draft-student + details').evaluate(details => { details.open = true; });
+  if (module === 'feedback') await page.locator('details:has(.feedback-review)').evaluate(details => { details.open = true; });
 }
 
 async function requestGeneration() {
@@ -91,7 +95,7 @@ async function requestGeneration() {
 async function submit() {
   await requestGeneration();
   await page.locator('[data-checklist-action="confirm"]').click();
-  await page.locator('#report-view').waitFor({ state: 'visible' });
+  await page.locator('#report-view.active #parent-report.layout-edit-mode').waitFor();
 }
 
 try {
@@ -142,27 +146,49 @@ try {
   batchGate.outline.resolve();
   await page.getByText('正在生成课次', { exact:true }).waitFor();
   assert.equal(await page.locator('#generation-progress-meter').getAttribute('max'), '1');
+  const savedBatch = page.waitForResponse(response => response.url().endsWith('/api/reports') && response.request().method() === 'PATCH');
   batchGate.stage.resolve();
   batchGate = null;
+  await savedBatch;
   await page.waitForFunction(() => document.querySelector('#report-view.active .eyebrow')?.textContent === '报告已保存');
   assert.equal(requests.filter((item) => item.path === '/api/generate-report-batch').length, 2);
   assert.equal(record.course_plan.stages[0].assessment.target, '至少 8/10');
   assert.match(await page.locator('.plan-overview-stage').first().textContent(), /至少 8\/10/);
   console.log('PASS: explicit replanning calls outline and stage generation');
-  const summarySection = page.locator('[data-summary-section="conclusion"]');
-  assert.equal(await page.locator('[data-summary-section][open]').count(), 1);
-  const tops = await summarySection.locator('[data-summary-path="overview"], [data-summary-path="classroomStatus"]').evaluateAll((fields) => fields.map((field) => field.getBoundingClientRect().top));
-  assert.equal(tops[0], tops[1]);
-  await page.locator('[data-summary-section="outcomes"] summary').click();
-  assert.equal(await page.locator('[data-summary-action="add"]').first().isVisible(), true);
-  await page.locator('[data-report-tab="plan"]').click();
-  await page.locator('.stage-settings summary').click();
-  const stageTops = await page.locator('.stage-settings [data-path="stages.0.title"], .stage-settings [data-path="stages.0.description"]').evaluateAll((fields) => fields.map((field) => field.getBoundingClientRect().top));
-  assert.equal(stageTops[0], stageTops[1]);
-  assert.equal(await page.locator('[data-lesson-action="copy"]').first().isVisible(), false);
-  await page.locator('[data-lesson-action="toggle"]').first().click();
-  assert.equal(await page.locator('[data-lesson-action="copy"]').first().isVisible(), true);
-  console.log('PASS: summary and stage fields align, and collapsed editors retain their actions');
+  await page.locator('#report-view:not(.paper-source-editing) #parent-report.layout-edit-mode').waitFor();
+  await page.evaluate(() => new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve))));
+  await page.locator('.reference-plan-page').first().evaluate(el => el.scrollIntoView({ block: 'start', behavior: 'instant' }));
+  await page.locator('#report-view [data-paper-chapter="plan"][aria-current]').waitFor();
+  await page.getByRole('button', { name: '调整课次结构' }).click();
+  const planDialog = page.getByRole('dialog', { name: '调整课次结构' });
+  const originalLesson = await planDialog.getByRole('textbox', { name: '第 1 课主题' }).inputValue();
+  await planDialog.getByRole('button', { name: '复制第 1 课', exact: true }).click();
+  await planDialog.getByRole('textbox', { name: '第 2 课主题' }).fill('新课次主题');
+  await planDialog.getByRole('button', { name: '上移第 2 课', exact: true }).click();
+  assert.equal(await planDialog.getByRole('textbox', { name: '第 1 课主题' }).inputValue(), '新课次主题');
+  await planDialog.getByRole('button', { name: '删除第 1 课', exact: true }).click();
+  assert.equal(await planDialog.getByRole('textbox', { name: '第 1 课主题' }).inputValue(), originalLesson);
+  await planDialog.getByRole('button', { name: '取消', exact: true }).click();
+  await page.locator('#report-view [data-paper-chapter="summary"]').click();
+  await page.locator('#overview-text').click();
+  const inline = page.locator('#layout-edit-dialog');
+  const edited = '纸面编辑后的家长版结论。';
+  await inline.getByLabel('本次试听结论').fill(edited);
+  await inline.getByRole('button', { name: '应用修改' }).click();
+  await page.waitForFunction(value => document.querySelector('#overview-text').textContent === value, edited);
+  await page.getByRole('button', { name: '家长版预览' }).click();
+  assert.equal(await page.locator('#overview-text').getAttribute('role'), null);
+  assert.equal(await page.locator('#overview-text').textContent(), edited);
+  await page.getByRole('button', { name: '继续编辑' }).click();
+  await page.locator('#regenerate-report').click();
+  const source = page.locator('#report-view.paper-source-editing #report-form');
+  await source.waitFor();
+  assert.equal(await page.locator('#new-view').isVisible(), false);
+  assert.equal(await page.locator('#parent-conclusion').inputValue(), edited);
+  await page.locator('#parent-conclusion').fill('放弃这次资料修改');
+  await page.getByRole('button', { name: '取消修改' }).click();
+  assert.equal(await page.locator('#overview-text').textContent(), edited);
+  console.log('PASS: paper directory tracks scrolling, the course list supports row actions and source editing stays on the same report');
 
   reusableId = id;
   await page.reload({ waitUntil: 'domcontentloaded' });
@@ -243,22 +269,21 @@ try {
   console.log('PASS: persistent generation connection failures stop after two attempts and are not labeled rendering errors');
   failGeneration = false;
   failSave = true;
-  await page.getByRole('button', { name: '新建试听报告', exact: true }).click();
   await page.locator('#generation-notice [data-workflow-action="generate"]').click();
   await page.locator('[data-checklist-action="confirm"]').click();
   await page.locator('#report-operation-notice:not(.hidden)').waitFor();
   assert.match(await page.locator('#report-operation-notice').textContent(), /报告尚未保存/);
   assert.match(await page.locator('#report-operation-notice').textContent(), /不要关闭页面/);
-  const failedSave = requests.filter((item) => item.path === '/api/reports' && item.method === 'POST').at(-1);
-  assert.ok(failedSave.body.saveToken);
+  const failedSave = requests.filter((item) => item.path === '/api/reports' && item.method === 'PATCH').at(-1);
+  assert.equal(failedSave.body.id, id);
   const beforeSaveRetry = requests.filter((item) => item.path.includes('generate-report')).length;
   failSave = false;
   await page.locator('#report-operation-notice [data-workflow-action="save"]').click();
   await page.locator('#report-operation-notice').waitFor({ state: 'hidden' });
-  const retriedSave = requests.filter((item) => item.path === '/api/reports' && item.method === 'POST').at(-1);
-  assert.equal(retriedSave.body.saveToken, failedSave.body.saveToken);
+  const retriedSave = requests.filter((item) => item.path === '/api/reports' && item.method === 'PATCH').at(-1);
+  assert.equal(retriedSave.body.id, failedSave.body.id);
   assert.equal(requests.filter((item) => item.path.includes('generate-report')).length, beforeSaveRetry);
-  console.log('PASS: failed saves retain the report and retry the same save token without regenerating');
+  console.log('PASS: failed saves retain the report and retry the same report update without regenerating');
 
   await page.locator('#regenerate-report').click();
   await showFormModule('planning');
@@ -269,7 +294,8 @@ try {
       set() { delete this.textContent; throw new Error('TypeError private_debug_details'); },
     });
   });
-  await submit();
+  await requestGeneration();
+  await page.locator('[data-checklist-action="confirm"]').click();
   await page.locator('#report-operation-notice:not(.hidden)').waitFor();
   const renderNotice = await page.locator('#report-operation-notice').textContent();
   assert.match(renderNotice, /先保存报告/);
@@ -282,6 +308,7 @@ try {
   await page.locator('#save-report').click();
   console.log('PASS: rendering failures offer saving and reloading the valid report without regenerating');
 
+  await page.route(/-print\.jpg(?:\?|$)/, (route) => route.abort('failed'));
   failHistory = true;
   await page.getByRole('button', { name: '历史报告', exact: true }).click();
   await page.locator('#history-error-notice').waitFor();
@@ -292,7 +319,9 @@ try {
   await page.locator('#report-view').waitFor({ state: 'visible' });
   console.log('PASS: historical lookup errors can be retried in place without regenerating reports');
 
-  await page.route(/-print\.jpg(?:\?|$)/, (route) => route.abort('failed'));
+  await page.locator('#report-cover-image').evaluate(image => {
+    image.dataset.printSrc += '?test-image-failure';
+  });
   await page.evaluate(() => { window.print = () => { window.testPrintCalls = (window.testPrintCalls || 0) + 1; }; });
   await page.locator('#print-report').click();
   await page.locator('#report-operation-notice:not(.hidden)').waitFor();
@@ -300,6 +329,7 @@ try {
   assert.equal(await page.locator('#print-report').isEnabled(), true);
   assert.equal(await page.evaluate(() => window.testPrintCalls || 0), 0);
   console.log('PASS: image failures stop incomplete PDF export, explain the next step, and restore the export button');
+  await page.unroute(/-print\.jpg(?:\?|$)/);
 
   await page.getByRole('button', { name: '新建试听报告', exact: true }).click();
   await showFormModule('planning');
@@ -354,6 +384,7 @@ try {
   assert.equal(await page.locator('#new-view').isVisible(), true);
   assert.deepEqual(errors, []);
   console.log('PASS: style preview can retry and return to the form from the complete layout');
+  const shortRecord = record;
   const longStages = Array.from({ length:20 }, (_, index) => ({
     ...report.coursePlan.stages[0], title:'阶段' + index + '阶段主题'.repeat(12),
     description:'本阶段练习与课堂反馈'.repeat(12),
@@ -381,6 +412,48 @@ try {
   assert.ok(rails.length && rails.every(Boolean));
   console.log('PASS: twenty stages paginate with compact single-line print routes and all current stages highlighted');
   await page.emulateMedia({ media:'screen' });
+  record = shortRecord;
+  await page.getByRole('button', { name: '历史报告', exact: true }).click();
+  await page.locator('[data-history-id]').click();
+  await page.locator('#parent-report.layout-edit-mode').waitFor();
+  await page.locator('#regenerate-report').click();
+  const manuallyWritten = '这段是老师写给家长的试听结论。';
+  await page.locator('#parent-conclusion').fill(manuallyWritten);
+  const manualStart = requests.length;
+  const savedConclusion = page.waitForResponse(response => response.url().endsWith('/api/reports') && response.request().method() === 'PATCH');
+  await submit();
+  await savedConclusion;
+  assert.equal(record.report_data.overview, manuallyWritten);
+  assert.equal(record.course_plan.stages.length, shortRecord.course_plan.stages.length);
+  assert.equal(requests.slice(manualStart).some(item => item.path.includes('generate-report')), false);
+  await page.getByRole('button', { name: '家长版预览' }).click();
+  const preview = page.locator('#parent-report.paper-readonly');
+  assert.equal(await preview.locator('#overview-text').textContent(), manuallyWritten);
+  async function conclusionGeometry() {
+    return preview.locator('#overview-text').evaluate(field => {
+      const sheet = field.closest('.report-page').getBoundingClientRect();
+      const bounds = field.getBoundingClientRect();
+      return [sheet.width, sheet.height, bounds.left - sheet.left, bounds.top - sheet.top].map(Math.round);
+    });
+  }
+  const previewGeometry = await conclusionGeometry();
+  await page.emulateMedia({ media: 'print' });
+  assert.deepEqual(await conclusionGeometry(), previewGeometry);
+  assert.equal(await page.locator('#report-view .paper-rail').isVisible(), false);
+  const pdf = await page.pdf({ preferCSSPageSize: true, printBackground: true });
+  assert.equal(pdf.subarray(0, 5).toString(), '%PDF-');
+  await page.emulateMedia({ media: 'screen' });
+  console.log('PASS: hand-written conclusions update the same report and appear in the A4 preview and PDF');
+  await page.getByRole('button', { name: '继续编辑' }).click();
+  await page.locator('#report-view [data-paper-chapter="plan"]').click();
+  await page.getByRole('button', { name: '调整课次结构' }).click();
+  await planDialog.getByRole('textbox', { name: '第 1 课主题' }).fill('课次结构修改后的第一课');
+  const savedPlan = page.waitForResponse(response => response.url().endsWith('/api/reports') && response.request().method() === 'PATCH');
+  await planDialog.getByRole('button', { name: '应用到报告' }).click();
+  await savedPlan;
+  assert.equal(record.course_plan.stages[0].lessons[0].theme, '课次结构修改后的第一课');
+  assert.equal(await page.locator('[data-layout-path="plan.0.lessons.0.theme"]').textContent(), '课次结构修改后的第一课');
+  console.log('PASS: applying the course list updates the printed plan and saves the same history record');
   expireProfile = true;
   await page.reload({ waitUntil:'domcontentloaded' });
   const accountNotice = page.locator('.main > #account-notice');

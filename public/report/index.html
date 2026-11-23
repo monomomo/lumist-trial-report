@@ -4,7 +4,8 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>路觅教育｜试听课报告生成器</title>
-    <link rel="stylesheet" href="styles.css?v=school-exams-2" />
+    <link rel="stylesheet" href="styles.css?v=paper-workspace-1" />
+    <link rel="stylesheet" href="paper-workspace.css?v=1" />
   </head>
   <body>
     <div class="app-shell">
@@ -284,6 +285,7 @@
             <nav class="module-nav report-module-nav" aria-label="报告内容模块">
               <button type="button" data-report-tab="summary" aria-controls="summary-editor-modal" aria-current="page">试听总结</button>
               <button type="button" data-report-tab="plan" aria-controls="course-plan-modal">课程规划</button>
+              <button type="button" data-report-tab="layout" aria-controls="parent-report">版面编辑</button>
               <button type="button" data-report-tab="parent" aria-controls="parent-reading parent-report">家长版预览</button>
               <button type="button" data-report-tab="sales" aria-controls="sales-card">销售跟进卡 <small>内部</small></button>
             </nav>
@@ -323,14 +325,14 @@
                 <div class="summary-profile-section">
                   <div class="student-grid">
                     <div>
-                      <small>学生姓名</small><b id="info-name">阮同学</b>
+                      <small>学生姓名</small><b id="info-name" data-layout-path="student.name">阮同学</b>
                     </div>
                     <div>
                       <small>课程类型</small
                       ><b id="info-subject">SAT 数学试听</b>
                     </div>
                     <div>
-                      <small>目标分数</small><b id="info-target">750+</b>
+                      <small>目标分数</small><b id="info-target" data-layout-path="student.target">750+</b>
                     </div>
                     <div>
                       <small>任课教师</small><b id="info-teacher">老师</b>
@@ -338,17 +340,17 @@
                   </div>
                   <div class="analysis-box">
                     <h3>本次试听结论</h3>
-                    <p id="overview-text"></p>
+                    <p id="overview-text" data-layout-path="summary.overview"></p>
                   </div>
                   <div class="three-columns">
                     <section>
-                      <span>课堂状态</span><b id="classroom-text"></b>
+                      <span>课堂状态</span><b id="classroom-text" data-layout-path="summary.classroomStatus"></b>
                     </section>
                     <section>
-                      <span>已体现优势</span><b id="strength-text"></b>
+                      <span>已体现优势</span><b id="strength-text" data-layout-path="summary.strength"></b>
                     </section>
                     <section>
-                      <span>当前重点</span><b id="priority-text"></b>
+                      <span>当前重点</span><b id="priority-text" data-layout-path="summary.currentFocus"></b>
                     </section>
                   </div>
                 </div>
@@ -356,13 +358,13 @@
                   <h3 class="subheading">本节课内容与观察证据</h3>
                   <div class="lesson-card">
                     <p class="small-title">试听内容</p>
-                    <h3 id="lesson-title">SAT 数学四大章节框架与诊断</h3>
-                    <p id="lesson-text"></p>
+                    <h3 id="lesson-title" data-layout-path="summary.lessonTitle">SAT 数学四大章节框架与诊断</h3>
+                    <p id="lesson-text" data-layout-path="summary.lessonSummary"></p>
                   </div>
                   <div class="outcome-grid">
                     <section>
                       <h3>学生表现</h3>
-                      <p id="performance-text"></p>
+                      <p id="performance-text" data-layout-path="summary.performance"></p>
                     </section>
                     <section>
                       <h3>本节课收获</h3>
@@ -822,6 +824,17 @@
         </footer>
       </div>
     </div>
-    <script type="module" src="app.js?v=school-exams-2"></script>
+    <dialog id="layout-edit-dialog" class="layout-edit-dialog" aria-labelledby="layout-edit-title">
+      <form id="layout-edit-form">
+        <label for="layout-edit-value" id="layout-edit-title"></label>
+        <textarea id="layout-edit-value" rows="4"></textarea>
+        <p id="layout-edit-error" role="alert" hidden></p>
+        <div class="layout-edit-actions">
+          <button type="button" class="secondary-btn" id="layout-edit-cancel">取消</button>
+          <button type="submit" class="primary-btn">应用修改</button>
+        </div>
+      </form>
+    </dialog>
+    <script type="module" src="app.js?v=paper-workspace-1"></script>
   </body>
 </html>
