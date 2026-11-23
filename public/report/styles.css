@@ -312,7 +312,7 @@ nav .nav-item.active,nav .nav-item:hover { background:#5a4712; }
 .reference-plan-page .plan-detail-cell { padding:8px 11px 7px; }
 .reference-plan-page .plan-detail-cell>b { display:block; color:#302918; font-size:11.5px; line-height:1.4; margin-bottom:3px; }
 .reference-plan-page .plan-detail-cell p { margin:2px 0; color:#585348; font-size:10px; line-height:1.42; }
-.reference-plan-page .plan-detail-cell p span { color:#9a7100; font-weight:900; }
+.reference-plan-page .plan-detail-cell p > span:first-child { color:#9a7100; font-weight:900; }
 .reference-plan-page .plan-note { margin-top:9px; padding:8px 10px; color:#685925; font-size:10px; line-height:1.45; }
 .reference-plan-page .plan-note-reserve { visibility:hidden; }
 .plan-measurement-host { position:absolute; left:-10000px; top:0; width:210mm; visibility:hidden; pointer-events:none; }
@@ -355,24 +355,26 @@ nav .nav-item.active,nav .nav-item:hover { background:#5a4712; }
 body.modal-open { overflow:hidden; }
 .plan-editor-modal { position:fixed; inset:0; z-index:1000; background:rgba(27,24,15,.62); padding:16px; display:grid; place-items:center; }
 .plan-editor-modal.hidden { display:none; }
-.generation-checklist-shell { width:min(720px,100%); max-height:calc(100dvh - 32px); overflow:auto; background:#fff; border-radius:16px; box-shadow:0 28px 80px rgba(0,0,0,.28); }
-.generation-checklist-shell>header { padding:25px 28px 20px; border-bottom:1px solid #eadfbf; }
-.generation-checklist-shell h2 { margin:0 0 7px; color:#2c2513; font-size:24px; }
+.generation-checklist-shell { width:min(720px,100%); max-height:calc(100dvh - 32px); display:grid; grid-template-rows:auto minmax(0,1fr) auto; overflow:hidden; background:#fff; border-radius:16px; box-shadow:0 28px 80px rgba(0,0,0,.28); }
+.generation-checklist-shell>header { padding:16px 24px 12px; border-bottom:1px solid #eadfbf; }
+.generation-checklist-shell h2 { margin:0 0 5px; color:#2c2513; font-size:22px; }
 .generation-checklist-shell>header>p:last-child { margin:0; color:#766d56; font-size:12px; line-height:1.6; }
-.generation-conflict-summary { margin:18px 28px 0; padding:14px 16px; border:1px solid #e49b80; border-radius:10px; background:#fff1ec; color:#7f2f1f; }
+.generation-checklist-body { min-height:0; overflow-y:auto; overscroll-behavior:contain; padding:14px 24px; background:#fffefa; }
+.generation-checklist-body:focus-visible { outline:2px solid #c69925; outline-offset:-2px; }
+.generation-conflict-summary { margin:0 0 10px; padding:10px 12px; border:1px solid #e49b80; border-radius:10px; background:#fff1ec; color:#7f2f1f; }
 .generation-conflict-summary.hidden { display:none; }
 .generation-conflict-summary strong { display:block; margin-bottom:5px; font-size:14px; }
 .generation-conflict-summary p { margin:0; font-size:12px; line-height:1.6; }
-.generation-checklist-shell>main { display:grid; grid-template-columns:1fr 1fr; gap:10px; padding:22px 28px; background:#fffefa; }
-.generation-checklist-item { min-width:0; border:1px solid #e8dfc4; border-radius:9px; padding:12px 14px; background:#fff; }
+#generation-checklist-content { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:8px; }
+.generation-checklist-item { min-width:0; border:1px solid #e8dfc4; border-radius:9px; padding:8px 12px; background:#fff; }
 .generation-checklist-item span,.generation-checklist-item b { display:block; }
-.generation-checklist-item span { color:#857a5d; font-size:10px; font-weight:700; margin-bottom:5px; }
+.generation-checklist-item span { color:#857a5d; font-size:11px; font-weight:700; margin-bottom:3px; }
 .generation-checklist-item b { color:#332d20; font-size:13px; line-height:1.45; overflow-wrap:anywhere; }
 .generation-checklist-item.warning { border-color:#e8c75b; background:#fff9df; }
 .generation-checklist-item.conflict { border-color:#e49b80; background:#fff4ef; }
 .generation-checklist-item.conflict span { color:#a33e29; }
 .generation-checklist-item.optional b { color:#746d5d; font-weight:600; }
-.generation-checklist-shell>footer { display:flex; justify-content:flex-end; gap:9px; padding:16px 28px 20px; border-top:1px solid #eadfbf; }
+.generation-checklist-shell>footer { display:flex; justify-content:flex-end; gap:8px; padding:10px 24px 12px; border-top:1px solid #eadfbf; background:#fff; }
 .generation-checklist-shell>footer .primary-btn { width:auto; margin:0; padding:10px 18px; }
 .plan-editor-shell { width:min(1480px,100%); height:calc(100vh - 32px); max-height:980px; background:#fff; border-radius:16px; box-shadow:0 28px 80px rgba(0,0,0,.28); display:grid; grid-template-rows:auto minmax(0,1fr) auto auto; overflow:hidden; }
 .plan-editor-header { padding:22px 28px 18px; display:flex; justify-content:space-between; gap:24px; border-bottom:1px solid #eadfbf; }
@@ -482,16 +484,16 @@ body.modal-open { overflow:hidden; }
   .summary-list-row>button { grid-column:2; justify-self:start; margin-top:0; }
   .summary-editor-footer>span { grid-column:1 / -1; }
   .generation-checklist-shell { width:100%; max-height:100dvh; border-radius:0; }
-  .generation-checklist-shell>header,.generation-checklist-shell>main,.generation-checklist-shell>footer { padding-left:16px; padding-right:16px; }
-  .generation-conflict-summary { margin-left:16px; margin-right:16px; }
-  .generation-checklist-shell>main,.quality-check-list { grid-template-columns:1fr; }
+  .generation-checklist-shell>header,.generation-checklist-body,.generation-checklist-shell>footer { padding-inline:16px; }
+  .generation-checklist-shell>footer { padding-bottom:max(12px,env(safe-area-inset-bottom)); }
+  .quality-check-list { grid-template-columns:1fr; }
 }
 @media print { body.modal-open { overflow:visible !important; }.report-page.delivery-only { display:block !important; }.reference-plan-page { padding:42px 53px !important; }.reference-plan-page tr { break-inside:avoid !important; page-break-inside:avoid !important; }.plan-editor-modal,#edit-course-plan,#edit-summary { display:none !important; } }
 .ap-only { display:none; }
 .report-document.ap-report .ap-only { display:block; }
 .ap-subject-results-page { padding:0; overflow:hidden; }
 .ap-subject-results-page>img { display:block; width:100%; height:100%; object-fit:cover; }
-.report-document.ap-report .report-page { position:relative; }
+.report-document.ap-report .report-page { position:relative; isolation:isolate; }
 .report-document.ap-report .report-page::before { content:""; position:absolute; top:20px; right:24px; z-index:30; width:190px; aspect-ratio:1280 / 365; background:url("assets/lumist-ap-slogan.png") center / contain no-repeat; pointer-events:none; }
 .report-document.ap-report .closing-page::before { display:none; }
 @media print { .report-document:not(.ap-report) .ap-only { display:none !important; }.report-document.ap-report .report-page::before { top:16px; right:20px; width:170px; } }
@@ -646,8 +648,8 @@ body.modal-open { overflow:hidden; }
 .phase-route { margin:6px 0 10px; print-color-adjust:exact; }
 .phase-route small { color:#766a4f; }
 .phase-route>div { display:flex; flex-wrap:wrap; gap:2px; }
-.phase-route span { flex-basis:0; min-width:57px; padding:4px 6px; text-align:center; background:#fff1bf; color:#514727; font:bold 10px/1.4 Arial; clip-path:polygon(0 0,calc(100% - 7px) 0,100% 50%,calc(100% - 7px) 100%,0 100%,7px 50%); }
-.phase-route .here { color:#2c2513; background:#ffc928; }
+.phase-route > div > span { flex-basis:0; min-width:57px; padding:4px 6px; text-align:center; background:#fff1bf; color:#514727; font:bold 10px/1.4 Arial; clip-path:polygon(0 0,calc(100% - 7px) 0,100% 50%,calc(100% - 7px) 100%,0 100%,7px 50%); }
+.phase-route > div > .here { color:#2c2513; background:#ffc928; }
 
 #new-view .workspace { display:block; }
 #report-form { display:grid; grid-template-columns:180px minmax(0,1fr); gap:28px; align-items:start; }
@@ -769,7 +771,7 @@ details[open]> .quality-notice-header::after,details[open]> .editor-disclosure::
 }
 .phase-route { container:phase-line / inline-size; }
 .phase-route>.rail-near,.phase-route>.rail-focus { display:none; }
-.phase-route .route-gap { flex-grow:0; background:transparent; clip-path:none; color:#766a4f; }
+.phase-route > div > .route-gap { flex-grow:0; background:transparent; clip-path:none; color:#766a4f; }
 .phase-brief { margin-top:6px; padding:6px 10px; background:#fff7de; border-left:3px solid #e3ad13; overflow-wrap:anywhere; }
 .phase-brief h3 { margin:2px 0; font-size:15px; color:#514727; }
 .plan-stage-group + .plan-stage-group { margin-top:12px; }
@@ -781,7 +783,7 @@ details[open]> .quality-notice-header::after,details[open]> .editor-disclosure::
 .school-exam input { min-width:0; padding:6px; border:1px solid #dfe3ed; border-radius:6px; }
 
 :is(.plan-detail-cell p,.phase-brief) .layout-value { color:inherit; font:inherit; }
-.layout-edit-dialog { position:fixed; margin:0; width:min(420px,calc(100vw - 24px)); max-height:calc(100vh - 24px); padding:16px; color:#352a15; background:#fffefa; border:1px solid #dfc986; border-radius:12px; box-shadow:0 14px 42px #3929002b; }
+.layout-edit-dialog { position:fixed; margin:0; width:min(420px,var(--editor-width, calc(100vw - 24px))); max-height:var(--editor-height, calc(100dvh - 24px)); padding:16px; color:#352a15; background:#fffefa; border:1px solid #dfc986; border-radius:12px; box-shadow:0 14px 42px #3929002b; }
 .layout-edit-dialog::backdrop { background:transparent; }
 .layout-edit-dialog label { display:block; font-weight:750; margin-bottom:8px; }
 .layout-edit-dialog textarea { width:100%; padding:9px 10px; color:inherit; border:1px solid #d8d1bd; border-radius:8px; resize:vertical; line-height:1.55; }
@@ -801,5 +803,12 @@ details[open]> .quality-notice-header::after,details[open]> .editor-disclosure::
 @media screen and (max-width:600px) {
   #report-mode-banner:has(.layout-jumps) { align-items:flex-start; flex-direction:column; gap:12px; }
   #parent-report.layout-edit-mode .report-page { scroll-margin-top:210px; }
+}
+@media screen and (max-width:720px) {
+  body.layout-edit-open { overflow:hidden; }
+  .layout-edit-dialog::backdrop { background:#2c251340; touch-action:none; }
+  .layout-edit-dialog form { display:grid; grid-template-rows:auto minmax(0,1fr) auto auto; max-height:calc(var(--editor-height,100dvh) - 34px); }
+  .layout-edit-dialog textarea { min-height:0; min-width:0; font-size:16px; resize:none; }
+  #parent-report.layout-edit-mode .layout-edit-selected { background:#ffe59a; outline:2px solid #c69a33; }
 }
 @media print { .layout-edit-dialog { display:none !important; } }

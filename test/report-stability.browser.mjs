@@ -111,6 +111,28 @@ try {
   assert.equal(await page.locator('#teacher-notes').inputValue(), input.teacherNotes);
   assert.equal(await page.locator('[name="regeneration-plan-mode"][value="preserve"]').isChecked(), true);
   const previousCount = requests.length;
+  const checklist = page.locator('#generation-checklist-modal');
+  for (const [width, height] of [[1440, 900], [820, 430], [390, 420], [320, 440]]) {
+    await page.setViewportSize({ width, height });
+    await requestGeneration();
+    await checklist.waitFor();
+    const body = checklist.locator('.generation-checklist-body');
+    const confirm = checklist.locator('[data-checklist-action="confirm"]');
+    const position = await confirm.boundingBox();
+    assert.ok(position.y >= 0 && position.y + position.height <= height);
+    assert.equal(await body.evaluate(element => element.scrollTop), 0);
+    const scrollDistance = await body.evaluate(element => {
+      element.scrollTop = element.scrollHeight;
+      return element.scrollTop;
+    });
+    if (width === 1440) assert.equal(scrollDistance, 0);
+    if (width === 390) assert.ok(scrollDistance > 0);
+    assert.deepEqual(await confirm.boundingBox(), position);
+    await checklist.getByRole('button', { name: '返回修改' }).click();
+    await checklist.waitFor({ state: 'hidden' });
+  }
+  await page.setViewportSize({ width: 1440, height: 1000 });
+  console.log('PASS: generation checklist scrolls independently of its confirmation controls');
   await submit();
   assert.equal(requests.slice(previousCount).some((item) => item.path.includes('generate-report') || item.method === 'PATCH'), false);
   console.log('PASS: identical current input preserves the report without generation or duplicate saves');
@@ -456,6 +478,29 @@ try {
   assert.equal(record.course_plan.stages[0].lessons[0].theme, '课次结构修改后的第一课');
   assert.equal(await page.locator('[data-layout-path="plan.0.lessons.0.theme"]').textContent(), '课次结构修改后的第一课');
   console.log('PASS: applying the course list updates the printed plan and saves the same history record');
+  await page.setViewportSize({ width:390, height:844 });
+  const mobileReport = page.locator('#parent-report.layout-edit-mode');
+  await page.waitForFunction(() => {
+    const report = document.querySelector('#parent-report');
+    return report.scrollWidth <= report.clientWidth + 1;
+  });
+  await page.getByRole('button', { name:'放大报告' }).click();
+  assert.ok(await mobileReport.evaluate(report => report.scrollWidth > report.clientWidth));
+  await page.getByRole('button', { name:'报告适配屏宽' }).click();
+  assert.ok(await mobileReport.evaluate(report => report.scrollWidth <= report.clientWidth + 1));
+  await page.locator('#report-view .paper-mobile-nav').selectOption('summary');
+  await page.locator('#overview-text').click();
+  await page.evaluate(() => {
+    Object.defineProperty(visualViewport, 'height', { value:300, configurable:true });
+    visualViewport.dispatchEvent(new Event('resize'));
+  });
+  const editDialog = page.locator('#layout-edit-dialog');
+  const editButton = await editDialog.getByRole('button', { name:'应用修改' }).boundingBox();
+  assert.ok(editButton.y >= 0 && editButton.y + editButton.height <= 300);
+  await editDialog.getByRole('button', { name:'取消' }).click();
+  await page.evaluate(() => { delete visualViewport.height; });
+  await page.waitForFunction(() => document.activeElement.id === 'overview-text');
+  console.log('PASS: mobile report fits the screen, zooms on demand and keeps the editor clear of the keyboard');
   expireProfile = true;
   await page.reload({ waitUntil:'domcontentloaded' });
   const accountNotice = page.locator('.main > #account-notice');

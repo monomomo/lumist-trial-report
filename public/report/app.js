@@ -1,4 +1,4 @@
-import { mountPaperWorkspace } from './paper-workspace.js?v=1';
+import { mountPaperWorkspace } from './paper-workspace.js?v=2';
 import { ALLOWED_DURATIONS, cloneCoursePlan, calculateTotalHours, validateCoursePlan, moveItem, moveLesson, rebalanceFinalPage, createStage, createLesson } from './course-plan-utils.js';
 import { SUBJECT_CODES, SUBJECT_CATALOG, resolveSubject, validateSubjectScores } from './catalog.js';
 import { createSubjectViewModel, normalizeTeacherProfile, buildFallbackReport, resolveTargetScore } from './report-domain.js';
@@ -12,6 +12,8 @@ import { normalizeGenerationInput, getGenerationAction, sameCoursePlan } from '.
 import { requestReportJson, requestFailureMetadata } from './request-utils.js';
 import { getWorkflowError } from './workflow-errors.js';
 import { waitForPrintImage } from './export-utils.js';
+
+if (window.parent !== window) document.documentElement.classList.add('embedded-workspace');
 
 const $ = (selector) => document.querySelector(selector);
 const setText = (selector, value) => { $(selector).textContent = value; };
@@ -2120,7 +2122,8 @@ function openGenerationChecklist() {
   $('[data-checklist-action="confirm"]').textContent = conflicts.length ? '已知晓，继续生成' : '确认并生成';
   $('#generation-checklist-modal').classList.remove('hidden');
   document.body.classList.add('modal-open');
-  window.setTimeout(() => $('[data-checklist-action="confirm"]')?.focus(), 0);
+  $('.generation-checklist-body').scrollTop = 0;
+  $('[data-checklist-action="confirm"]').focus({ preventScroll: true });
   return new Promise((resolve) => {
     generationChecklistResolver = resolve;
   });
@@ -3120,24 +3123,59 @@ function findLayoutFieldTarget(report, parts) {
   return parts.slice(0, -1).reduce((target, part) => target[part], report);
 }
 
+const layoutEditDialog = $('#layout-edit-dialog');
+const compactLayoutEditor = window.matchMedia('(max-width: 720px)');
+const reportFrame = window.frameElement;
+const editorViewport = reportFrame ? window.parent.visualViewport : window.visualViewport;
+
+function positionLayoutEditor() {
+  if (!layoutEditDialog.open || !activeLayoutEdit?.anchor) return;
+  const anchor = activeLayoutEdit.anchor.getBoundingClientRect();
+  const frame = reportFrame?.getBoundingClientRect();
+  const viewportLeft = editorViewport ? editorViewport.offsetLeft - (frame?.left || 0) : 0;
+  const viewportTop = editorViewport ? editorViewport.offsetTop - (frame?.top || 0) : 0;
+  const left = Math.max(0, viewportLeft);
+  const top = Math.max(0, viewportTop);
+  const right = Math.min(innerWidth, viewportLeft + (editorViewport?.width || innerWidth));
+  const bottom = Math.min(innerHeight, viewportTop + (editorViewport?.height || innerHeight));
+  const inset = 12;
+  layoutEditDialog.style.setProperty('--editor-width', `${Math.max(0, right - left - inset * 2)}px`);
+  layoutEditDialog.style.setProperty('--editor-height', `${Math.max(0, bottom - top - inset * 2)}px`);
+  const width = layoutEditDialog.offsetWidth;
+  const x = compactLayoutEditor.matches ? (left + right - width) / 2 : anchor.left;
+  const y = compactLayoutEditor.matches ? top + inset : anchor.bottom + 8;
+  layoutEditDialog.style.left = `${Math.max(left + inset, Math.min(x, right - width - inset))}px`;
+  layoutEditDialog.style.top = `${Math.max(top + inset, Math.min(y, bottom - layoutEditDialog.offsetHeight - inset))}px`;
+}
+
+function stopTrackingLayoutViewport() {
+  editorViewport?.removeEventListener('resize', positionLayoutEditor);
+  editorViewport?.removeEventListener('scroll', positionLayoutEditor);
+  window.removeEventListener('resize', positionLayoutEditor);
+}
+
 function openLayoutEdit(anchor) {
+  if (layoutEditDialog.open) return;
   const path = anchor.dataset.layoutPath;
   const field = getLayoutField(path);
-  const dialog = $('#layout-edit-dialog');
   const input = $('#layout-edit-value');
   const value = field.control?.value ?? findLayoutFieldTarget(currentReportData, field.parts)[field.parts.at(-1)];
-  activeLayoutEdit = { anchor, field, path };
+  activeLayoutEdit = { anchor, field, path, previousTop: anchor.getBoundingClientRect().top };
   $('#layout-edit-title').textContent = field.label;
   $('#layout-edit-error').hidden = true;
   input.value = value || '';
   if (path === 'student.target') input.placeholder = '留空使用科目默认值';
   else input.removeAttribute('placeholder');
-  dialog.showModal();
-  const bounds = anchor.getBoundingClientRect();
-  dialog.style.left = `${Math.max(12, Math.min(bounds.left, window.innerWidth - dialog.offsetWidth - 12))}px`;
-  dialog.style.top = `${Math.max(12, Math.min(bounds.bottom + 8, window.innerHeight - dialog.offsetHeight - 12))}px`;
-  input.focus();
-  input.select();
+  anchor.classList.add('layout-edit-selected');
+  document.body.classList.add('layout-edit-open');
+  layoutEditDialog.showModal();
+  editorViewport?.addEventListener('resize', positionLayoutEditor);
+  editorViewport?.addEventListener('scroll', positionLayoutEditor);
+  window.addEventListener('resize', positionLayoutEditor);
+  positionLayoutEditor();
+  input.focus({ preventScroll: true });
+  if (compactLayoutEditor.matches) input.setSelectionRange(input.value.length, input.value.length);
+  else input.select();
 }
 
 $('#parent-report').addEventListener('click', (event) => {
@@ -3152,9 +3190,15 @@ $('#parent-report').addEventListener('keydown', (event) => {
   }
 });
 $('#layout-edit-cancel').addEventListener('click', () => $('#layout-edit-dialog').close());
-$('#layout-edit-dialog').addEventListener('close', () => {
-  activeLayoutEdit?.anchor?.focus({ preventScroll: true });
+layoutEditDialog.addEventListener('close', () => {
+  stopTrackingLayoutViewport();
+  const edit = activeLayoutEdit;
   activeLayoutEdit = null;
+  document.body.classList.remove('layout-edit-open');
+  if (!edit?.anchor) return;
+  edit.anchor.classList.remove('layout-edit-selected');
+  edit.anchor.focus({ preventScroll: true });
+  window.scrollBy({ top: edit.anchor.getBoundingClientRect().top - edit.previousTop, behavior: 'instant' });
 });
 $('#layout-edit-form').addEventListener('submit', (event) => {
   event.preventDefault();
@@ -3170,12 +3214,12 @@ $('#layout-edit-form').addEventListener('submit', (event) => {
   if (error) {
     errorText.textContent = error;
     errorText.hidden = false;
+    positionLayoutEditor();
     return;
   }
 
   const selector = `#parent-report [data-layout-path="${path}"]`;
   const position = [...document.querySelectorAll(selector)].indexOf(anchor);
-  const previousTop = anchor.getBoundingClientRect().top;
   const previousReport = currentReportData;
   const previousValue = field.control?.value;
   if (field.control) {
@@ -3203,7 +3247,6 @@ $('#layout-edit-form').addEventListener('submit', (event) => {
   const updated = document.querySelectorAll(selector)[position] || $(selector);
   activeLayoutEdit.anchor = updated;
   $('#layout-edit-dialog').close();
-  if (updated) window.scrollBy({ top: updated.getBoundingClientRect().top - previousTop, behavior: 'instant' });
   document.querySelector('#report-view .eyebrow').textContent = '版面已编辑 · 未云端保存';
   scheduleReportAutoSave();
 });

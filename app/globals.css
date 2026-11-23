@@ -896,12 +896,17 @@ input {
 
 .workspace-shell {
   height: 100vh;
+  height: 100dvh;
   display: grid;
-  grid-template-rows: 54px minmax(0, 1fr);
+  grid-template-rows: auto minmax(0, 1fr);
   background: #eef1f7;
 }
 
+.workspace-shell:has(> .auth-error) { grid-template-rows: auto auto minmax(0, 1fr); }
+
 .workspace-topbar {
+  min-height: 54px;
+  gap: 12px;
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -924,6 +929,45 @@ input {
   display: flex;
   align-items: center;
   gap: 8px;
+}
+
+.workspace-account { position: relative; min-width: 0; max-width: 46%; }
+.workspace-account summary {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  min-height: 40px;
+  padding: 0 12px;
+  border: 1px solid #e9ddba;
+  border-radius: 8px;
+  background: #fff9e8;
+  color: #5f4710;
+  cursor: pointer;
+  list-style: none;
+}
+.workspace-account summary::-webkit-details-marker { display: none; }
+.workspace-account summary span { margin: 0; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: inherit; font-size: 13px; font-weight: 700; }
+.workspace-account summary::after { content: ''; flex: 0 0 6px; height: 6px; border-right: 1.5px solid currentColor; border-bottom: 1.5px solid currentColor; transform: translateY(-2px) rotate(45deg); }
+.workspace-account-actions {
+  position: absolute;
+  top: calc(100% + 6px);
+  right: 0;
+  z-index: 40;
+  display: grid;
+  min-width: 130px;
+  padding: 5px;
+  border: 1px solid #e8dec4;
+  border-radius: 10px;
+  background: #fffefa;
+  box-shadow: 0 8px 24px #29200e26;
+}
+.workspace-topbar .workspace-account-actions > button { background: transparent; color: #302817; text-align: left; min-height: 40px; }
+.workspace-topbar .workspace-account-actions > button:hover { background: #fff4ca; }
+
+@media (max-width: 900px) {
+  .workspace-shell > .workspace-topbar { min-height: 50px; padding: 0 16px; background: #2c2513; color: #fff5db; border-bottom: 1px solid #fff2c722; }
+  .workspace-heading strong { font-size: 13px; }
+  .workspace-account summary { min-height: 36px; background: #fff5db16; color: #fff5db; border-color: #fff2c736; }
 }
 
 .password-modal-backdrop {

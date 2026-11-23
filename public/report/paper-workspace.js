@@ -86,7 +86,7 @@ export function mountPaperWorkspace({
   $('#new-view h1').textContent = '新建试听报告';
 
   function stickyOffset(view) {
-    return ['.paper-chrome', '.paper-mobile-nav'].reduce((height, selector) => {
+    return ['.paper-chrome', '.paper-mobile-controls, .paper-mobile-nav'].reduce((height, selector) => {
       const node = view.querySelector(selector);
       return height + (getComputedStyle(node).position === 'sticky' ? node.getBoundingClientRect().height : 0);
     }, 0);
@@ -254,6 +254,52 @@ export function mountPaperWorkspace({
   tools.label = '报告操作';
   tools.append(new Option('调整课次结构', 'adjust'), new Option('修改生成资料', 'source'));
   mobileNavigation.append(tools);
+  const mobileControls = element('div', 'paper-mobile-controls');
+  mobileNavigation.before(mobileControls);
+  mobileControls.append(mobileNavigation);
+  const zoomControls = element('div', 'paper-zoom');
+  zoomControls.setAttribute('role', 'group');
+  zoomControls.setAttribute('aria-label', '报告缩放');
+
+  let zoomSteps = 0;
+  const fullPageWidth = 210 * 96 / 25.4;
+  const zoomOut = button('−', () => changeZoom(zoomSteps - 1));
+  const zoomIn = button('+', () => changeZoom(zoomSteps + 1));
+  const fitWidth = button('适宽', () => changeZoom(0));
+  zoomOut.setAttribute('aria-label', '缩小报告');
+  zoomIn.setAttribute('aria-label', '放大报告');
+  fitWidth.setAttribute('aria-label', '报告适配屏宽');
+  zoomControls.append(zoomOut, fitWidth, zoomIn);
+  mobileControls.append(zoomControls);
+
+  function applyZoom() {
+    const width = documentPages.clientWidth;
+    if (!width) return;
+    const scale = Math.min(1, width / fullPageWidth * 1.25 ** zoomSteps);
+    documentPages.style.setProperty('--report-screen-zoom', String(scale));
+    zoomOut.disabled = zoomSteps === 0;
+    zoomIn.disabled = scale >= 1;
+    fitWidth.textContent = zoomSteps === 0 ? '适宽' : `${Math.round(scale * 100)}%`;
+    if (zoomSteps === 0) documentPages.scrollLeft = 0;
+  }
+
+  function changeZoom(steps) {
+    const readingLine = Math.max(80, mobileControls.getBoundingClientRect().bottom + 16);
+    const page = [...documentPages.querySelectorAll('.report-page')].find(sheet => {
+      const bounds = sheet.getBoundingClientRect();
+      return bounds.height > 0 && bounds.bottom > readingLine;
+    });
+    const before = page?.getBoundingClientRect();
+    zoomSteps = steps;
+    applyZoom();
+    if (page && before.height) {
+      const after = page.getBoundingClientRect();
+      const offset = Math.max(0, readingLine - before.top) / before.height;
+      window.scrollBy({ top: after.top + offset * after.height - before.top - offset * before.height, behavior: 'instant' });
+    }
+  }
+  new ResizeObserver(applyZoom).observe(documentPages);
+
   mobileNavigation.addEventListener('change', () => {
     if (mobileNavigation.value === 'adjust') {
       reportNav.highlight('plan');
@@ -283,8 +329,13 @@ export function mountPaperWorkspace({
       }
     }
     reportView.classList.toggle('paper-sample', active && isQuickPreview());
-    if (!active) wasReport = false;
+    if (!active && wasReport) {
+      wasReport = false;
+      zoomSteps = 0;
+      applyZoom();
+    }
     const mode = currentMode();
+    zoomControls.hidden = mode === 'other';
     const label = mode === 'preview' ? '继续编辑' : mode === 'other' ? '返回报告' : '家长版预览';
     if (modeButton.textContent !== label) modeButton.textContent = label;
   }
