@@ -856,3 +856,6 @@ details[open]> .quality-notice-header::after,details[open]> .editor-disclosure::
 .report-observation-row p { margin:0; font-size:11px; line-height:1.55; }
 .report-observation-row p:not(:first-child):not(:empty) { margin-top:4px; }
 .report-summary-to-plan { display:inline-block; margin-top:7px; font-size:11px; }
+.report-stage-recap { margin:12px 0 0; padding:9px 12px; border-left:3px solid #8b5b13; background:#fff5db; color:#493617; break-inside:avoid; print-color-adjust:exact; }
+.report-stage-recap h3 { margin:0 0 5px; font-size:15px; color:#845312; }
+.report-stage-recap p { margin:2px 0; font-size:12px; line-height:1.45; }

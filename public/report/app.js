@@ -615,6 +615,13 @@ function reportAnchor(kind, item, index) {
   return `report-${kind}-${key}`;
 }
 
+function stageRecapHtml(stage,index) {
+  const fields = [['task','阶段测'],['target','达标标准'],['adjustment','后续调整']];
+  const detail = fields.filter(([key]) => stage.assessment?.[key]).map(([key,label]) =>
+    `<p><b>${label}：</b><span${index === undefined ? '' : ` data-layout-path="plan.${index}.assessment.${key}"`}>${escapeHtml(stage.assessment[key])}</span></p>`).join('');
+  return '<h3>阶段测与学情反馈</h3>' + (detail || '<p>本阶段结束后，由老师结合学生作答反馈掌握情况与下一步建议。</p>');
+}
+
 function renderCoursePlan(coursePlan) {
   // Legacy reports acquire IDs before their next normal save. Reordering only changes display numbers.
   const seenIds = new Set();
@@ -671,7 +678,6 @@ function renderCoursePlan(coursePlan) {
           ${continuation ? '' : `<div class="report-stage-objectives">
             ${objective ? `<p><b>阶段目标</b><span data-layout-path="${stagePath}.${objectivePath}">${escapeHtml(objective)}</span></p>` : ''}
             ${stage.description && objectivePath !== 'description' ? `<p><b>课程安排</b><span data-layout-path="${stagePath}.description">${escapeHtml(stage.description)}</span></p>` : ''}
-            ${stage.assessment ? [['task','复查方式'],['target','达标标准'],['adjustment','后续调整']].map(([field,label]) => stage.assessment[field] && objectivePath !== `assessment.${field}` ? `<p><b>${label}</b><span data-layout-path="${stagePath}.assessment.${field}">${escapeHtml(stage.assessment[field])}</span></p>` : '').join('') : ''}
           </div>`}
           <div class="report-lesson-list"></div>
         </section>`);
@@ -693,7 +699,7 @@ function renderCoursePlan(coursePlan) {
       const lessonAnchor = reportAnchor('lesson', lesson, localIndex);
       lessonAnchors.push(lessonAnchor);
       const lessonPath = `${stagePath}.lessons.${localIndex}`;
-      const fields = [['goal', '学习目标'], ['content', '授课内容'], ['difficulty', '重难点']]
+      const fields = [['goal', '学习目标']]
         .filter(([field]) => lesson[field])
         .map(([field, label]) => ({ field, label, text: String(lesson[field]) }));
 
@@ -762,6 +768,24 @@ function renderCoursePlan(coursePlan) {
           }
         }
       }
+    }
+    const recap = document.createElement('aside');
+    recap.className = 'report-stage-recap';
+    recap.innerHTML = stageRecapHtml(stage,index);
+    page.querySelector('.plan-stage-group').append(recap);
+    if (overflows(page)) {
+      const lastLesson = page.querySelector('.report-lesson-list').lastElementChild;
+      const moveLesson = Boolean(lastLesson?.previousElementSibling);
+      recap.remove();
+      if (moveLesson) {
+        lastLesson.remove();
+        updateRange();
+      }
+      page = makeDetailPage(true);
+      if (moveLesson) page.querySelector('.report-lesson-list').append(lastLesson);
+      if (moveLesson) updateRange();
+      else page.querySelector('[data-page-lesson-range]').textContent = '阶段总结';
+      page.querySelector('.plan-stage-group').append(recap);
     }
     stages.push({ stage, index, anchor, first, last, hours, units, objective, objectivePath, firstPageIndex,
       lastPageIndex: detailPages.length - 1, lessonAnchors });
@@ -3138,10 +3162,10 @@ function renderParentReading(data) {
         <details class="reading-stage">
           <summary><strong>${index + 1}. ${escapeHtml(stage.title)}</strong><span>${stage.lessons.length} 课次 · ${calculateTotalHours({ stages: [stage] })} 小时</span></summary>
           <p>${escapeHtml(stage.description)}</p>
-          ${stageAssessmentHtml(stage)}
           <ol class="reading-lessons">${stage.lessons.map((lesson) => `
             <li><strong>第 ${++lessonNumber} 课 · ${escapeHtml(lesson.theme)} · ${escapeHtml(lesson.duration)}h</strong>
-            <p>${escapeHtml(lesson.content)}</p><p>${escapeHtml(lesson.goal)}</p></li>`).join('')}</ol>
+            ${lesson.goal ? `<p>${escapeHtml(lesson.goal)}</p>` : ''}</li>`).join('')}</ol>
+          <aside class="report-stage-recap">${stageRecapHtml(stage)}</aside>
         </details>`).join('')}
     </section>`;
 }
