@@ -36,9 +36,9 @@ test('course plan pagination reserves print safety space', async () => {
   assert.match(source, /REPORT_PAGE_HEIGHT_MM = 296/);
   assert.match(source, /PLAN_PAGE_VERTICAL_PADDING = 84/);
   assert.match(source, /PLAN_PAGE_SAFETY_MARGIN = 32/);
-  assert.match(source, /body\.scrollHeight > PLAN_PAGE_AVAILABLE_HEIGHT/);
+  assert.match(source, /getBody\(page\)\.scrollHeight > PLAN_PAGE_AVAILABLE_HEIGHT/);
   assert.equal(source.includes('page.clientHeight'), false);
-  assert.match(source, /\['plan-page-compact', 'plan-page-condensed'\]/);
+  assert.match(source, /makeDetailPage\(true\)/);
   assert.match(styles, /\.plan-measurement-host \.plan-page-body \{ overflow:hidden; \}/);
   assert.equal(styles.includes('.plan-measurement-host .plan-page-body { height:100%'), false);
   assert.match(styles, /contain:layout paint; break-inside:avoid-page;/);
@@ -48,8 +48,8 @@ test('course plan pagination reserves print safety space', async () => {
 
 test('course plan report labels sequence numbers as lesson occurrences instead of teaching hours', async () => {
   const appSource = await readFile(new URL('../public/report/app.js', import.meta.url), 'utf8');
-  assert.match(appSource, /<th>课次<\/th><th>时长<\/th>/);
-  assert.match(appSource, /<span>课次<\/span>/);
+  assert.match(appSource, /本页第 \$\{range\(start, end\)\} 课/);
+  assert.match(appSource, /第 \$\{number\(lessonNumber\)\} 课/);
   assert.doesNotMatch(appSource, /<th>课时<\/th><th>时长<\/th>/);
 });
 
@@ -65,7 +65,7 @@ test('summary page compacts and splits by measured A4 content height', async () 
   assert.match(source, /summary-page-condensed/);
   assert.match(source, /summary-continuation-page/);
   assert.match(source, /scrollHeight <= PLAN_PAGE_AVAILABLE_HEIGHT/);
-  assert.match(source, /summaryPageCount \+ planPageCount \+ 1/);
+  assert.match(source, /2 \+ summaryPageCount \+ overviewPages\.length/);
   assert.match(styles, /\.summary-measurement-host/);
 });
 
@@ -444,11 +444,11 @@ test('generation mode stays immutable from request creation through report savin
 test('generated reports can return to populated inputs and regenerate over the same history record', async () => {
   const appSource = await readFile(new URL('../public/report/app.js', import.meta.url), 'utf8');
   const htmlSource = await readFile(new URL('../public/report/index.html', import.meta.url), 'utf8');
-  assert.match(htmlSource, /id="regenerate-report"[\s\S]*返回修改并重新生成/);
-  assert.match(appSource, /pendingRegenerationReportId = currentReportId[\s\S]*changeView\('new'\)/);
+  assert.match(htmlSource, /id="regenerate-report"[^>]*>\s*修改生成资料<\/button\s*>/);
+  assert.match(appSource, /pendingRegenerationReportId = currentReportId/);
   assert.match(appSource, /currentReportId = pendingRegenerationReportId/);
   assert.match(appSource, /if \(reportSaved\) pendingRegenerationReportId = null/);
-  assert.match(appSource, /重新生成并更新报告/);
+  assert.match(appSource, /更新报告/);
 });
 
 test('switching from upload mode back to AI isolates file state and restores the AI draft', async () => {

@@ -1,4 +1,4 @@
-import { mountPlanEditor } from './paper-plan-editor.js?v=1';
+import { mountPlanEditor } from './paper-plan-editor.js?v=10';
 import { SUMMARY_FIELD_RULES } from './summary-editor-utils.js';
 
 export function mountPaperWorkspace({
@@ -12,6 +12,35 @@ export function mountPaperWorkspace({
   const toolbar = $('.report-navigation');
   const originalTab = (key) => $(`[data-report-tab="${key}"]`);
   let sourceSnapshot = null;
+  $('#history-view').classList.add('paper-view');
+  const sidebar = $('.sidebar');
+  const sidebarToggle = $('.sidebar-toggle');
+  const sidebarPreference = 'report-sidebar-collapsed';
+
+  function setSidebarCollapsed(collapsed) {
+    sidebar.classList.toggle('sidebar-collapsed', collapsed);
+    sidebarToggle.setAttribute('aria-expanded', String(!collapsed));
+    const label = collapsed ? '展开导航' : '收起导航';
+    sidebarToggle.setAttribute('aria-label', label);
+    sidebarToggle.title = label;
+    sidebarToggle.firstElementChild.textContent = collapsed ? '→' : '←';
+  }
+
+  try {
+    setSidebarCollapsed(localStorage.getItem(sidebarPreference) === 'true');
+  } catch {
+    setSidebarCollapsed(false);
+  }
+  sidebarToggle.addEventListener('click', () => {
+    const collapsed = !sidebar.classList.contains('sidebar-collapsed');
+    setSidebarCollapsed(collapsed);
+    try {
+      localStorage.setItem(sidebarPreference, String(collapsed));
+    } catch {
+      // The current page still keeps the selected navigation state.
+    }
+  });
+
 
   function element(tag, className, text) {
     const node = document.createElement(tag);
@@ -204,13 +233,61 @@ export function mountPaperWorkspace({
     ['sales', '销售跟进卡', () => originalTab('sales').click()],
   ]);
 
+  const courseBar = element('div', 'paper-course-bar');
+  courseBar.append(element('strong', '', '课程规划'));
+  const courseActions = element('div', 'paper-course-actions');
+  courseBar.append(courseActions);
+  const stageJump = element('details', 'paper-stage-jump');
+  const stageToggle = element('summary', '', '跳转阶段');
+  const stageChoices = element('div', 'paper-stage-choices');
+  stageJump.append(stageToggle, stageChoices);
+  courseActions.append(stageJump);
+
+  let selectedCourseStage = 0;
+  function markCurrentCourseStage() {
+    for (const choice of stageChoices.children) {
+      if (Number(choice.dataset.stageIndex) === selectedCourseStage) choice.setAttribute('aria-current', 'true');
+      else choice.removeAttribute('aria-current');
+    }
+  }
+
+  function jumpToStage(stageIndex) {
+    if (currentMode() === 'other') setMode('layout');
+    const section = documentPages.querySelector(`.plan-stage-group[data-stage-index="${stageIndex}"]`);
+    if (section) {
+      selectedCourseStage = Number(stageIndex);
+      markCurrentCourseStage();
+      reportNav.highlight('plan');
+      jump(section);
+    }
+  }
+
+  document.addEventListener('pointerdown', event => {
+    if (stageJump.open && !stageJump.contains(event.target)) stageJump.open = false;
+  });
+  stageJump.addEventListener('keydown', event => {
+    if (event.key !== 'Escape' || !stageJump.open) return;
+    stageJump.open = false;
+    stageToggle.focus();
+  });
+  documentPages.addEventListener('click', (event) => {
+    const link = event.target.closest('a[href^="#report-"]');
+    if (!link || link.hash.length < 2) return;
+    const destination = document.getElementById(link.hash.slice(1));
+    if (!destination) return;
+    event.preventDefault();
+    const stage = destination.querySelector('.plan-stage-group') || destination.closest('.plan-stage-group');
+    if (stage) {
+      selectedCourseStage = Number(stage.dataset.stageIndex);
+      markCurrentCourseStage();
+    }
+    reportNav.highlight(destination.matches('.summary-page') ? 'summary' : 'plan');
+    jump(stage && destination.matches('.report-page') ? stage : destination);
+  });
   const openPlan = mountPlanEditor({ getCoursePlan, commitCoursePlan, onApply: () => reportNav.activate('plan') });
-  const planTools = button('调整课次结构', openPlan, 'paper-nav-item paper-context-action');
-  reportNav.rail.querySelectorAll('.paper-nav-item')[1].after(planTools);
+  const planTools = button('调整课次结构', () => openPlan(selectedCourseStage), 'secondary-btn paper-course-edit');
+  courseActions.append(planTools);
   const regenerate = $('#regenerate-report');
-  regenerate.textContent = '修改生成资料';
-  regenerate.className = 'paper-nav-item paper-source-action';
-  reportNav.rail.append(regenerate);
   regenerate.addEventListener('click', async () => {
     const snapshot = collectFormDraft();
     regenerate.disabled = true;
@@ -250,10 +327,30 @@ export function mountPaperWorkspace({
   }
 
   const mobileNavigation = $('#report-view .paper-mobile-nav');
-  const tools = element('optgroup', '');
-  tools.label = '报告操作';
-  tools.append(new Option('调整课次结构', 'adjust'), new Option('修改生成资料', 'source'));
-  mobileNavigation.append(tools);
+
+  function updateStageChoices() {
+    const labels = new Map();
+    for (const stage of documentPages.querySelectorAll('.plan-stage-group[data-stage-index]')) {
+      const index = stage.dataset.stageIndex;
+      if (!labels.has(index)) labels.set(index, stage.dataset.stageName);
+    }
+    stageChoices.replaceChildren();
+    for (const [index, name] of labels) {
+      const choice = button('', () => {
+        stageJump.open = false;
+        stageToggle.focus({ preventScroll: true });
+        jumpToStage(index);
+      }, 'paper-stage-choice');
+      choice.append(element('span', 'paper-stage-number', String(Number(index) + 1).padStart(2, '0')),
+        element('span', 'paper-stage-choice-label', name || `阶段 ${Number(index) + 1}`));
+      choice.dataset.stageIndex = index;
+      stageChoices.append(choice);
+    }
+    markCurrentCourseStage();
+    stageJump.hidden = labels.size === 0;
+  }
+  new MutationObserver(updateStageChoices).observe(documentPages, { childList: true });
+  updateStageChoices();
   const mobileControls = element('div', 'paper-mobile-controls');
   mobileNavigation.before(mobileControls);
   mobileControls.append(mobileNavigation);
@@ -271,6 +368,12 @@ export function mountPaperWorkspace({
   fitWidth.setAttribute('aria-label', '报告适配屏宽');
   zoomControls.append(zoomOut, fitWidth, zoomIn);
   mobileControls.append(zoomControls);
+  const compactCourseBar = window.matchMedia('(max-width: 1050px)');
+  function placeCourseBar() {
+    (compactCourseBar.matches ? mobileControls : toolbar).append(courseBar);
+  }
+  compactCourseBar.addEventListener('change', placeCourseBar);
+  placeCourseBar();
 
   function applyZoom() {
     const width = documentPages.clientWidth;
@@ -300,16 +403,6 @@ export function mountPaperWorkspace({
   }
   new ResizeObserver(applyZoom).observe(documentPages);
 
-  mobileNavigation.addEventListener('change', () => {
-    if (mobileNavigation.value === 'adjust') {
-      reportNav.highlight('plan');
-      planTools.click();
-    } else if (mobileNavigation.value === 'source') {
-      reportNav.highlight('summary');
-      regenerate.click();
-    }
-  });
-
   let wasReport = false;
   function updateReport() {
     const active = reportView.classList.contains('active');
@@ -323,6 +416,8 @@ export function mountPaperWorkspace({
     }
     if (active && !wasReport) {
       wasReport = true;
+      selectedCourseStage = 0;
+      markCurrentCourseStage();
       if (!isQuickPreview()) {
         setMode('layout');
         reportNav.activate('summary');

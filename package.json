@@ -16,11 +16,16 @@
     "teachers:sync-new": "node --env-file-if-exists=.env.local scripts/sync-feishu-teachers.mjs --new-only --apply",
     "teachers:preview-qr": "node --env-file-if-exists=.env.local scripts/sync-feishu-teachers.mjs --qr-only",
     "teachers:sync-qr": "node --env-file-if-exists=.env.local scripts/sync-feishu-teachers.mjs --qr-only --apply",
-    "teachers:reset-passwords": "node --env-file-if-exists=.env.local scripts/sync-feishu-teachers.mjs --apply --reset-passwords"
+    "teachers:reset-passwords": "node --env-file-if-exists=.env.local scripts/sync-feishu-teachers.mjs --apply --reset-passwords",
+    "build:report-ui": "esbuild scripts/report-ui.jsx --bundle --minify --format=esm --define:process.env.NODE_ENV=\\\"production\\\" --outfile=public/report/workspace-ui.js",
+    "predev": "npm run build:report-ui",
+    "prebuild": "npm run build:report-ui"
   },
   "dependencies": {
+    "@ant-design/icons": "6.3.4",
     "@supabase/ssr": "^0.7.0",
     "@supabase/supabase-js": "^2.57.4",
+    "antd": "^6.7.2",
     "mammoth": "^1.12.3",
     "next": "15.5.25",
     "openai": "^6.48.0",
@@ -34,6 +39,7 @@
     "@types/node": "^24.3.1",
     "@types/react": "^19.1.12",
     "@types/react-dom": "^19.1.9",
+    "esbuild": "^0.28.2",
     "typescript": "^5.9.2"
   },
   "overrides": {

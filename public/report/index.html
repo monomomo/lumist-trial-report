@@ -4,17 +4,20 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>路觅教育｜试听课报告生成器</title>
-    <link rel="stylesheet" href="styles.css?v=paper-workspace-3" />
-    <link rel="stylesheet" href="paper-workspace.css?v=2" />
+    <link rel="stylesheet" href="styles.css?v=paper-workspace-10" />
+    <link rel="stylesheet" href="paper-workspace.css?v=9" />
   </head>
   <body>
     <div class="app-shell">
       <aside class="sidebar">
-        <div class="brand"><span>LUMIST</span><strong>路觅教育</strong></div>
+        <div class="sidebar-heading">
+          <div class="brand"><span>LUMIST</span><strong>路觅教育</strong></div>
+          <button type="button" class="sidebar-toggle" aria-controls="workspace-nav" aria-expanded="true" aria-label="收起导航" title="收起导航"><span aria-hidden="true">←</span></button>
+        </div>
         <p class="brand-note">老师端 · 试听课报告生成器</p>
-        <nav>
-          <button class="nav-item active" data-view="new">新建试听报告</button>
-          <button class="nav-item" data-view="history">历史报告</button>
+        <nav id="workspace-nav" aria-label="工作台">
+          <button class="nav-item active" data-view="new" aria-current="page" aria-label="新建试听报告" title="新建试听报告"><span class="nav-symbol" aria-hidden="true">＋</span><span class="nav-label">新建试听报告</span></button>
+          <button class="nav-item" data-view="history" aria-label="历史报告" title="历史报告"><span class="nav-symbol" aria-hidden="true">◷</span><span class="nav-label">历史报告</span></button>
         </nav>
         <div class="sidebar-footer" id="sidebar-teacher">
           <div class="avatar">?</div>
@@ -31,8 +34,8 @@
               <h1>新建个性化学习报告</h1>
             </div>
             <div class="form-toolbar">
-              <span class="status-dot" id="draft-status">草稿自动保存</span>
-              <button class="secondary-btn" id="quick-preview-report" type="button">预览报告样式</button>
+              <span id="draft-status" role="status">草稿自动保存</span>
+              <button class="secondary-btn" id="quick-preview-report" type="button">预览样式</button>
             </div>
           </header>
           <div class="workspace">
@@ -227,7 +230,7 @@
                   <div id="form-review-summary" class="form-review-summary"></div>
                   <div class="module-actions">
                     <button class="primary-btn" id="generate-report" type="submit">
-                      AI 生成个性化报告 <span>→</span>
+                      生成报告
                     </button>
                   </div>
                 </section>
@@ -275,8 +278,7 @@
                   编辑试听总结</button
                 ><button class="secondary-btn" id="edit-course-plan">
                   编辑课程规划</button
-                ><button class="secondary-btn" id="regenerate-report">
-                  返回修改并重新生成</button
+                ><button class="secondary-btn" id="regenerate-report">修改生成资料</button
                 ><button class="secondary-btn hidden" id="back-edit">返回老师工作台</button
                 ><button class="secondary-btn" id="preview-report">预览家长版</button
                 ><button class="secondary-btn" id="print-report">导出 PDF</button>
@@ -313,46 +315,36 @@
               />
             </article>
 
-            <article class="report-page summary-page">
+            <article class="report-page summary-page" id="report-trial-summary">
               <div class="summary-page-content">
                 <img
                   class="report-brand-header"
                   src="assets/lumist-report-header-black.png"
                   alt="路觅教育"
                 />
-                <div class="page-kicker">01 / 学生信息与试听课总结</div>
-                <h2>试听课堂观察与学习建议</h2>
+                <div class="page-kicker">试听学情</div>
+                <h2>试听学情与学习建议</h2>
                 <div class="summary-profile-section">
                   <div class="student-grid">
-                    <div>
-                      <small>学生姓名</small><b id="info-name" data-layout-path="student.name">阮同学</b>
-                    </div>
-                    <div>
-                      <small>课程类型</small
-                      ><b id="info-subject">SAT 数学试听</b>
-                    </div>
-                    <div>
-                      <small>目标分数</small><b id="info-target" data-layout-path="student.target">750+</b>
-                    </div>
-                    <div>
-                      <small>任课教师</small><b id="info-teacher">老师</b>
-                    </div>
+                    <div><small>学生姓名</small><b id="info-name" data-layout-path="student.name"></b></div>
+                    <div><small>任课教师</small><b id="info-teacher"></b><small id="info-teacher-credentials" hidden></small></div>
+                    <div><small>课程科目</small><b id="info-subject"></b></div>
+                    <div id="info-progress-cell" hidden><small>校内进度</small><b id="info-progress"></b></div>
+                    <div id="info-task-cell" hidden><small>近期任务</small><b id="info-task"></b></div>
+                    <div id="info-target-cell"><small>备考目标</small><b id="info-target" data-layout-path="student.target"></b><small id="info-exam-date" hidden></small></div>
                   </div>
-                  <div class="analysis-box">
-                    <h3>本次试听结论</h3>
-                    <p id="overview-text" data-layout-path="summary.overview"></p>
-                  </div>
-                  <div class="three-columns">
-                    <section>
-                      <span>课堂状态</span><b id="classroom-text" data-layout-path="summary.classroomStatus"></b>
-                    </section>
-                    <section>
-                      <span>已体现优势</span><b id="strength-text" data-layout-path="summary.strength"></b>
-                    </section>
-                    <section>
-                      <span>当前重点</span><b id="priority-text" data-layout-path="summary.currentFocus"></b>
-                    </section>
-                  </div>
+                  <section class="report-trial-observations" aria-label="试听学情">
+                    <div class="report-observation-row">
+                      <h3>本次已确认</h3>
+                      <div><p id="overview-text" data-layout-path="summary.overview"></p>
+                        <p id="classroom-text" data-layout-path="summary.classroomStatus"></p>
+                        <p id="strength-text" data-layout-path="summary.strength"></p></div>
+                    </div>
+                    <div class="report-observation-row">
+                      <h3>后续待观察</h3>
+                      <div><p id="priority-text" data-layout-path="summary.currentFocus"></p></div>
+                    </div>
+                  </section>
                 </div>
                 <div class="summary-learning-section">
                   <h3 class="subheading">本节课内容与观察证据</h3>
@@ -374,6 +366,7 @@
                   <h3 class="subheading">后续需要优先提升的内容</h3>
                   <div id="needs-list" class="needs-list"></div>
                 </div>
+                <section class="report-recent-plan" hidden></section>
               </div>
             </article>
 
@@ -837,6 +830,6 @@
         </div>
       </form>
     </dialog>
-    <script type="module" src="app.js?v=paper-workspace-3"></script>
+    <script type="module" src="app.js?v=paper-workspace-10"></script>
   </body>
 </html>

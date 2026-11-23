@@ -899,7 +899,7 @@ input {
   height: 100dvh;
   display: grid;
   grid-template-rows: auto minmax(0, 1fr);
-  background: #eef1f7;
+  background: #faf3e5;
 }
 
 .workspace-shell:has(> .auth-error) { grid-template-rows: auto auto minmax(0, 1fr); }
@@ -911,8 +911,8 @@ input {
   align-items: center;
   justify-content: space-between;
   padding: 0 18px;
-  background: #fff;
-  border-bottom: 1px solid #e0e4ec;
+  background: #fffaf1;
+  border-bottom: 1px solid #e7d9bf;
 }
 
 .workspace-topbar strong {
@@ -921,7 +921,7 @@ input {
 
 .workspace-topbar span {
   margin-left: 10px;
-  color: #7a8295;
+  color: #6d5940;
   font-size: 12px;
 }
 
@@ -938,9 +938,9 @@ input {
   gap: 9px;
   min-height: 40px;
   padding: 0 12px;
-  border: 1px solid #e9ddba;
-  border-radius: 8px;
-  background: #fff9e8;
+  border: 1px solid #e7d9bf;
+  border-radius: 6px;
+  background: #fffaf1;
   color: #5f4710;
   cursor: pointer;
   list-style: none;
@@ -956,18 +956,18 @@ input {
   display: grid;
   min-width: 130px;
   padding: 5px;
-  border: 1px solid #e8dec4;
-  border-radius: 10px;
-  background: #fffefa;
+  border: 1px solid #e7d9bf;
+  border-radius: 6px;
+  background: #fffaf1;
   box-shadow: 0 8px 24px #29200e26;
 }
 .workspace-topbar .workspace-account-actions > button { background: transparent; color: #302817; text-align: left; min-height: 40px; }
 .workspace-topbar .workspace-account-actions > button:hover { background: #fff4ca; }
 
 @media (max-width: 900px) {
-  .workspace-shell > .workspace-topbar { min-height: 50px; padding: 0 16px; background: #2c2513; color: #fff5db; border-bottom: 1px solid #fff2c722; }
+  .workspace-shell > .workspace-topbar { min-height: 50px; padding: 0 16px; background: #2c2415; color: #fff1d3; border-bottom: 1px solid #5e4a2c; }
   .workspace-heading strong { font-size: 13px; }
-  .workspace-account summary { min-height: 36px; background: #fff5db16; color: #fff5db; border-color: #fff2c736; }
+  .workspace-account summary { min-height: 36px; background: #fff4d4; color: #654400; border-color: #f0d994; }
 }
 
 .password-modal-backdrop {
@@ -1117,4 +1117,45 @@ input {
     min-height: auto;
     padding: 40px 24px;
   }
+}
+
+.workspace-shell.report-account-shell { position:relative; grid-template-rows:minmax(0,1fr); }
+.report-account-shell:has(> .auth-error) { grid-template-rows:auto minmax(0,1fr); }
+.report-account-shell .workspace-account-bar {
+  position:absolute;
+  inset:auto auto 12px 10px;
+  z-index:3;
+  min-height:0;
+  width:226px;
+  padding:0;
+  border:0;
+  background:transparent;
+}
+.report-account-shell .workspace-heading { display:none; }
+.report-account-shell .workspace-account-trigger.ant-btn {
+  justify-content:flex-start;
+  width:100%;
+  min-width:0;
+  height:43px;
+  padding:0 11px;
+  color:#fff1d3;
+  background:#3d301e;
+  border:1px solid #5e4a2c;
+}
+.report-account-shell .workspace-account-trigger.ant-btn:hover { color:#ffdc7e; background:#513d1d; }
+.report-account-shell .workspace-account-name { overflow:hidden; text-overflow:ellipsis; white-space:nowrap; color:inherit; margin:0; }
+.report-account-shell .workspace-account-chevron { margin-left:auto; color:inherit; }
+.report-account-shell[data-sidebar-collapsed="true"] .workspace-account-bar { width:42px; }
+.report-account-shell[data-sidebar-collapsed="true"] :is(.workspace-account-name,.workspace-account-chevron) { display:none; }
+
+@media (max-width:900px) {
+  .workspace-shell.report-account-shell { grid-template-rows:auto minmax(0,1fr); }
+  .report-account-shell:has(> .auth-error) { grid-template-rows:auto auto minmax(0,1fr); }
+  .report-account-shell .workspace-account-bar,
+  .report-account-shell[data-sidebar-collapsed="true"] .workspace-account-bar {
+    position:relative; inset:auto; width:auto; min-height:48px; padding:0 12px; background:#2c2415;
+  }
+  .report-account-shell .workspace-heading { display:block; }
+  .report-account-shell .workspace-account-trigger.ant-btn { width:auto; max-width:160px; height:36px; }
+  .report-account-shell[data-sidebar-collapsed="true"] :is(.workspace-account-name,.workspace-account-chevron) { display:inline-flex; }
 }

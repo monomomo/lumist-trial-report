@@ -20,6 +20,7 @@ const input = normalizeGenerationInput({
 const report = buildFallbackReport(input.subjectCode, input);
 report.planningContext = { source: 'ai', scenario: 'synchronous', lessonCount: 2, focusAreas: [], includeExamTraining: false };
 report.generationInput = input;
+const teachingPlan = (plan) => JSON.parse(JSON.stringify(plan, (key, value) => key === 'id' ? undefined : value));
 const id = 'd9428888-122b-4e5f-a3d6-5270e4fd5f3e';
 let record = {
   id, student_name: input.studentName, subject: 'AP Calculus AB',
@@ -64,7 +65,7 @@ await page.route('**/api/**', async (route) => {
     response = { saved: true, id };
   } else if (path === '/api/generate-report') {
     assert.equal(body.planningSource, 'ai');
-    assert.deepEqual(body.lockedCoursePlan, report.coursePlan);
+    assert.deepEqual(teachingPlan(body.lockedCoursePlan), teachingPlan(report.coursePlan));
     response = { report: { ...report, overview: '我根据补充的课堂观察更新了本次试听总结。', coursePlan: body.lockedCoursePlan } };
   } else if (path === '/api/generate-report-batch') {
     if (failGeneration) return route.abort('failed');
@@ -101,12 +102,21 @@ async function submit() {
 try {
   await page.goto((process.env.REPORT_TEST_URL || 'http://localhost:3011') + '/report/index.html', { waitUntil: 'domcontentloaded' });
   console.log('Opened report form');
+  const sidebarWidth = (await page.locator('.sidebar').boundingBox()).width;
+  await page.getByRole('button', { name:'收起导航' }).click();
+  assert.ok((await page.locator('.sidebar').boundingBox()).width < sidebarWidth);
+  await page.reload();
+  await page.getByRole('button', { name:'展开导航' }).waitFor();
+  await page.getByRole('button', { name:'展开导航' }).click();
+  assert.equal((await page.locator('.sidebar').boundingBox()).width, sidebarWidth);
   await page.setViewportSize({ width:390, height:844 });
   await page.getByRole('button', { name: '历史报告', exact: true }).click();
   await page.locator('#history-view').waitFor({ state:'visible' });
   await page.setViewportSize({ width:1440, height:1000 });
   await page.locator('[data-history-id]').click();
   await page.locator('#report-view').waitFor({ state: 'visible' });
+  assert.equal(await page.locator('.report-actions #regenerate-report').count(), 1);
+  assert.equal(await page.locator('.paper-rail #regenerate-report, .paper-mobile-nav option[value="source"]').count(), 0);
   await page.locator('#regenerate-report').click();
   assert.equal(await page.locator('#teacher-notes').inputValue(), input.teacherNotes);
   assert.equal(await page.locator('[name="regeneration-plan-mode"][value="preserve"]').isChecked(), true);
@@ -141,7 +151,7 @@ try {
   await page.locator('#teacher-notes').fill(input.teacherNotes + '补充：学生能独立检查边界条件。');
   await submit();
   await page.waitForFunction(() => document.querySelector('#report-view.active .eyebrow')?.textContent === '报告已保存');
-  assert.deepEqual(record.course_plan, report.coursePlan);
+  assert.deepEqual(teachingPlan(record.course_plan), teachingPlan(report.coursePlan));
   assert.equal(requests.filter((item) => item.path === '/api/generate-report').length, 1);
   assert.equal(requests.filter((item) => item.path === '/api/generate-report-batch').length, 0);
   console.log('PASS: feedback-only changes update the same saved report and preserve every lesson');
@@ -184,6 +194,10 @@ try {
   await page.getByRole('button', { name: '调整课次结构' }).click();
   const planDialog = page.getByRole('dialog', { name: '调整课次结构' });
   const originalLesson = await planDialog.getByRole('textbox', { name: '第 1 课主题' }).inputValue();
+  await planDialog.getByRole('button', { name: '第 1 课详情', exact: true }).click();
+  const firstGoal = planDialog.getByRole('textbox', { name: '第 1 课当课目标' });
+  assert.ok((await firstGoal.inputValue()).trim());
+  await firstGoal.fill('复验已有课程可编辑');
   await planDialog.getByRole('button', { name: '复制第 1 课', exact: true }).click();
   await planDialog.getByRole('textbox', { name: '第 2 课主题' }).fill('新课次主题');
   await planDialog.getByRole('button', { name: '上移第 2 课', exact: true }).click();
@@ -413,7 +427,7 @@ try {
     assessment:{ objective:'能独立判断函数是否连续并解释依据', task:'完成阶段测', target:'根据阶段测试检验学习表现'.repeat(9), adjustment:'复练后再次测评' },
     lessons:[report.coursePlan.stages[0].lessons[0]],
   }));
-  const longPlan = { ...report.coursePlan, stages:longStages };
+  const longPlan = { ...report.coursePlan, totalHours:20, stages:longStages };
   record = { ...record, course_plan:longPlan, report_data:{ ...record.report_data, coursePlan:longPlan,
     generationInput:{ ...input, teacherNotes:input.teacherNotes+'\n【校内考试】{"name":"校内单元测验","date":"","scope":"连续性","hours":"2"}' },
   } };
@@ -422,19 +436,49 @@ try {
   await page.waitForFunction(() => document.querySelectorAll('.plan-overview-stage').length === 20);
   await page.locator('.reference-plan-page').getByRole('heading',{name:'校内考试安排',exact:true,includeHidden:true}).waitFor({state:'attached'});
   assert.match(await page.locator('.reference-plan-page').getByText('校内单元测验 · 日期待确认',{exact:true}).textContent(),/日期待确认/);
+  await page.getByRole('link', { name:'查看阶段 2 的课次' }).click();
+  const detail = page.locator('.plan-stage-group[data-stage-index="1"]').first();
+  await page.waitForFunction(() => {
+    const stage = document.querySelector('.plan-stage-group[data-stage-index="1"]');
+    const bar = document.querySelector('.report-navigation');
+    return stage.getBoundingClientRect().top >= bar.getBoundingClientRect().bottom
+      && stage.getBoundingClientRect().top < bar.getBoundingClientRect().bottom + 50;
+  });
+  assert.equal(await detail.isVisible(), true);
+  const stageMenu = page.locator('.paper-stage-jump');
+  await stageMenu.locator('summary').click();
+  assert.equal(await stageMenu.locator('.paper-stage-choice').count(), 20);
+  await stageMenu.locator('.paper-stage-choice').nth(3).click();
+  assert.equal(await stageMenu.getAttribute('open'), null);
+  await page.getByRole('button', { name:'调整课次结构' }).click();
+  assert.equal(await planDialog.getByRole('button', { name:'编辑阶段 4', exact:true }).getAttribute('aria-current'), 'true');
+  await planDialog.getByRole('button', { name:'编辑阶段 2', exact:true }).click();
+  assert.equal(await planDialog.getByRole('textbox', { name:'阶段 2 名称' }).count(), 1);
+  assert.equal(await planDialog.getByRole('textbox', { name:'阶段 4 名称' }).count(), 0);
+  const grip = planDialog.getByRole('button', { name:'编辑阶段 2', exact:true });
+  const movingStage = await planDialog.getByRole('textbox', { name:'阶段 2 名称' }).inputValue();
+  const start = await grip.boundingBox();
+  const end = await planDialog.locator('[data-stage-item="0"]').boundingBox();
+  await page.mouse.move(start.x + start.width / 2, start.y + start.height / 2);
+  await page.mouse.down();
+  await page.mouse.move(end.x + end.width / 2, end.y + end.height / 2, { steps:8 });
+  await page.mouse.up();
+  assert.equal(await planDialog.getByRole('textbox', { name:'阶段 1 名称' }).inputValue(), movingStage);
+  await planDialog.getByRole('button', { name:'编辑阶段 1', exact:true }).press('ArrowDown');
+  assert.equal(await planDialog.getByRole('textbox', { name:'阶段 2 名称' }).inputValue(), movingStage);
+
+  await planDialog.getByRole('button', { name:'取消', exact:true }).click();
   await page.emulateMedia({ media:'print' });
-  const sizes = await page.locator('.reference-plan-page:has(.plan-overview-stage)').evaluateAll(pages => pages.map(p => [p.scrollHeight,p.clientHeight]));
-  assert.ok(sizes.length > 1 && sizes.every(([content,height]) => height > 0 && content <= height + 1), JSON.stringify(sizes));
-  const rails = await page.locator('.phase-route').evaluateAll(routes => routes.map(route => {
-    const visible = [...route.querySelectorAll(':scope > div')].filter(el => getComputedStyle(el).display !== 'none');
-    const strip = visible[0];
-    const tags = [...strip.children];
-    const groups = [...route.nextElementSibling.children];
-    return visible.length === 1 && strip.querySelector('.route-gap') && strip.querySelectorAll('.here').length === groups.length && tags.every(el => el.offsetTop === tags[0].offsetTop)
-      && groups.every(group => group.firstElementChild.matches('.phase-brief') && group.lastElementChild.matches('table') && group.querySelector('.plan-lesson-row') && (group.querySelector('.phase-objective') || group.querySelector('.phase-brief small').textContent.includes('续')));
+  const detailLinks = await page.locator('.report-stage-page-link').evaluateAll(links => links.map(link => {
+    const target = document.getElementById(link.hash.slice(1));
+    return Boolean(target?.matches('.report-detail-page')) && link.textContent.includes(target.querySelector('.report-page-number span').textContent.split(' / ')[0]);
   }));
-  assert.ok(rails.length && rails.every(Boolean));
-  console.log('PASS: twenty stages paginate with compact single-line print routes and all current stages highlighted');
+  assert.equal(detailLinks.length, 20);
+  assert.ok(detailLinks.every(Boolean));
+  const occupied = await page.locator('.report-detail-page').evaluateAll(pages => pages.every(sheet =>
+    sheet.querySelector('.plan-lesson-row') && sheet.scrollHeight <= sheet.clientHeight + 1));
+  assert.ok(occupied);
+  console.log('PASS: twenty stages paginate with physical PDF page ranges and stable stage links');
   await page.emulateMedia({ media:'screen' });
   record = shortRecord;
   await page.getByRole('button', { name: '历史报告', exact: true }).click();
@@ -476,7 +520,7 @@ try {
   await planDialog.getByRole('button', { name: '应用到报告' }).click();
   await savedPlan;
   assert.equal(record.course_plan.stages[0].lessons[0].theme, '课次结构修改后的第一课');
-  assert.equal(await page.locator('[data-layout-path="plan.0.lessons.0.theme"]').textContent(), '课次结构修改后的第一课');
+  assert.equal(await page.locator('[data-layout-path="plan.0.lessons.0.theme"]').first().textContent(), '课次结构修改后的第一课');
   console.log('PASS: applying the course list updates the printed plan and saves the same history record');
   await page.setViewportSize({ width:390, height:844 });
   const mobileReport = page.locator('#parent-report.layout-edit-mode');

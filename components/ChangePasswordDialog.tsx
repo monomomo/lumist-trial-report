@@ -1,13 +1,20 @@
 'use client';
 
 import { FormEvent, useState } from 'react';
+import { Alert, Button, Input, Modal } from 'antd';
 import { getTeacherPasswordError, MIN_TEACHER_PASSWORD_LENGTH } from '@/lib/auth/password';
 import { usernameToAuthEmail } from '@/lib/auth/username';
 import { createClient } from '@/lib/supabase/client';
 import { getAccountErrorMessage } from '@/lib/auth/error-messages';
 
-export function ChangePasswordDialog({ username }: { username: string }) {
-  const [open, setOpen] = useState(false);
+export function ChangePasswordDialog({ username, open: controlledOpen, onOpenChange }: {
+  username: string;
+  open?: boolean;
+  onOpenChange?: (open: boolean) => void;
+}) {
+  const [localOpen, setLocalOpen] = useState(false);
+  const open = controlledOpen ?? localOpen;
+  const setOpen = onOpenChange ?? setLocalOpen;
   const [currentPassword, setCurrentPassword] = useState('');
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
@@ -72,42 +79,20 @@ export function ChangePasswordDialog({ username }: { username: string }) {
 
   return (
     <>
-      <button type="button" onClick={() => setOpen(true)}>修改密码</button>
-      {open ? (
-        <div className="password-modal-backdrop" role="presentation" onMouseDown={(event) => {
-          if (event.target === event.currentTarget) close();
-        }}>
-          <section className="password-modal" role="dialog" aria-modal="true" aria-labelledby="change-password-title">
-            <header>
-              <div>
-                <span>账号安全</span>
-                <h2 id="change-password-title">修改密码</h2>
-              </div>
-              <button type="button" className="password-close" onClick={close} disabled={loading} aria-label="关闭修改密码窗口">×</button>
-            </header>
-            <p>新密码至少 {MIN_TEACHER_PASSWORD_LENGTH} 位，同时包含字母和数字即可。</p>
-            <form className="password-form" onSubmit={submit}>
-              <label>
-                当前密码
-                <input type="password" value={currentPassword} onChange={(event) => setCurrentPassword(event.target.value)} autoComplete="current-password" required disabled={loading || success} />
-              </label>
-              <label>
-                新密码
-                <input type="password" value={newPassword} onChange={(event) => setNewPassword(event.target.value)} autoComplete="new-password" minLength={MIN_TEACHER_PASSWORD_LENGTH} required disabled={loading || success} />
-              </label>
-              <label>
-                再输入一次新密码
-                <input type="password" value={confirmPassword} onChange={(event) => setConfirmPassword(event.target.value)} autoComplete="new-password" minLength={MIN_TEACHER_PASSWORD_LENGTH} required disabled={loading || success} />
-              </label>
-              {message ? <div className={success ? 'password-message success' : 'password-message'}>{message}</div> : null}
-              <div className="password-actions">
-                <button type="button" onClick={close} disabled={loading}>{success ? '完成' : '取消'}</button>
-                {!success ? <button type="submit" className="password-submit" disabled={loading}>{loading ? '正在修改…' : '确认修改'}</button> : null}
-              </div>
-            </form>
-          </section>
+    {controlledOpen === undefined && <Button onClick={() => setOpen(true)}>修改密码</Button>}
+    <Modal title="修改密码" open={open} onCancel={close} closable={!loading} maskClosable={!loading} keyboard={!loading} footer={null}>
+      <p>新密码至少 {MIN_TEACHER_PASSWORD_LENGTH} 位，需同时包含字母和数字。</p>
+      <form className="password-form" onSubmit={submit}>
+        <label>当前密码<Input.Password value={currentPassword} onChange={(event) => setCurrentPassword(event.target.value)} autoComplete="current-password" required disabled={loading || success} /></label>
+        <label>新密码<Input.Password value={newPassword} onChange={(event) => setNewPassword(event.target.value)} autoComplete="new-password" minLength={MIN_TEACHER_PASSWORD_LENGTH} required disabled={loading || success} /></label>
+        <label>再输入一次新密码<Input.Password value={confirmPassword} onChange={(event) => setConfirmPassword(event.target.value)} autoComplete="new-password" minLength={MIN_TEACHER_PASSWORD_LENGTH} required disabled={loading || success} /></label>
+        {message && <Alert type={success ? 'success' : 'error'} title={message} showIcon />}
+        <div className="password-actions">
+          <Button danger={!success} onClick={close} disabled={loading}>{success ? '完成' : '取消'}</Button>
+          {!success && <Button type="primary" htmlType="submit" loading={loading}>确认修改</Button>}
         </div>
-      ) : null}
+      </form>
+    </Modal>
     </>
   );
 }

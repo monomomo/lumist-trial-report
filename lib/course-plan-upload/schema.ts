@@ -34,6 +34,7 @@ export const uploadedPlanExtractionSchema = z.object({
 }).strict();
 
 export const lockedLessonSchema = z.object({
+  id: z.uuid().optional(),
   duration: z.union([z.literal(0.5), z.literal(1), z.literal(1.5), z.literal(2)]),
   theme: z.string().trim().min(1).max(120),
   content: z.string().trim().max(600),
@@ -46,6 +47,7 @@ export const lockedCoursePlanSchema = z.object({
   totalHours: z.number().min(2).max(60).multipleOf(0.5),
   rationale: z.string().trim().max(180).default(''),
   stages: z.array(z.object({
+    id: z.uuid().optional(),
     title: z.string().trim().min(1).max(100),
     description: z.string().trim().max(300),
     assessment: stageAssessmentSchema.optional(),

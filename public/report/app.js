@@ -1,5 +1,5 @@
-import { mountPaperWorkspace } from './paper-workspace.js?v=2';
-import { ALLOWED_DURATIONS, cloneCoursePlan, calculateTotalHours, validateCoursePlan, moveItem, moveLesson, rebalanceFinalPage, createStage, createLesson } from './course-plan-utils.js';
+import { mountPaperWorkspace } from './paper-workspace.js?v=8';
+import { ALLOWED_DURATIONS, cloneCoursePlan, calculateTotalHours, validateCoursePlan, moveItem, moveLesson, createStage, createLesson } from './course-plan-utils.js';
 import { SUBJECT_CODES, SUBJECT_CATALOG, resolveSubject, validateSubjectScores } from './catalog.js';
 import { createSubjectViewModel, normalizeTeacherProfile, buildFallbackReport, resolveTargetScore } from './report-domain.js';
 import { SUMMARY_FIELD_RULES, cloneReportSummary, validateReportSummary } from './summary-editor-utils.js';
@@ -13,9 +13,18 @@ import { requestReportJson, requestFailureMetadata } from './request-utils.js';
 import { getWorkflowError } from './workflow-errors.js';
 import { waitForPrintImage } from './export-utils.js';
 
-if (window.parent !== window) document.documentElement.classList.add('embedded-workspace');
+if (window.parent !== window) {
+  document.documentElement.classList.add('embedded-workspace');
+  import('./workspace-ui.js?v=2').catch(error => console.warn('Report components unavailable', error));
+}
 
 const $ = (selector) => document.querySelector(selector);
+
+function setDraftStatus(text, state = 'idle') {
+  const status = $('#draft-status');
+  status.textContent = text;
+  status.dataset.state = state;
+}
 const setText = (selector, value) => { $(selector).textContent = value; };
 const escapeHtml = (value) => String(value).replace(/[&<>'"]/g, (character) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;' })[character]);
 const CSS_PIXELS_PER_INCH = 96;
@@ -293,6 +302,10 @@ function closeSubjectOptions() {
   $('#subject-search').removeAttribute('aria-activedescendant');
 }
 
+$('#subject-combobox').addEventListener('report-subject-search', (event) => renderSubjectOptions(event.detail));
+$('#subject-combobox').addEventListener('report-subject-choice', (event) => chooseSubject(event.detail));
+$('#course-plan-dropzone').addEventListener('report-upload', (event) => selectCoursePlanFile(event.detail));
+
 function chooseSubject(code) {
   if (!SUBJECT_CODES.includes(code)) return;
   subjectSelectionConfirmed = true;
@@ -443,7 +456,7 @@ async function loadTeacherProfile() {
     teacherProfile = normalizeTeacherProfile(data);
     $('#account-notice').classList.add('hidden');
     if (recoveryStorageScope && $('#draft-status').textContent === '草稿暂未保存') {
-      $('#draft-status').textContent = '草稿自动保存';
+      setDraftStatus('草稿自动保存');
     }
     $('#sidebar-teacher').hidden = !teacherProfile;
     if (teacherProfile) {
@@ -454,7 +467,7 @@ async function loadTeacherProfile() {
     return Boolean(recoveryStorageScope);
   } catch (error) {
     $('#sidebar-teacher').hidden = true;
-    $('#draft-status').textContent = '草稿暂未保存';
+    setDraftStatus('草稿暂未保存', 'warning');
     showWorkflowError($('#account-notice'), error, 'profile');
     return false;
   }
@@ -544,9 +557,10 @@ function layoutSummaryPages() {
   const page = document.querySelector('.summary-page:not(.summary-continuation-page)');
   const pageContent = page.querySelector('.summary-page-content');
   const existingContinuation = document.querySelector('.summary-continuation-page');
+  const recent = document.querySelector('.report-recent-plan');
   const learningSection = existingContinuation?.querySelector('.summary-learning-section') || page.querySelector('.summary-learning-section');
   if (existingContinuation) {
-    pageContent.appendChild(learningSection);
+    pageContent.append(learningSection, recent);
     existingContinuation.remove();
   }
   page.classList.remove('summary-page-compact', 'summary-page-condensed');
@@ -579,18 +593,13 @@ function layoutSummaryPages() {
   page.classList.remove('summary-page-condensed');
   const continuation = document.createElement('article');
   continuation.className = 'report-page summary-page summary-continuation-page summary-page-compact';
-  continuation.innerHTML = '<div class="summary-page-content"><img class="report-brand-header" src="assets/lumist-report-header-black.png" alt="路觅教育" /><div class="page-kicker">02 / 试听课总结 · 续</div><h2>试听反馈与学习成果</h2></div>';
-  continuation.querySelector('.summary-page-content').appendChild(learningSection);
+  continuation.innerHTML = '<div class="summary-page-content"><img class="report-brand-header" src="assets/lumist-report-header-black.png" alt="路觅教育" /><div class="page-kicker">试听学情（续）</div><h2>试听反馈与学习成果</h2></div>';
+  continuation.querySelector('.summary-page-content').append(learningSection, recent);
   page.after(continuation);
   if (!pageFits(page)) page.classList.add('summary-page-condensed');
   if (!pageFits(continuation)) continuation.classList.add('summary-page-condensed');
   summaryPageCount = 2;
   measurementHost.remove();
-}
-
-function updateFollowingPageNumbers(planPageCount) {
-  const teacherNumber = summaryPageCount + planPageCount + 1;
-  document.querySelector('.teacher-page .page-kicker').textContent = `${String(teacherNumber).padStart(2, '0')} / 任课教师`;
 }
 
 function stageAssessmentHtml(stage, stageIndex) {
@@ -600,208 +609,254 @@ function stageAssessmentHtml(stage, stageIndex) {
   return `<div class="stage-assessment">${objective ? `<p><b>阶段目标：</b>${value('objective', objective)}</p>` : ''}<p><b>达标标准：</b>${value('target', target)}</p><p><b>检验方式：</b>${value('task', task)}</p><p><b>未达标时：</b>${value('adjustment', adjustment)}</p></div>`;
 }
 
+// Document anchors are separate from the numbering shown after a reorder.
+function reportAnchor(kind, item, index) {
+  const key = String(item.id ?? index).replace(/[^a-zA-Z0-9_-]/g, '-');
+  return `report-${kind}-${key}`;
+}
+
 function renderCoursePlan(coursePlan) {
-  const isUploadedPlan = currentReportData?.planningContext?.source === 'upload';
-  const teacherPage = document.querySelector('.teacher-page');
-  const measurementHost = document.createElement('div');
-  measurementHost.className = 'plan-measurement-host';
-  document.body.appendChild(measurementHost);
-  const pages = [];
-  let lessonIndex = 0;
-  let oversizedLesson = null;
+  // Legacy reports acquire IDs before their next normal save. Reordering only changes display numbers.
+  const seenIds = new Set();
+  for (const stage of coursePlan.stages) {
+    for (const entry of [stage, ...stage.lessons]) {
+      if (!entry.id || seenIds.has(entry.id)) entry.id = crypto.randomUUID();
+      seenIds.add(entry.id);
+    }
+  }
+  const report = $('#parent-report');
+  const teacherPage = report.querySelector('.teacher-page');
+  const measurement = document.createElement('div');
+  measurement.className = 'plan-measurement-host';
+  document.body.append(measurement);
+  const detailPages = [];
+  const overviewPages = [];
+  const stages = [];
+  let lessonNumber = 0;
+  const number = (value) => String(value).padStart(2, '0');
+  const range = (first, last) => first === last ? number(first) : `${number(first)}–${number(last)}`;
+  const header = '<img class="report-brand-header" src="assets/lumist-report-header-black.png" alt="路觅教育">';
+  const getBody = (page) => page.querySelector('.plan-page-body');
+  const overflows = (page) => getBody(page).scrollHeight > PLAN_PAGE_AVAILABLE_HEIGHT;
 
-  const createPage = () => {
+  function makePage(list, kind, html) {
     const page = document.createElement('article');
-    page.className = 'report-page hour-plan reference-plan-page';
-    const introduction = isUploadedPlan ? '严格按照老师确认的课程规划排版。' : '依据学生试听表现与目标动态编排，相邻阶段将按页面容量连续呈现。';
-    const note = isUploadedPlan || !coursePlan.rationale ? '' : `<div class="plan-note plan-note-reserve"><strong>动态调整原则：</strong>${escapeHtml(coursePlan.rationale)} 课时可按 0.5h、1h、1.5h 或 2h 灵活调整。</div>`;
-    const planTitleHtml = `<div class="plan-page-body"><img class="report-brand-header" src="assets/lumist-report-header-black.png" alt="路觅教育" /><div class="page-kicker"></div><div class="plan-page-heading"><div><h2>${escapeHtml(createSubjectViewModel(currentSubjectCode).displayName)}个性化课程规划</h2><p>${introduction}</p></div><div class="plan-total-hours"><span>${isUploadedPlan ? '规划总课时' : '建议总课时'}</span><b>${escapeHtml(coursePlan.totalHours)}h</b></div></div><table><thead><tr><th>课次</th><th>时长</th><th>授课内容、目标与重难点</th></tr></thead><tbody></tbody></table>${note}</div>`;
-    page.innerHTML = planTitleHtml;
-    measurementHost.appendChild(page);
-    pages.push(page);
+    page.className = `report-page hour-plan reference-plan-page report-${kind}-page`;
+    page.innerHTML = `<div class="plan-page-body">${header}${html}</div><footer class="report-page-number"></footer>`;
+    measurement.append(page);
+    list.push(page);
     return page;
-  };
-
-  const createStageLabel = (stage, index, rows) => {
-    const label = document.createElement('section');
-    label.className = 'phase-brief';
-    const number = row => row.querySelector('.plan-sequence-cell b').textContent;
-    const range = rows.length === 1 ? number(rows[0]) : number(rows[0]) + '–' + number(rows.at(-1));
-    const continued = Number(rows[0].dataset.stageLessonIndex) > 0;
-    const assessment = stage.assessment;
-    const stageField = (field, value) => `<span class="layout-value" data-layout-path="plan.${index}.${field}">${escapeHtml(value)}</span>`;
-    label.innerHTML = `<small>阶段 ${String(index+1).padStart(2,'0')}${continued ? ' · 续' : ''}　｜　本页第 ${range} 课　｜　阶段共 ${calculateTotalHours({stages:[stage]})}h</small><h3>阶段内容 · ${stageField('title', stage.title)}</h3>`;
-    if (!continued) {
-      if (assessment?.objective) label.innerHTML += `<p class="phase-objective"><b>阶段目标：</b>${stageField('assessment.objective', assessment.objective)}</p>`;
-      if (stage.description) label.innerHTML += `<p><b>这几节课怎么用：</b>${stageField('description', stage.description)}</p>`;
-      if (assessment) label.innerHTML += `<p><b>最终验收：</b>${stageField('assessment.task', assessment.task)}　<b>达标标准：</b>${stageField('assessment.target', assessment.target)}</p><p><b>未达标时：</b>${stageField('assessment.adjustment', assessment.adjustment)}</p>`;
-    }
-    return label;
-  };
-
-  const createLessonRow = (lesson, stageIndex, stageLessonIndex) => {
-    lessonIndex += 1;
-    const row = document.createElement('tr');
-    row.className = 'plan-lesson-row';
-    row.dataset.stageIndex = String(stageIndex);
-    row.dataset.stageLessonIndex = String(stageLessonIndex);
-    const path = `plan.${stageIndex}.lessons.${stageLessonIndex}`;
-    const details = [['goal', '目标'], ['content', '内容'], ['difficulty', '重难点']]
-      .map(([field, label]) => lesson[field] ? `<p><span>${label}：</span><span class="layout-value" data-layout-path="${path}.${field}">${escapeHtml(lesson[field])}</span></p>` : '').join('');
-    row.innerHTML = `<td class="plan-sequence-cell"><b>${String(lessonIndex).padStart(2, '0')}</b><span>课次</span></td><td class="plan-duration-cell">${escapeHtml(lesson.duration)}h</td><td class="plan-detail-cell"><b data-layout-path="${path}.theme">${escapeHtml(lesson.theme)}</b>${details}</td>`;
-    return row;
-  };
-
-  const pageOverflows = (page) => {
-    const body = page.querySelector('.plan-page-body');
-    return body.scrollHeight > PLAN_PAGE_AVAILABLE_HEIGHT;
-  };
-
-  const fitSingleLessonPage = (page) => {
-    for (const className of ['plan-page-compact', 'plan-page-condensed']) {
-      page.classList.add(className);
-      if (!pageOverflows(page)) return true;
-    }
-    return true;
-  };
-
-  const rebuildPageRows = (page, lessonRows) => {
-    page.querySelector('.phase-route')?.remove();
-    const activeStages = new Set(lessonRows.map(row => Number(row.dataset.stageIndex)));
-    const route = document.createElement('div');
-    route.className = 'phase-route';
-    const arrows = coursePlan.stages.map((stage,i) => {
-      const hours = calculateTotalHours({ stages:[stage] });
-      return `<span class="${activeStages.has(i) ? 'here' : ''}" style="flex-grow:${Number(hours) || 1}">${String(i+1).padStart(2,'0')} · ${hours}h</span>`;
-    });
-    const first = Math.min(...activeStages), last = Math.max(...activeStages);
-    const rail = (radius, name) => {
-      const start = Math.max(0,first-radius), end = Math.min(arrows.length-1,last+radius);
-      const parts = arrows.slice(start,end+1);
-      if (start) parts.unshift(`<span class="route-gap">前 ${start} 阶段</span>`);
-      if (end < arrows.length-1) parts.push(`<span class="route-gap">后 ${arrows.length-end-1} 阶段</span>`);
-      return {html:`<div class="rail-${name}">${parts.join('')}</div>`,width:parts.length*59-2};
-    };
-    const near = rail(1,'near'), focus = rail(0,'focus');
-    const key = `route-${arrows.length}-${near.width}`;
-    route.classList.add(key);
-    route.innerHTML = `<style>@container phase-line (width < ${arrows.length*59-2}px){.${key}>.rail-full{display:none}.${key}>.rail-near{display:flex}}@container phase-line (width < ${Math.min(near.width,arrows.length*59-2)}px){.${key}>.rail-near{display:none}.${key}>.rail-focus{display:flex}}</style><small>课时路线 · 金色为本页阶段</small><div class="rail-full">${arrows.join('')}</div>${near.html}${focus.html}`;
-    const previous = page.querySelector('.plan-stage-groups') || page.querySelector('table');
-    const tableTemplate = page.querySelector('table').cloneNode(false);
-    tableTemplate.appendChild(page.querySelector('thead').cloneNode(true));
-    const groups = document.createElement('div');
-    groups.className = 'plan-stage-groups';
-    previous.before(route);
-    previous.replaceWith(groups);
-    for (const index of activeStages) {
-      const rows = lessonRows.filter(row => Number(row.dataset.stageIndex) === index);
-      const section = document.createElement('section');
-      section.className = 'plan-stage-group';
-      const table = tableTemplate.cloneNode(true);
-      table.createTBody().append(...rows);
-      section.append(createStageLabel(coursePlan.stages[index], index, rows), table);
-      groups.appendChild(section);
-    }
-  };
-
-  let currentPage = createPage();
-  coursePlan.stages.forEach((stage, stageIndex) => {
-    stage.lessons.forEach((lesson, stageLessonIndex) => {
-      if (oversizedLesson) return;
-      const row = createLessonRow(lesson, stageIndex, stageLessonIndex);
-      const rows = Array.from(currentPage.querySelectorAll('.plan-lesson-row'));
-      rebuildPageRows(currentPage, [...rows, row]);
-      if (!pageOverflows(currentPage)) return;
-      if (!rows.length) {
-        if (!fitSingleLessonPage(currentPage)) oversizedLesson = { stageIndex, stageLessonIndex };
-        return;
-      }
-      rebuildPageRows(currentPage, rows);
-      currentPage = createPage();
-      rebuildPageRows(currentPage, [row]);
-      if (pageOverflows(currentPage) && !fitSingleLessonPage(currentPage)) oversizedLesson = { stageIndex, stageLessonIndex };
-    });
-  });
-
-  if (!oversizedLesson && pages.length > 1) {
-    const groups = pages.map((page) => Array.from(page.querySelectorAll('.plan-lesson-row')));
-    const balanced = rebalanceFinalPage(groups, (pageIndex, rows) => {
-      rebuildPageRows(pages[pageIndex], rows);
-      return !pageOverflows(pages[pageIndex]);
-    });
-    balanced.forEach((rows, pageIndex) => rebuildPageRows(pages[pageIndex], rows));
   }
 
-  if (!oversizedLesson) {
-    pages.slice(0, -1).forEach((page) => page.querySelector('.plan-note-reserve')?.remove());
-    pages.at(-1).querySelector('.plan-note-reserve')?.classList.remove('plan-note-reserve');
-  }
+  for (const [index, stage] of coursePlan.stages.entries()) {
+    const anchor = reportAnchor('stage', stage, index);
+    const stagePath = `plan.${index}`;
+    const first = lessonNumber + 1;
+    const last = lessonNumber + stage.lessons.length;
+    const hours = calculateTotalHours({ stages: [stage] });
+    const lessonUnits = [...new Set(stage.lessons.flatMap(lesson => lesson.unitCodes || []))];
+    const explicitUnits = stage.title.match(/\bUnits?\s*\d+(?:\s*[-–、,/]\s*(?:Units?\s*)?\d+)*/gi);
+    const unitSource = lessonUnits.length ? lessonUnits.map(code => code.replace(/^U(?=\d)/i, 'Unit ')) : explicitUnits || [];
+    const units = String(unitSource).trim();
+    const objective = stage.assessment?.objective || stage.assessment?.target || stage.description;
+    const objectivePath = stage.assessment?.objective ? 'assessment.objective' : stage.assessment?.target ? 'assessment.target' : 'description';
+    const firstPageIndex = detailPages.length;
+    let page;
 
-  if (oversizedLesson) {
-    measurementHost.remove();
-    return { oversizedLesson };
-  }
-  if (coursePlan.stages.length) {
-    const overviewPages = [];
-    const newOverview = () => {
-      const page = document.createElement('article');
-      page.className = 'report-page hour-plan reference-plan-page';
-      page.innerHTML = `<div class="plan-page-body"><img class="report-brand-header" src="assets/lumist-report-header-black.png" alt="路觅教育" /><div class="page-kicker">课程规划</div><div class="plan-page-heading"><div><h2>课程阶段总览${overviewPages.length ? ' · 续' : ''}</h2><p>阶段测目标为计划验收标准。</p></div><div class="plan-total-hours"><span>规划总课时</span><b>${calculateTotalHours(coursePlan)}h</b></div></div></div>`;
-      measurementHost.appendChild(page);
-      if (!overviewPages.length) {
-        const start = document.createElement('p');
-        start.className = 'phase-start';
-        start.textContent = '试听起点 · ' + (currentReportData?.overview || '本次试听后，从阶段 01 开始规划。');
-        page.querySelector('.plan-page-body').appendChild(start);
-      }
-      overviewPages.push(page);
-      return page;
-    };
-    let overview = newOverview();
-    for (const [index,stage] of coursePlan.stages.entries()) {
-      const item = document.createElement('section');
-      item.className = 'plan-overview-stage';
-      item.dataset.number = String(index + 1).padStart(2,'0');
-      item.innerHTML = `<h3><span data-layout-path="plan.${index}.title">${escapeHtml(stage.title)}</span> · ${calculateTotalHours({ stages: [stage] })}h</h3><p data-layout-path="plan.${index}.description">${escapeHtml(stage.description)}</p>${stage.assessment ? `<p><b>${stage.assessment.objective ? '阶段目标' : '达标标准'}：</b><span data-layout-path="plan.${index}.assessment.${stage.assessment.objective ? 'objective' : 'target'}">${escapeHtml(stage.assessment.objective || stage.assessment.target)}</span></p>` : ''}`;
-      const body = overview.querySelector('.plan-page-body');
-      const hasStages = Boolean(body.querySelector('section'));
-      body.appendChild(item);
-      if (hasStages && pageOverflows(overview)) {
-        overview = newOverview();
-        overview.querySelector('.plan-page-body').appendChild(item);
-      }
+    function makeDetailPage(continuation) {
+      const next = makePage(detailPages, 'detail', `<div class="page-kicker">辅导阶段 ${number(index + 1)}${continuation ? '（续）' : ''}</div>
+        <section class="plan-stage-group" data-stage-index="${index}" data-stage-name="${escapeHtml(stage.title)}">
+          <h2 data-layout-path="${stagePath}.title">${escapeHtml(stage.title)}</h2>
+          <p class="report-stage-locator">${units ? `${escapeHtml(units)} · ` : ''}<span data-page-lesson-range></span> · 阶段共 ${hours} 小时</p>
+          ${continuation ? '' : `<div class="report-stage-objectives">
+            ${objective ? `<p><b>阶段目标</b><span data-layout-path="${stagePath}.${objectivePath}">${escapeHtml(objective)}</span></p>` : ''}
+            ${stage.description && objectivePath !== 'description' ? `<p><b>课程安排</b><span data-layout-path="${stagePath}.description">${escapeHtml(stage.description)}</span></p>` : ''}
+            ${stage.assessment ? [['task','复查方式'],['target','达标标准'],['adjustment','后续调整']].map(([field,label]) => stage.assessment[field] && objectivePath !== `assessment.${field}` ? `<p><b>${label}</b><span data-layout-path="${stagePath}.assessment.${field}">${escapeHtml(stage.assessment[field])}</span></p>` : '').join('') : ''}
+          </div>`}
+          <div class="report-lesson-list"></div>
+        </section>`);
+      if (!continuation) next.id = anchor;
+      return next;
     }
-    const exams = schoolExamsFromNotes(currentReportData?.generationInput?.teacherNotes)
-      .filter(exam => !exam.date || exam.date >= new Date().toLocaleDateString('sv-SE',{timeZone:'Asia/Shanghai'}))
-      .sort((a,b) => (a.date || '9999').localeCompare(b.date || '9999'));
-    if (exams.length) {
-      const page = newOverview();
-      page.querySelector('h2').textContent = '校内考试安排';
-      page.querySelector('.plan-page-heading p').textContent = '校内考试本身不计入辅导课时，与阶段测和正式大考分开。';
-      for (const exam of exams) {
-        const item = document.createElement('section');
-        item.className = 'phase-brief';
-        item.innerHTML = `<h3>${escapeHtml(exam.name || '校内考试')} · ${escapeHtml(exam.date || '日期待确认')}</h3><p><b>范围：</b>${escapeHtml(exam.scope || '待学校确认')}　<b>考前可用课时：</b>${escapeHtml(exam.hours === '' || exam.hours == null ? '未确认' : exam.hours+'h')}</p>`;
-        const active = overviewPages.at(-1);
-        active.querySelector('.plan-page-body').appendChild(item);
-        if (pageOverflows(active)) {
-          const next = newOverview();
-          next.querySelector('h2').textContent = '校内考试安排 · 续';
-          next.querySelector('.plan-page-heading p').textContent = '校内考试本身不计入辅导课时。';
-          next.querySelector('.plan-page-body').appendChild(item);
+
+    function updateRange() {
+      const lessons = page.querySelectorAll('.plan-lesson-row');
+      const start = Number(lessons[0]?.dataset.lessonNumber || first);
+      const end = Number(lessons[lessons.length - 1]?.dataset.lessonNumber || start);
+      page.querySelector('[data-page-lesson-range]').textContent = `本页第 ${range(start, end)} 课`;
+    }
+
+    page = makeDetailPage(false);
+    const lessonAnchors = [];
+    for (const [localIndex, lesson] of stage.lessons.entries()) {
+      lessonNumber += 1;
+      const lessonAnchor = reportAnchor('lesson', lesson, localIndex);
+      lessonAnchors.push(lessonAnchor);
+      const lessonPath = `${stagePath}.lessons.${localIndex}`;
+      const fields = [['goal', '学习目标'], ['content', '授课内容'], ['difficulty', '重难点']]
+        .filter(([field]) => lesson[field])
+        .map(([field, label]) => ({ field, label, text: String(lesson[field]) }));
+
+      const newBlock = (continuation) => {
+        const block = document.createElement('section');
+        block.className = 'plan-lesson-row';
+        block.dataset.stageIndex = index;
+        block.dataset.stageLessonIndex = localIndex;
+        block.dataset.lessonNumber = lessonNumber;
+        if (!continuation) block.id = lessonAnchor;
+        block.innerHTML = `<header><small>第 ${number(lessonNumber)} 课${continuation ? '（续）' : ''}</small>
+          <b data-layout-path="${lessonPath}.theme">${escapeHtml(lesson.theme)}</b><span>${escapeHtml(lesson.duration)} 小时</span></header>`;
+        page.querySelector('.report-lesson-list').append(block);
+        return block;
+      };
+
+      function appendField(block, { field, label }, content) {
+        const row = document.createElement('p');
+        row.className = `report-lesson-field report-lesson-${field}`;
+        row.innerHTML = `<b>${label}</b><span class="layout-value" data-layout-path="${lessonPath}.${field}"></span>`;
+        row.lastElementChild.textContent = content;
+        block.append(row);
+        return row;
+      }
+
+      let block = newBlock(false);
+      for (const field of fields) appendField(block, field, field.text);
+      updateRange();
+      if (!overflows(page)) continue;
+
+      const hadEarlierLesson = Boolean(block.previousElementSibling);
+      if (hadEarlierLesson) {
+        block.remove();
+        updateRange();
+        page = makeDetailPage(true);
+        page.querySelector('.report-lesson-list').append(block);
+        updateRange();
+        if (!overflows(page)) continue;
+      }
+
+      // Split only oversized lessons. Prefer field boundaries; a field larger than a full page is split at text boundaries.
+      block.querySelectorAll('.report-lesson-field').forEach(row => row.remove());
+      for (const field of fields) {
+        let remaining = Array.from(field.text);
+        while (remaining.length) {
+          const row = appendField(block, field, remaining.join(''));
+          updateRange();
+          if (!overflows(page)) break;
+          if (!block.querySelector('.report-lesson-field + .report-lesson-field')) {
+            let low = 0, high = remaining.length - 1;
+            while (low < high) {
+              const middle = Math.ceil((low + high) / 2);
+              row.lastElementChild.textContent = remaining.slice(0, middle).join('');
+              if (overflows(page)) high = middle - 1;
+              else low = middle;
+            }
+            const take = Math.max(1, low);
+            row.lastElementChild.textContent = remaining.slice(0, take).join('');
+            remaining = remaining.slice(take);
+          } else {
+            row.remove();
+          }
+          if (remaining.length) {
+            page = makeDetailPage(true);
+            block = newBlock(true);
+          }
         }
       }
     }
-    pages.unshift(...overviewPages);
+    stages.push({ stage, index, anchor, first, last, hours, units, objective, objectivePath, firstPageIndex,
+      lastPageIndex: detailPages.length - 1, lessonAnchors });
   }
-  pages.forEach((page, pageIndex) => {
-    const pageNumber = String(pageIndex + summaryPageCount + 1).padStart(2, '0');
-    page.querySelector('.page-kicker').textContent = `${pageNumber} / 详细课程规划 · ${String(pageIndex + 1).padStart(2, '0')}`;
-  });
-  document.querySelectorAll('.reference-plan-page').forEach((page) => page.remove());
-  pages.forEach((page) => teacherPage.before(page));
-  updateFollowingPageNumbers(pages.length);
-  measurementHost.remove();
+
+  const newOverview = () => {
+    const continuation = overviewPages.length > 0;
+    const page = makePage(overviewPages, 'overview',
+      `<div class="page-kicker">课程规划</div><div class="plan-page-heading"><h2>课程规划总览${continuation ? '（续）' : ''}</h2>
+      <div class="plan-total-hours"><b>${calculateTotalHours(coursePlan)} 小时</b><span>${stages.length} 个阶段</span></div></div>`);
+    if (!continuation) {
+      page.id = 'report-plan-overview';
+      if (coursePlan.rationale) {
+        const note = document.createElement('p');
+        note.className = 'report-overview-meta';
+        note.textContent = coursePlan.rationale;
+        getBody(page).append(note);
+      }
+    }
+    return page;
+  };
+
+  const recent = report.querySelector('.report-recent-plan');
+  const initialStage = stages[0];
+  recent.hidden = !initialStage?.lessonAnchors.length;
+  if (!recent.hidden) {
+    recent.innerHTML = `<h3>近期学习安排</h3><p class="report-stage-locator">${escapeHtml(initialStage.stage.title)}</p>
+      <table><thead><tr><th>训练项目</th><th>安排与复查要点</th><th>对应课次</th></tr></thead><tbody>
+      ${initialStage.stage.lessons.slice(0, 3).map((lesson, index) => `<tr><td>${escapeHtml(lesson.theme)}</td>
+        <td>${escapeHtml([lesson.goal, lesson.difficulty].filter(Boolean).join('。') || lesson.content || '')}</td>
+        <td><a href="#${initialStage.lessonAnchors[index]}">第 ${number(index + 1)} 课</a></td></tr>`).join('')}
+      </tbody></table><a class="report-summary-to-plan" href="#report-plan-overview">查看课程规划总览</a>`;
+  }
+  layoutSummaryPages();
+
+  let overview = newOverview();
+  for (const entry of stages) {
+    const { stage, index, anchor, hours, first, last, units, objective, objectivePath } = entry;
+    const item = document.createElement('section');
+    item.className = 'plan-overview-stage';
+    item.dataset.number = number(index + 1);
+    item.innerHTML = `<h3><span data-layout-path="plan.${index}.title">${escapeHtml(stage.title)}</span>
+      <a href="#${anchor}" class="report-stage-page-link" aria-label="查看阶段 ${index + 1} 的课次">明细 P000–000</a></h3>
+      <p class="report-overview-meta">${units ? `${escapeHtml(units)} · ` : ''}第 ${range(first, last)} 课 · ${hours} 小时</p>
+      ${objective ? `<p data-layout-path="plan.${index}.${objectivePath}">${escapeHtml(objective)}</p>` : ''}`;
+    entry.link = item.querySelector('a');
+    getBody(overview).append(item);
+    if (item.previousElementSibling?.classList.contains('plan-overview-stage') && overflows(overview)) {
+      overview = newOverview();
+      getBody(overview).append(item);
+    }
+  }
+
+  const exams = schoolExamsFromNotes(currentReportData?.generationInput?.teacherNotes)
+    .filter(exam => !exam.date || exam.date >= new Date().toLocaleDateString('sv-SE', { timeZone: 'Asia/Shanghai' }))
+    .sort((a, b) => (a.date || '9999').localeCompare(b.date || '9999'));
+  let examPage;
+  for (const exam of exams) {
+    const item = document.createElement('section');
+    item.className = 'phase-brief';
+    item.innerHTML = `<h3>${escapeHtml(exam.name || '校内考试')} · ${escapeHtml(exam.date || '日期待确认')}</h3>
+      <p><b>范围：</b>${escapeHtml(exam.scope || '待学校确认')}　<b>考前可用课时：</b>${escapeHtml(exam.hours === '' || exam.hours == null ? '未确认' : exam.hours + 'h')}</p>`;
+    if (!examPage) examPage = makePage(overviewPages, 'overview', '<div class="page-kicker">课程规划</div><h2>校内考试安排</h2>');
+    getBody(examPage).append(item);
+    if (item.previousElementSibling?.classList.contains('phase-brief') && overflows(examPage)) {
+      examPage = makePage(overviewPages, 'overview', '<div class="page-kicker">课程规划</div><h2>校内考试安排（续）</h2>');
+      getBody(examPage).append(item);
+    }
+  }
+
+  const detailOffset = 2 + summaryPageCount + overviewPages.length;
+  for (const stage of stages) {
+    const first = detailOffset + stage.firstPageIndex;
+    const last = detailOffset + stage.lastPageIndex;
+    stage.link.textContent = first === last ? `明细 P${first}` : `明细 P${first}–${last}`;
+  }
+  report.querySelectorAll('.reference-plan-page').forEach(page => page.remove());
+  teacherPage.before(...overviewPages, ...detailPages);
+  measurement.remove();
+  teacherPage.querySelector('.page-kicker').textContent = `${detailOffset + detailPages.length} / 任课教师`;
+  layoutTeacherProfilePages();
+  const pages = Array.from(report.querySelectorAll(':scope > .report-page'))
+    .filter(page => report.classList.contains('ap-report') || !page.classList.contains('ap-only'));
+  for (const [index, page] of pages.entries()) {
+    if (!page.matches('.summary-page,.reference-plan-page')) continue;
+    let footer = page.querySelector('.report-page-number');
+    if (!footer) {
+      footer = document.createElement('footer');
+      footer.className = 'report-page-number';
+      page.append(footer);
+    }
+    const returnLink = page.classList.contains('report-detail-page') ? '<a href="#report-plan-overview">返回课程规划总览</a>'
+      : page.classList.contains('report-overview-page') ? '<a href="#report-trial-summary">返回试听学情</a>' : '';
+    footer.innerHTML = `${returnLink}<span>P${index + 1} / ${pages.length}</span>`;
+  }
   return { oversizedLesson: null };
 }
 
@@ -935,6 +990,21 @@ function renderReportContent(data) {
   setText('#info-subject', `${subjectName}试听`);
   setText('#info-target', target || '待老师确认');
   setText('#info-teacher', teacherName);
+  const snapshot = data.generationInput || {};
+  const recentExam = schoolExamsFromNotes(snapshot.teacherNotes).find(exam => exam.name);
+  const profileDetails = [
+    ['#info-teacher-credentials', activeTeacher?.title],
+    ['#info-progress', snapshot.schoolProgress || snapshot.teacherNotes?.match(/(?:^|\n)(?:校内进度|学校进度)[：:]\s*([^\n]+)/)?.[1]],
+    ['#info-task', recentExam ? [recentExam.name, recentExam.date].filter(Boolean).join(' · ') : ''],
+    ['#info-exam-date', snapshot.examDate],
+  ];
+  for (const [selector, value] of profileDetails) {
+    const element = $(selector);
+    element.textContent = value || '';
+    const cell = element.parentElement;
+    if (cell.id.endsWith('-cell') && selector !== '#info-exam-date') cell.hidden = !value;
+    else element.hidden = !value;
+  }
   setText('#overview-text', data.overview);
   setText('#classroom-text', data.classroomStatus);
   setText('#strength-text', data.strength);
@@ -949,9 +1019,7 @@ function renderReportContent(data) {
   setText('#sales-angle', data.salesFollowUp.angle);
   setText('#sales-script', data.salesFollowUp.script);
   renderTeacherProfile();
-  layoutSummaryPages();
   renderCoursePlan(data.coursePlan);
-  layoutTeacherProfilePages();
   renderReportCriticalWarning(data);
   renderReportQualityNotice(data);
 }
@@ -1011,7 +1079,14 @@ function openQuickPreview() {
 
 function changeView(id) {
   document.querySelectorAll('.view').forEach((view) => view.classList.toggle('active', view.id === `${id}-view`));
-  document.querySelectorAll('.nav-item').forEach((item) => item.classList.toggle('active', item.dataset.view === id));
+  if (id !== 'report') {
+    document.querySelectorAll('.nav-item').forEach((item) => {
+      const current = item.dataset.view === id;
+      item.classList.toggle('active', current);
+      if (current) item.setAttribute('aria-current', 'page');
+      else item.removeAttribute('aria-current');
+    });
+  }
   window.scrollTo({ top: 0, behavior: 'smooth' });
 }
 
@@ -1588,9 +1663,9 @@ function collectFormDraft() {
 function saveFormDraft() {
   if (planningSource !== 'ai') return;
   if (writeRecoveryRecord(FORM_DRAFT_STORAGE_KEY, collectFormDraft(), FORM_DRAFT_TTL_MS)) {
-    $('#draft-status').textContent = '草稿已自动保存';
+    setDraftStatus('草稿已保存', 'saved');
   } else {
-    $('#draft-status').textContent = '草稿未能自动保存，请复制课堂记录备份';
+    setDraftStatus('草稿保存失败，请复制课堂记录备份', 'warning');
   }
 }
 
@@ -1665,7 +1740,7 @@ function clearGenerationRecovery() {
   clearRecoveryRecord(GENERATION_CHECKPOINT_STORAGE_KEY);
   clearRecoveryRecord(FORM_DRAFT_STORAGE_KEY);
   window.clearTimeout(formDraftSaveTimer);
-  $('#draft-status').textContent = '草稿自动保存';
+  setDraftStatus('草稿自动保存');
 }
 
 function restoreGenerationRecovery() {
@@ -1675,7 +1750,7 @@ function restoreGenerationRecovery() {
   if (!restored && formRecord?.payload?.planningSource === 'ai') restored = applySavedFormData(formRecord.payload);
   if (!restored && checkpointRecord?.payload?.commonPayload) restored = applySavedFormData(checkpointRecord.payload.commonPayload);
   if (!restored) return;
-  $('#draft-status').textContent = '已恢复上次草稿';
+  setDraftStatus('已恢复上次草稿', 'saved');
   const commonPayload = { ...collectFormData(), subjectCode: currentSubjectCode };
   const checkpoint = loadGenerationCheckpoint(commonPayload);
   if (checkpoint) {
@@ -1711,7 +1786,7 @@ function setPlanningSource(value, { preserveNotice = false } = {}) {
         : '<strong>上传模式：</strong>请先上传并确认课程规划，再填写本次试听课反馈。'
       : '<strong>生成原则：</strong>总课时由老师决定，AI 仅负责规划内容与课时分配。';
   }
-  $('#generate-report').innerHTML = planningSource === 'upload' ? '生成完整学习报告 <span>→</span>' : 'AI 生成个性化报告 <span>→</span>';
+  $('#generate-report').textContent = editingReportSource ? '更新报告' : '生成报告';
   $('#generate-report').classList.toggle('hidden', planningSource === 'upload' && !uploadedCoursePlanConfirmed);
   $('#quick-preview-report').classList.toggle('hidden', planningSource === 'upload');
   $('#regeneration-options').classList.toggle('hidden', planningSource === 'upload' || !reportGenerationBaseline);
@@ -2285,7 +2360,8 @@ async function openHistoricalReport(reportId) {
   $('#planning-scenario').value = resolvePlanningScenario(savedPlanningContext.scenario);
   renderPlanningFocusOptions(savedPlanningContext.focusAreas || []);
   const savedLessons = record.course_plan?.stages?.flatMap((stage) => stage.lessons || []) || [];
-  $('#lesson-count').value = savedPlanningContext.lessonCount || savedLessons.length || Math.ceil(Number(record.course_plan?.totalHours || 0) / 2) || '';
+  // The saved plan may have been edited after generation. Its actual lesson count wins on reopen.
+  $('#lesson-count').value = savedLessons.length || savedPlanningContext.lessonCount || Math.ceil(Number(record.course_plan?.totalHours || 0) / 2) || '';
   $('#include-exam-training').checked = savedPlanningContext.includeExamTraining === true;
   const languageAssessment = savedPlanningContext.satEnglishAssessment || {};
   $('#language-test-type').value = languageAssessment.testType || '';
@@ -2755,7 +2831,7 @@ $('#report-form').addEventListener('submit', async (event) => {
   } finally {
     setGenerationControlsLocked(false);
     button.disabled = false;
-    button.innerHTML = generationSource === 'upload' ? '生成完整学习报告 <span>→</span>' : 'AI 生成个性化报告 <span>→</span>';
+    button.textContent = editingReportSource ? '更新报告' : '生成报告';
   }
 });
 document.querySelectorAll('[data-scenario-sample]').forEach((button) => button.addEventListener('click', () => {
@@ -2969,7 +3045,7 @@ async function prepareSourceEdit() {
   $('#generation-notice').innerHTML = currentReportId
     ? '<strong>重新生成当前报告：</strong>修改下方原始信息后再次生成，系统将更新当前历史报告，不会新增重复记录。'
     : '<strong>重新生成当前报告：</strong>修改下方原始信息后再次生成；生成成功后将保存为一条历史报告。';
-  $('#generate-report').innerHTML = '重新生成并更新报告 <span>→</span>';
+  $('#generate-report').textContent = '更新报告';
   return true;
 }
 function cancelSourceEdit(snapshot) {

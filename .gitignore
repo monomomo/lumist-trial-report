@@ -10,3 +10,5 @@ tmp/
 .superpowers
 .teacher-sync
 .netlify
+
+/public/report/workspace-ui.js
