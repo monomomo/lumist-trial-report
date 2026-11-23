@@ -772,7 +772,10 @@ details[open]> .quality-notice-header::after,details[open]> .editor-disclosure::
 .phase-route .route-gap { flex-grow:0; background:transparent; clip-path:none; color:#766a4f; }
 .phase-brief { margin-top:6px; padding:6px 10px; background:#fff7de; border-left:3px solid #e3ad13; overflow-wrap:anywhere; }
 .phase-brief h3 { margin:2px 0; font-size:15px; color:#514727; }
+.plan-stage-group + .plan-stage-group { margin-top:12px; }
+.plan-stage-group .phase-brief { margin-bottom:5px; break-after:avoid; }
 .phase-brief p { margin:2px 0; font-size:11px; line-height:1.45; }
+.phase-brief .phase-objective { font-size:13px; color:#514727; }
 .school-exam { display:grid; grid-template-columns:repeat(auto-fit,minmax(min(100%,155px),1fr)); gap:8px; margin:8px 0; border:1px solid #e8ddbd; border-radius:8px; }
 .school-exam label { display:grid; gap:4px; }
 .school-exam input { min-width:0; padding:6px; border:1px solid #dfe3ed; border-radius:6px; }

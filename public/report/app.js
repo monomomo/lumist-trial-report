@@ -593,9 +593,9 @@ function updateFollowingPageNumbers(planPageCount) {
 
 function stageAssessmentHtml(stage, stageIndex) {
   if (!stage.assessment) return '';
-  const { task, target, adjustment } = stage.assessment;
+  const { objective, task, target, adjustment } = stage.assessment;
   const value = (field, text) => stageIndex === undefined ? escapeHtml(text) : `<span class="layout-value" data-layout-path="plan.${stageIndex}.assessment.${field}">${escapeHtml(text)}</span>`;
-  return `<div class="stage-assessment"><p><b>阶段预期成果：</b>${value('target', target)}</p><p><b>检验方式：</b>${value('task', task)}</p><p><b>未达标时：</b>${value('adjustment', adjustment)}</p></div>`;
+  return `<div class="stage-assessment">${objective ? `<p><b>阶段目标：</b>${value('objective', objective)}</p>` : ''}<p><b>达标标准：</b>${value('target', target)}</p><p><b>检验方式：</b>${value('task', task)}</p><p><b>未达标时：</b>${value('adjustment', adjustment)}</p></div>`;
 }
 
 function renderCoursePlan(coursePlan) {
@@ -630,7 +630,8 @@ function renderCoursePlan(coursePlan) {
     const stageField = (field, value) => `<span class="layout-value" data-layout-path="plan.${index}.${field}">${escapeHtml(value)}</span>`;
     label.innerHTML = `<small>阶段 ${String(index+1).padStart(2,'0')}${continued ? ' · 续' : ''}　｜　本页第 ${range} 课　｜　阶段共 ${calculateTotalHours({stages:[stage]})}h</small><h3>阶段内容 · ${stageField('title', stage.title)}</h3>`;
     if (!continued) {
-      if (stage.description) label.innerHTML += `<p><b>阶段重点：</b>${stageField('description', stage.description)}</p>`;
+      if (assessment?.objective) label.innerHTML += `<p class="phase-objective"><b>阶段目标：</b>${stageField('assessment.objective', assessment.objective)}</p>`;
+      if (stage.description) label.innerHTML += `<p><b>这几节课怎么用：</b>${stageField('description', stage.description)}</p>`;
       if (assessment) label.innerHTML += `<p><b>最终验收：</b>${stageField('assessment.task', assessment.task)}　<b>达标标准：</b>${stageField('assessment.target', assessment.target)}</p><p><b>未达标时：</b>${stageField('assessment.adjustment', assessment.adjustment)}</p>`;
     }
     return label;
@@ -683,11 +684,22 @@ function renderCoursePlan(coursePlan) {
     const key = `route-${arrows.length}-${near.width}`;
     route.classList.add(key);
     route.innerHTML = `<style>@container phase-line (width < ${arrows.length*59-2}px){.${key}>.rail-full{display:none}.${key}>.rail-near{display:flex}}@container phase-line (width < ${Math.min(near.width,arrows.length*59-2)}px){.${key}>.rail-near{display:none}.${key}>.rail-focus{display:flex}}</style><small>课时路线 · 金色为本页阶段</small><div class="rail-full">${arrows.join('')}</div>${near.html}${focus.html}`;
-    activeStages.forEach(index => route.appendChild(createStageLabel(coursePlan.stages[index], index, lessonRows.filter(row => Number(row.dataset.stageIndex) === index))));
-    page.querySelector('table').before(route);
-    const tableBody = page.querySelector('tbody');
-    tableBody.innerHTML = '';
-    tableBody.append(...lessonRows);
+    const previous = page.querySelector('.plan-stage-groups') || page.querySelector('table');
+    const tableTemplate = page.querySelector('table').cloneNode(false);
+    tableTemplate.appendChild(page.querySelector('thead').cloneNode(true));
+    const groups = document.createElement('div');
+    groups.className = 'plan-stage-groups';
+    previous.before(route);
+    previous.replaceWith(groups);
+    for (const index of activeStages) {
+      const rows = lessonRows.filter(row => Number(row.dataset.stageIndex) === index);
+      const section = document.createElement('section');
+      section.className = 'plan-stage-group';
+      const table = tableTemplate.cloneNode(true);
+      table.createTBody().append(...rows);
+      section.append(createStageLabel(coursePlan.stages[index], index, rows), table);
+      groups.appendChild(section);
+    }
   };
 
   let currentPage = createPage();
@@ -748,7 +760,7 @@ function renderCoursePlan(coursePlan) {
       const item = document.createElement('section');
       item.className = 'plan-overview-stage';
       item.dataset.number = String(index + 1).padStart(2,'0');
-      item.innerHTML = `<h3><span data-layout-path="plan.${index}.title">${escapeHtml(stage.title)}</span> · ${calculateTotalHours({ stages: [stage] })}h</h3><p data-layout-path="plan.${index}.description">${escapeHtml(stage.description)}</p>${stage.assessment ? `<p><b>阶段测目标：</b><span data-layout-path="plan.${index}.assessment.target">${escapeHtml(stage.assessment.target)}</span></p>` : ''}`;
+      item.innerHTML = `<h3><span data-layout-path="plan.${index}.title">${escapeHtml(stage.title)}</span> · ${calculateTotalHours({ stages: [stage] })}h</h3><p data-layout-path="plan.${index}.description">${escapeHtml(stage.description)}</p>${stage.assessment ? `<p><b>${stage.assessment.objective ? '阶段目标' : '达标标准'}：</b><span data-layout-path="plan.${index}.assessment.${stage.assessment.objective ? 'objective' : 'target'}">${escapeHtml(stage.assessment.objective || stage.assessment.target)}</span></p>` : ''}`;
       const body = overview.querySelector('.plan-page-body');
       const hasStages = Boolean(body.querySelector('section'));
       body.appendChild(item);
@@ -1227,9 +1239,9 @@ function renderPlanEditor() {
       if (stage.assessment) {
         const assessment = document.createElement('div');
         assessment.className = 'stage-assessment-fields';
-        for (const [field, label, limit] of [['task', '阶段测任务与评分依据', 120], ['target', '计划达标线', 100], ['adjustment', '未达标时怎么调整', 120]]) {
+        for (const [field, label, limit] of [['objective', '阶段目标（学生能独立做到什么）', 100], ['task', '阶段测任务与评分依据', 120], ['target', '计划达标线', 100], ['adjustment', '未达标时怎么调整', 120]]) {
           const path = `stages.${stageIndex}.assessment.${field}`;
-          const control = createEditorField(label, stage.assessment[field], path, true);
+          const control = createEditorField(label, stage.assessment[field] || '', path, true);
           const textarea = control.querySelector('textarea');
           textarea.maxLength = limit;
           textarea.rows = 3;
@@ -3063,6 +3075,7 @@ const layoutPlanFieldRules = {
   goal: { label: '当课目标', maximum: 180 },
   difficulty: { label: '重难点', maximum: 180 },
   task: { label: '阶段测任务与评分依据', maximum: 120, required: true },
+  objective: { label: '阶段目标', maximum: 100, required: true },
   target: { label: '计划达标线', maximum: 100, required: true },
   adjustment: { label: '未达标时怎么调整', maximum: 120, required: true },
 };

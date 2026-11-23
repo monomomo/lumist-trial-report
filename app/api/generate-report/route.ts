@@ -2,7 +2,7 @@ import OpenAI from 'openai';
 import { zodTextFormat } from 'openai/helpers/zod';
 import { NextResponse } from 'next/server';
 import { z } from 'zod';
-import { stageAssessmentSchema } from '@/lib/reports/stage-assessment';
+import { generatedStageAssessmentSchema } from '@/lib/reports/stage-assessment';
 import { SUBJECT_CODES, resolveSubject, validateSubjectScores } from '@/lib/subjects/catalog';
 import { buildSystemPrompt, buildUserInput } from '@/lib/subjects/prompt';
 import { hasSubjectScopeViolation } from '@/lib/subjects/scope';
@@ -385,7 +385,7 @@ export async function POST(request: Request) {
         hours: item.lessons.reduce((sum, lesson) => sum + lesson.duration, 0),
         topics: item.lessons.map((lesson) => lesson.theme),
       }]);
-      const lockedSummarySchema = uploadedSummarySchema.extend({ assessments: z.array(stageAssessmentSchema) });
+      const lockedSummarySchema = uploadedSummarySchema.extend({ assessments: z.array(generatedStageAssessmentSchema) });
       const payload = {
         model: process.env.OPENAI_MODEL || 'gpt-5-mini',
         input: [
@@ -396,7 +396,7 @@ export async function POST(request: Request) {
             targetScore,
             examDate: parsed.data.examDate,
             teacherNotes: parsed.data.teacherNotes,
-          }) + '\n以下是需要补充阶段测的阶段，请按顺序逐一输出 assessments。task 写测评任务、时长及评分依据，target 写建议达标得分或正确率，adjustment 写未达标后的调整。已有起点才写进步幅度，禁止承诺最终成绩。不得改变原规划。没有待补阶段时返回空数组。\n' + JSON.stringify(stagesNeedingAssessment) },
+          }) + '\n以下是需要补充阶段测的阶段，请按顺序逐一输出 assessments。objective 写学生能独立完成的具体动作且与原课表一致，task 写测评任务、时长及评分依据，target 写建议达标得分或正确率，adjustment 写未达标后的调整。已有起点才写进步幅度，禁止承诺最终成绩。不得改变原规划。没有待补阶段时返回空数组。\n' + JSON.stringify(stagesNeedingAssessment) },
         ],
         text: { format: zodTextFormat(lockedSummarySchema, 'uploaded_plan_trial_summary') },
         reasoning: { effort: isDeepSeek ? 'none' as const : 'low' as const },

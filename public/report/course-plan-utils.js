@@ -20,6 +20,7 @@ function validateCoursePlan(coursePlan, { allowSparseLessons = false } = {}) {
     if (title.length > 50) warnings.push({ path: `stages.${stageIndex}.title`, message: '阶段名称超过 50 字，可能影响报告排版' });
     if (description.length > 160) warnings.push({ path: `stages.${stageIndex}.description`, message: '阶段说明超过 160 字，可能影响报告排版' });
     if (stage.assessment) {
+      if (String(stage.assessment.objective || '').trim().length > 100) errors.push({path:`stages.${stageIndex}.assessment.objective`,message:'阶段目标最多 100 字'});
       for (const [field, label, limit] of [['task', '阶段测任务', 120], ['target', '计划达标线', 100], ['adjustment', '调整建议', 120]]) {
         const value = String(stage.assessment[field] || '').trim();
         if (!value || value.length > limit) errors.push({ path: `stages.${stageIndex}.assessment.${field}`, message: `请填写${label}（1–${limit} 字）` });

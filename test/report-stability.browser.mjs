@@ -388,7 +388,7 @@ try {
   const longStages = Array.from({ length:20 }, (_, index) => ({
     ...report.coursePlan.stages[0], title:'阶段' + index + '阶段主题'.repeat(12),
     description:'本阶段练习与课堂反馈'.repeat(12),
-    assessment:{ task:'完成阶段测', target:'根据阶段测试检验学习表现'.repeat(9), adjustment:'复练后再次测评' },
+    assessment:{ objective:'能独立判断函数是否连续并解释依据', task:'完成阶段测', target:'根据阶段测试检验学习表现'.repeat(9), adjustment:'复练后再次测评' },
     lessons:[report.coursePlan.stages[0].lessons[0]],
   }));
   const longPlan = { ...report.coursePlan, stages:longStages };
@@ -407,7 +407,9 @@ try {
     const visible = [...route.querySelectorAll(':scope > div')].filter(el => getComputedStyle(el).display !== 'none');
     const strip = visible[0];
     const tags = [...strip.children];
-    return visible.length === 1 && strip.querySelector('.route-gap') && strip.querySelectorAll('.here').length === route.querySelectorAll('.phase-brief').length && tags.every(el => el.offsetTop === tags[0].offsetTop);
+    const groups = [...route.nextElementSibling.children];
+    return visible.length === 1 && strip.querySelector('.route-gap') && strip.querySelectorAll('.here').length === groups.length && tags.every(el => el.offsetTop === tags[0].offsetTop)
+      && groups.every(group => group.firstElementChild.matches('.phase-brief') && group.lastElementChild.matches('table') && group.querySelector('.plan-lesson-row') && (group.querySelector('.phase-objective') || group.querySelector('.phase-brief small').textContent.includes('续')));
   }));
   assert.ok(rails.length && rails.every(Boolean));
   console.log('PASS: twenty stages paginate with compact single-line print routes and all current stages highlighted');
