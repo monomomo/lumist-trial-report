@@ -819,8 +819,8 @@ details[open]> .quality-notice-header::after,details[open]> .editor-disclosure::
 .summary-measurement-host .summary-page { padding-inline:16mm !important; }
 .report-document .report-page:is(.summary-page,.reference-plan-page) { position:relative; }
 .report-document .summary-page .student-grid,
-.summary-measurement-host .student-grid { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:1px; background:#fffaf0; border:1px solid #e9e0cf; }
-.summary-page .student-grid > div { background:#fffaf0; border:0 !important; outline:1px solid #e9e0cf; padding:9px 12px; min-width:0; }
+.summary-measurement-host .student-grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(min(100%,132px),1fr)); column-gap:15px; row-gap:12px; background:transparent; border:0; border-block:1px solid #e9e0cf; border-radius:0; padding:14px 0; }
+.summary-page .student-grid > div { background:transparent; border:0 !important; outline:0; padding:0; min-width:0; overflow-wrap:anywhere; }
 .summary-page .student-grid > div[hidden], .summary-page small[hidden], .report-recent-plan[hidden] { display:none !important; }
 .summary-page .student-grid small { color:#776749; }
 .summary-page .analysis-box { margin:12px 0; background:#fff8e6; }
@@ -851,9 +851,14 @@ details[open]> .quality-notice-header::after,details[open]> .editor-disclosure::
 .report-page-number { position:absolute; inset:auto 16mm 22px; display:flex; justify-content:space-between; gap:8px; border-top:1px solid #e7decc; padding-top:5px; color:#766749; font-size:10px; }
 .report-page-number span { margin-left:auto; }
 .report-trial-observations { display:grid; gap:1px; margin:12px 0; border:1px solid #eadfca; border-radius:5px; background:#eadfca; overflow:hidden; }
-.report-observation-row { display:grid; grid-template-columns:84px minmax(0,1fr); align-items:start; gap:8px; padding:8px 10px; background:#fffaf0; }
-.report-observation-row h3 { margin:0; font-size:13px; color:#674b15; }
-.report-observation-row p { margin:0; font-size:11px; line-height:1.55; }
+.summary-page .report-trial-observations { display:grid; gap:18px; margin:20px 0 24px; border:0; background:transparent; }
+.summary-page .report-observation-row { display:block; padding:0; border:0; background:transparent; }
+.summary-page .report-observation-row h3 { margin:0 0 7px; font-size:15px; color:#674b15; }
+.summary-page .report-observation-row p { margin:0; font-size:12px; line-height:1.65; }
+.summary-page .summary-learning-section .lesson-card,
+.summary-page .summary-learning-section .outcome-grid section { background:transparent; border:0; box-shadow:none; border-radius:0; padding:0; }
+.summary-page:is(.summary-page-compact,.summary-page-condensed) .report-trial-observations { gap:10px; margin:12px 0 15px; }
+.summary-page-condensed .report-observation-row p { font-size:11px; line-height:1.5; }
 .report-observation-row p:not(:first-child):not(:empty) { margin-top:4px; }
 .report-summary-to-plan { display:inline-block; margin-top:7px; font-size:11px; }
 .report-stage-recap { margin:12px 0 0; padding:9px 12px; border-left:3px solid #8b5b13; background:#fff5db; color:#493617; break-inside:avoid; print-color-adjust:exact; }

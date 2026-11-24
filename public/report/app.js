@@ -665,10 +665,6 @@ function renderCoursePlan(coursePlan) {
     const first = lessonNumber + 1;
     const last = lessonNumber + stage.lessons.length;
     const hours = calculateTotalHours({ stages: [stage] });
-    const lessonUnits = [...new Set(stage.lessons.flatMap(lesson => lesson.unitCodes || []))];
-    const explicitUnits = stage.title.match(/\bUnits?\s*\d+(?:\s*[-–、,/]\s*(?:Units?\s*)?\d+)*/gi);
-    const unitSource = lessonUnits.length ? lessonUnits.map(code => code.replace(/^U(?=\d)/i, 'Unit ')) : explicitUnits || [];
-    const units = String(unitSource).trim();
     const objective = stage.assessment?.objective || stage.assessment?.target || stage.description;
     const objectivePath = stage.assessment?.objective ? 'assessment.objective' : stage.assessment?.target ? 'assessment.target' : 'description';
     const firstPageIndex = detailPages.length;
@@ -678,7 +674,7 @@ function renderCoursePlan(coursePlan) {
       const next = makePage(detailPages, 'detail', `<div class="page-kicker">辅导阶段 ${number(index + 1)}${continuation ? '（续）' : ''}</div>
         <section class="plan-stage-group" data-stage-index="${index}" data-stage-name="${escapeHtml(stage.title)}">
           <h2 data-layout-path="${stagePath}.title">${escapeHtml(stage.title)}</h2>
-          <p class="report-stage-locator">${units ? `${escapeHtml(units)} · ` : ''}<span data-page-lesson-range></span> · 阶段共 ${hours} 小时</p>
+          <p class="report-stage-locator"><span data-page-lesson-range></span> · 阶段共 ${hours} 小时</p>
           ${continuation ? '' : `<div class="report-stage-objectives">
             ${objective ? `<p><b>阶段目标</b><span data-layout-path="${stagePath}.${objectivePath}">${escapeHtml(objective)}</span></p>` : ''}
             ${stage.description && objectivePath !== 'description' ? `<p><b>课程安排</b><span data-layout-path="${stagePath}.description">${escapeHtml(stage.description)}</span></p>` : ''}
@@ -791,7 +787,7 @@ function renderCoursePlan(coursePlan) {
       else page.querySelector('[data-page-lesson-range]').textContent = '阶段总结';
       page.querySelector('.plan-stage-group').append(recap);
     }
-    stages.push({ stage, index, anchor, first, last, hours, units, objective, objectivePath, firstPageIndex,
+    stages.push({ stage, index, anchor, first, last, hours, objective, objectivePath, firstPageIndex,
       lastPageIndex: detailPages.length - 1, lessonAnchors });
   }
 
@@ -827,13 +823,13 @@ function renderCoursePlan(coursePlan) {
 
   let overview = newOverview();
   for (const entry of stages) {
-    const { stage, index, anchor, hours, first, last, units, objective, objectivePath } = entry;
+    const { stage, index, anchor, hours, first, last, objective, objectivePath } = entry;
     const item = document.createElement('section');
     item.className = 'plan-overview-stage';
     item.dataset.number = number(index + 1);
     item.innerHTML = `<h3><span data-layout-path="plan.${index}.title">${escapeHtml(stage.title)}</span>
       <a href="#${anchor}" class="report-stage-page-link" aria-label="查看阶段 ${index + 1} 的课次">明细 P000–000</a></h3>
-      <p class="report-overview-meta">${units ? `${escapeHtml(units)} · ` : ''}第 ${range(first, last)} 课 · ${hours} 小时</p>
+      <p class="report-overview-meta">第 ${range(first, last)} 课 · ${hours} 小时</p>
       ${objective ? `<p data-layout-path="plan.${index}.${objectivePath}">${escapeHtml(objective)}</p>` : ''}`;
     entry.link = item.querySelector('a');
     getBody(overview).append(item);
