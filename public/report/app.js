@@ -815,12 +815,11 @@ function renderCoursePlan(coursePlan) {
   const initialStage = stages[0];
   recent.hidden = !initialStage?.lessonAnchors.length;
   if (!recent.hidden) {
-    recent.innerHTML = `<h3>近期学习安排</h3><p class="report-stage-locator">${escapeHtml(initialStage.stage.title)}</p>
-      <table><thead><tr><th>训练项目</th><th>安排与复查要点</th><th>对应课次</th></tr></thead><tbody>
-      ${initialStage.stage.lessons.slice(0, 3).map((lesson, index) => `<tr><td>${escapeHtml(lesson.theme)}</td>
-        <td>${escapeHtml([lesson.goal, lesson.difficulty].filter(Boolean).join('。') || lesson.content || '')}</td>
-        <td><a href="#${initialStage.lessonAnchors[index]}">第 ${number(index + 1)} 课</a></td></tr>`).join('')}
-      </tbody></table><a class="report-summary-to-plan" href="#report-plan-overview">查看课程规划总览</a>`;
+    recent.innerHTML = `<h3>近期学习安排</h3><p class="recent-stage-name"><span>接下来学习</span> ${escapeHtml(initialStage.stage.title)}</p>
+      <ul class="recent-lesson-list">${initialStage.stage.lessons.slice(0, 3).map((lesson, index) => `<li>
+        <a class="recent-lesson-link" href="#${initialStage.lessonAnchors[index]}">第 ${number(index + 1)} 课</a>
+        <div><h4>${escapeHtml(lesson.theme)}</h4>${lesson.goal ? `<p>${escapeHtml(lesson.goal)}</p>` : ''}</div>
+      </li>`).join('')}</ul><a class="report-summary-to-plan" href="#report-plan-overview">查看课程规划总览</a>`;
   }
   layoutSummaryPages();
 

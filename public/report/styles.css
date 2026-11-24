@@ -826,11 +826,13 @@ details[open]> .quality-notice-header::after,details[open]> .editor-disclosure::
 .summary-page .analysis-box { margin:12px 0; background:#fff8e6; }
 .report-recent-plan { margin-top:12px; }
 .report-recent-plan h3 { margin:0 0 6px; font-size:16px; }
-.report-recent-plan table { width:100%; border-collapse:collapse; table-layout:fixed; font-size:11px; line-height:1.45; }
-.report-recent-plan th,.report-recent-plan td { padding:5px 8px; text-align:left; border-bottom:1px solid #e8decb; vertical-align:top; overflow-wrap:anywhere; }
-.report-recent-plan th { color:#674b15; }
-.report-recent-plan th:first-child { width:34%; }
-.report-recent-plan th:last-child { width:68px; }
+.recent-stage-name { margin:0 0 5px; padding:5px 9px; border-left:2px solid #d7ab38; color:#514228; background:#fffaf0; font-size:12px; overflow-wrap:anywhere; }
+.recent-stage-name span { margin-right:5px; color:#775008; font-weight:700; }
+.recent-lesson-list { margin:0; padding:0; list-style:none; }
+.recent-lesson-list > li { display:grid; grid-template-columns:max-content minmax(0,1fr); align-items:start; gap:10px; padding:8px 0; border-bottom:1px solid #eee5d4; break-inside:avoid; }
+.recent-lesson-link { font-size:11px; line-height:1.55; white-space:nowrap; }
+.recent-lesson-list h4 { margin:0; font-size:12px; line-height:1.45; overflow-wrap:anywhere; }
+.recent-lesson-list p { margin:3px 0 0; color:#514b40; font-size:11px; line-height:1.55; overflow-wrap:anywhere; }
 .report-recent-plan a,.report-stage-page-link,.report-page-number a { color:#775008; text-decoration:underline; text-underline-offset:2px; }
 .report-overview-page .plan-page-heading { margin-bottom:17px; }
 .report-overview-page .plan-overview-stage { font-size:12px; padding-block:9px 13px; }
