@@ -622,3 +622,55 @@
   .embedded-workspace .sidebar { padding-bottom:70px; }
   .embedded-workspace .sidebar-footer { display:none; }
 }
+
+@media screen {
+  .generation-checklist-shell > footer { gap:10px; align-items:stretch; }
+  .generation-checklist-shell > footer > button[data-checklist-action] {
+    width:auto;
+    min-width:108px;
+    min-height:44px;
+    margin:0;
+    padding:8px 14px;
+    border-radius:8px;
+    font-size:14px;
+    font-weight:600;
+    line-height:1.4;
+    text-align:center;
+  }
+  .generation-checklist-shell > footer > button[data-checklist-action="confirm"] {
+    min-width:128px;
+    font-weight:700;
+  }
+  .generation-checklist-shell > footer > button[data-checklist-action]:focus-visible {
+    outline:2px solid #9b7627;
+    outline-offset:2px;
+  }
+}
+
+@media screen and (max-width:520px) {
+  .generation-checklist-shell > footer { display:grid; grid-template-columns:minmax(0,1fr) minmax(0,1.18fr); }
+  .generation-checklist-shell > footer > button[data-checklist-action] { min-width:0; padding-inline:8px; }
+}
+
+@media screen {
+  #new-view .form-toolbar { gap:8px; align-items:center; }
+  #new-view .form-toolbar #draft-status { font-size:12px; margin-inline-end:4px; }
+  #new-view .form-toolbar :is(#quick-preview-report,#generate-report,[data-ui-control="generate-report"]) {
+    box-sizing:border-box;
+    width:auto;
+    min-width:96px;
+    min-height:40px;
+    margin:0;
+    padding:7px 12px;
+    border-radius:8px;
+    font-size:14px;
+    font-weight:650;
+    line-height:1.4;
+  }
+  #new-view .form-toolbar :is(#generate-report,[data-ui-control="generate-report"]):disabled {
+    background:#f4ead4;
+    border-color:#e6dac0;
+    color:#756954;
+    opacity:1;
+  }
+}

@@ -396,7 +396,7 @@ export async function POST(request: Request) {
             targetScore,
             examDate: parsed.data.examDate,
             teacherNotes: parsed.data.teacherNotes,
-          }) + '\n以下是需要补充阶段测的阶段，请按顺序逐一输出 assessments。objective 写学生能独立完成的具体动作且与原课表一致，task 写测评任务、时长及评分依据，target 写建议达标得分或正确率，adjustment 写未达标后的调整。已有起点才写进步幅度，禁止承诺最终成绩。不得改变原规划。没有待补阶段时返回空数组。\n' + JSON.stringify(stagesNeedingAssessment) },
+          }) + '\n以下是需要补充阶段测的阶段，请按顺序逐一输出 assessments。objective 写学生能独立完成的具体动作且与原课表一致，task 只概括阶段测重点检查的知识或能力，不列测评时长、题量或逐题安排；target 用可观察的能力描述达标表现，不列分数线，adjustment 写未达标后的调整。已有起点才写进步幅度，禁止承诺最终成绩。不得改变原规划。没有待补阶段时返回空数组。\n' + JSON.stringify(stagesNeedingAssessment) },
         ],
         text: { format: zodTextFormat(lockedSummarySchema, 'uploaded_plan_trial_summary') },
         reasoning: { effort: isDeepSeek ? 'none' as const : 'low' as const },

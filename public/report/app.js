@@ -616,9 +616,13 @@ function reportAnchor(kind, item, index) {
 }
 
 function stageRecapHtml(stage,index) {
-  const fields = [['task','阶段测'],['target','达标标准'],['adjustment','后续调整']];
-  const detail = fields.filter(([key]) => stage.assessment?.[key]).map(([key,label]) =>
-    `<p><b>${label}：</b><span${index === undefined ? '' : ` data-layout-path="plan.${index}.assessment.${key}"`}>${escapeHtml(stage.assessment[key])}</span></p>`).join('');
+  const task = stage.assessment?.task || '';
+  const logistics = /[0-9０-９零一二两三四五六七八九十百半]+\s*(?:分钟|小时|秒钟|道|小题|题|分\b|%|％)|\d+\s*\/\s*\d+|逐题/;
+  const concise = task && !logistics.test(task);
+  const focus = concise ? task : stage.assessment?.objective || stage.title;
+  const fields = [['task','阶段测重点',focus,concise],['adjustment','后续调整',stage.assessment?.adjustment,true]];
+  const detail = stage.assessment ? fields.filter(([, , value]) => value && !logistics.test(value)).map(([key,label,value,editable]) =>
+    `<p><b>${label}：</b><span${index === undefined || !editable ? '' : ` data-layout-path="plan.${index}.assessment.${key}"`}>${escapeHtml(value)}</span></p>`).join('') : '';
   return '<h3>阶段测与学情反馈</h3>' + (detail || '<p>本阶段结束后，由老师结合学生作答反馈掌握情况与下一步建议。</p>');
 }
 
