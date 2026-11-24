@@ -10,7 +10,7 @@ import { buildSystemPrompt, buildUserInput } from '@/lib/subjects/prompt';
 import { buildLessonDurationSlots } from '@/lib/subjects/lesson-slots';
 import { parseModelResponse } from '@/lib/reports/model-response';
 import { applyClassroomFactGuard } from '@/lib/reports/classroom-fact-guard';
-import { normalizeOutlineResult, normalizeStageResult } from '@/lib/reports/batch-model-output';
+import { generationStageLimit, MAX_AP_GENERATION_STAGES, normalizeOutlineResult, normalizeStageResult } from '@/lib/reports/batch-model-output';
 import { buildSatMathLessonAllocations } from '@/lib/reports/sat-context';
 import { satSubjectContextShape, validateSatSubjectContext } from '@/lib/reports/sat-context-validation.js';
 
@@ -48,7 +48,7 @@ const generationOutlineSchema = z.object({
   outcomes: z.array(z.string().min(6).max(120)).min(1).max(5),
   priorityAreas: z.array(z.string().min(2).max(80)).min(2).max(6),
   rationale: z.string().min(20).max(180),
-  stages: z.array(generationOutlineStageSchema.extend({ assessment: generatedStageAssessmentSchema })).min(1).max(8),
+  stages: z.array(generationOutlineStageSchema.extend({ assessment: generatedStageAssessmentSchema })).min(1).max(MAX_AP_GENERATION_STAGES),
 });
 
 const generationLessonSchema = z.object({
@@ -74,13 +74,17 @@ export const outlineGenerationRequestSchema = generationInputBaseSchema.extend({
 export const stageGenerationRequestSchema = generationInputBaseSchema.extend({
   operation: z.literal('stage'),
   stage: generationOutlineStageSchema.extend({ assessment: stageAssessmentSchema.optional() }),
-  stageIndex: z.number().int().min(0).max(7),
-  stageCount: z.number().int().min(1).max(8),
+  stageIndex: z.number().int().min(0).max(MAX_AP_GENERATION_STAGES - 1),
+  stageCount: z.number().int().min(1).max(MAX_AP_GENERATION_STAGES),
   startLessonNumber: z.number().int().min(1).max(60),
   durations: z.array(z.number().positive().multipleOf(0.5)).min(1).max(10),
   previousStageTitle: z.string().max(50).optional().default(''),
   nextStageTitle: z.string().max(50).optional().default(''),
-}).superRefine(validateSatSubjectContext);
+}).superRefine((input, ctx) => {
+  validateSatSubjectContext(input, ctx);
+  if (input.stageCount > generationStageLimit(input.subjectCode)) ctx.addIssue({code:'custom',path:['stageCount'],message:'阶段数超过当前科目的上限'});
+  if (input.stageIndex >= input.stageCount) ctx.addIssue({code:'custom',path:['stageIndex'],message:'阶段序号超出规划范围'});
+});
 
 export type GenerationInput = z.infer<typeof generationInputSchema>;
 export type OutlineGenerationRequest = z.infer<typeof outlineGenerationRequestSchema>;
@@ -212,6 +216,7 @@ export async function reviewTeacherFeedback(input: { internal: string; family: s
 }
 
 export async function generateReportOutline(input: GenerationInput) {
+  const maxStages = generationStageLimit(input.subjectCode);
   const context = createPromptContext(input);
   const client = createOpenAiClient();
   const examTrainingGuidance = input.subjectCode === 'sat_math' && input.satMathHours
@@ -224,6 +229,8 @@ export async function generateReportOutline(input: GenerationInput) {
 本次只生成报告摘要与课程阶段骨架，不生成详细 lessons。所有关于学生课堂行为、答题过程、提示前后变化和已掌握内容的陈述，都必须能在 teacherNotes 中找到直接依据；不得把未来课程计划改写成已经发生的课堂事实。每个阶段最多 10 个课次，所有 stage.lessonCount 之和必须严格等于 ${context.lessonDurations.length}。${examTrainingGuidance}`;
   const userPrompt = `${buildUserInput(context.subject, context.promptData)}
 
+最多安排 ${maxStages} 个阶段，不必用满。相邻内容只有在能共用明确的阶段目标和验收方式时才合并，不得借合并漏掉本次规划范围内的考纲内容。自然科学可按概念、实验和证据分析组织；人文社科可按时期、主题或学科能力组织；语言与项目型科目按阅读、写作、表达或项目任务划分，不按固定单元数硬拆。
+
 ${input.subjectCode.startsWith('ap_') ? `先确定本次教学范围，再依据考纲知识点和先修关系划阶段，不预设三个阶段或均分课时。以老师明确的范围、顺序、各模块课时为硬约束；在其余可分配课时中，结合单元教学难度、近期校内考试范围、已掌握内容和具体作答证据决定各阶段的课次数。用给定 lessonDurations 顺序核算每阶段实际小时。相等只有在教学需要相近时才合理；不要为了外观而制造差异。
 每个阶段标题直接点明考纲知识点或题型，不单用“基础诊断 / 专项突破 / 综合提升”。description 用家长能懂的一句话解释为何此时为该模块安排这些课时；尚未测过的知识点写成待确认，不可把提及某个 Unit 当成学生的弱项。老师提到学到 Unit N 时，这是当前教学起点，默认规划到 AP 大考：按顺序覆盖当前及后续所有统考单元，近期 Quiz 只影响优先级。前面单元仅按证据回补；只有明确说“只补 Unit N”或“只到本次 Quiz”才限制范围。先预留后续单元课时，再安排当前模块；不以重复课次填满预算。超过单批课次上限时，按不同子知识点拆分。阶段测只检验该阶段实际教授的内容。
 
@@ -231,6 +238,7 @@ ${input.subjectCode.startsWith('ap_') ? `先确定本次教学范围，再依据
   try {
     const outline = await requestStructuredOutput(client, generationOutlineSchema, 'trial_report_outline', systemPrompt, userPrompt, 9000, normalizeOutlineResult);
     if (!outline) throw new GenerationRequestError('EMPTY_MODEL_OUTPUT', 502, 'AI 没有返回可用的阶段规划。');
+    if (outline.stages.length > maxStages) throw new GenerationRequestError('OUTLINE_STAGE_COUNT_MISMATCH', 422, `当前科目最多支持 ${maxStages} 个阶段，请重新生成。`);
     const guardedOutline = applyClassroomFactGuard(outline, context.subject.displayName, input.teacherNotes);
     const plannedCount = guardedOutline.stages.reduce((total, stage) => total + stage.lessonCount, 0);
     if (plannedCount !== context.lessonDurations.length) {

@@ -1,6 +1,16 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { normalizeOutlineResult, normalizeStageResult } from '../lib/reports/batch-model-output.ts';
+import { generationStageLimit, normalizeOutlineResult, normalizeStageResult } from '../lib/reports/batch-model-output.ts';
+import { SUBJECT_CODES } from '../public/report/catalog.js';
+import { getPendingStageIndexes, normalizeGeneratedStages } from '../public/report/generation-recovery.js';
+
+test('all AP subjects can use twelve stages without truncation and continue the last four', () => {
+  const stages = Array.from({length:12}, (_, i) => ({title:`阶段 ${i + 1}`,lessonCount:'2'}));
+  assert.equal(normalizeOutlineResult({stages}).stages.length,12);
+  for (const code of SUBJECT_CODES) assert.equal(generationStageLimit(code),code.startsWith('ap_') ? 12 : 8);
+  const completed = normalizeGeneratedStages(Array.from({length:8},()=>({lessons:[{theme:'已生成'}]})),12);
+  assert.deepEqual(getPendingStageIndexes(completed),[8,9,10,11]);
+});
 
 const lesson = {
   theme: '语法规则梳理',

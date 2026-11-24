@@ -22,6 +22,7 @@ const ERRORS = {
   AI_GENERATION_FAILED: ['AI 本次没有完成报告', '请点击“继续生成”重试，不需要为了这个错误修改课堂记录。', 'model'],
   EMPTY_MODEL_OUTPUT: ['AI 本次没有返回完整内容', '请点击“继续生成”；若仍失败，等待 1 分钟后再试，无需改写课堂记录。', 'model'],
   OUTLINE_LESSON_COUNT_MISMATCH: ['AI 生成的阶段安排与要求的课次不一致', '请点击“继续生成”，由系统重新整理；不需要调整正确填写的课次。', 'model'],
+  OUTLINE_STAGE_COUNT_MISMATCH: ['AI 生成的阶段数超过上限', '请点击“继续生成”，让系统重新整理阶段；不需要修改课堂记录。', 'model'],
   STAGE_LESSON_COUNT_MISMATCH: ['AI 返回的课程数量不完整', '请点击“继续生成”，系统会重新处理未完成的内容。', 'model'],
   EXAM_TRAINING_LESSON_COUNT_MISMATCH: ['AI 未按要求安排足够的考试训练', '请点击“继续生成”，不需要取消考试训练选项。', 'model'],
   SAT_MATH_HOURS_MISMATCH: ['AI 未遵守您填写的数学领域课时', '请点击“继续生成”，系统会按原课时重新安排。', 'model'],

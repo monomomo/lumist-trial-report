@@ -16,6 +16,12 @@ function normalizeLessonCount(value: unknown) {
   return Number(value);
 }
 
+export const MAX_AP_GENERATION_STAGES = 12;
+
+export function generationStageLimit(subjectCode: string) {
+  return subjectCode.startsWith('ap_') ? MAX_AP_GENERATION_STAGES : 8;
+}
+
 export function normalizeOutlineResult(value: unknown) {
   if (!value || typeof value !== 'object') return value;
   const outline = value as Record<string, unknown>;
@@ -32,7 +38,7 @@ export function normalizeOutlineResult(value: unknown) {
     outcomes: normalizeList(outline.outcomes, 5, 120),
     priorityAreas: normalizeList(outline.priorityAreas, 6, 80),
     rationale: limitText(outline.rationale, 180),
-    stages: Array.isArray(stages) ? stages.slice(0, 8).map((stage) => {
+    stages: Array.isArray(stages) ? stages.map((stage) => {
       if (!stage || typeof stage !== 'object') return stage;
       const item = stage as Record<string, unknown>;
       return {
