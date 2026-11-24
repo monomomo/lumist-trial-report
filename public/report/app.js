@@ -3,6 +3,7 @@ import { ALLOWED_DURATIONS, cloneCoursePlan, calculateTotalHours, validateCourse
 import { SUBJECT_CODES, SUBJECT_CATALOG, resolveSubject, validateSubjectScores } from './catalog.js';
 import { createSubjectViewModel, normalizeTeacherProfile, buildFallbackReport, resolveTargetScore } from './report-domain.js';
 import { stageUnitLabel } from './stage-unit-label.js';
+import { isSchoolFinal, schoolFinalPlacement } from './school-final.js';
 import { SUMMARY_FIELD_RULES, cloneReportSummary, validateReportSummary } from './summary-editor-utils.js';
 import { buildGenerationChecklist, buildReportQualityChecks, humanizeReportWarning } from './report-quality-utils.js';
 import { PLANNING_SCENARIOS, MAX_PLANNING_FOCUS_AREAS, getPlanningScenarioSample, getPlanningFocusOptions, normalizePlanningFocusAreas, resolvePlanningScenario, getLessonCountRange } from './planning-context.js';
@@ -824,8 +825,21 @@ function renderCoursePlan(coursePlan) {
   layoutSummaryPages();
 
   let overview = newOverview();
+  const plannedExams = schoolExamsFromNotes(currentReportData?.generationInput?.teacherNotes)
+    .filter(exam => !exam.date || exam.date >= new Date().toLocaleDateString('sv-SE', {timeZone:'Asia/Shanghai'}));
+  const finals = currentSubjectCode.startsWith('ap_') ? plannedExams.filter(isSchoolFinal) : [];
+  const placed = new Set();
   for (const entry of stages) {
     const { stage, index, anchor, hours, first, last, unitLabel, objective, objectivePath } = entry;
+    for (const exam of finals) {
+      if (schoolFinalPlacement(exam, finals, coursePlan.stages, currentReportData?.generationInput?.examDate) !== index) continue;
+      const milestone = document.createElement('section');
+      milestone.className = 'phase-brief';
+      milestone.innerHTML = `<h3>校内期末考试 · ${escapeHtml(exam.date)}</h3><p>${escapeHtml(exam.scope || '范围待确认')} · 考试不计入辅导课时</p>`;
+      getBody(overview).append(milestone);
+      if (overflows(overview)) getBody(overview = newOverview()).append(milestone);
+      placed.add(exam);
+    }
     const item = document.createElement('section');
     item.className = 'plan-overview-stage';
     item.dataset.number = number(index + 1);
@@ -835,14 +849,13 @@ function renderCoursePlan(coursePlan) {
       ${objective ? `<p data-layout-path="plan.${index}.${objectivePath}">${escapeHtml(objective)}</p>` : ''}`;
     entry.link = item.querySelector('a');
     getBody(overview).append(item);
-    if (item.previousElementSibling?.classList.contains('plan-overview-stage') && overflows(overview)) {
+    if (item.previousElementSibling?.matches('.plan-overview-stage,.phase-brief') && overflows(overview)) {
       overview = newOverview();
       getBody(overview).append(item);
     }
   }
 
-  const exams = schoolExamsFromNotes(currentReportData?.generationInput?.teacherNotes)
-    .filter(exam => !exam.date || exam.date >= new Date().toLocaleDateString('sv-SE', { timeZone: 'Asia/Shanghai' }))
+  const exams = plannedExams.filter(exam => !placed.has(exam))
     .sort((a, b) => (a.date || '9999').localeCompare(b.date || '9999'));
   let examPage;
   for (const exam of exams) {
@@ -850,6 +863,7 @@ function renderCoursePlan(coursePlan) {
     item.className = 'phase-brief';
     item.innerHTML = `<h3>${escapeHtml(exam.name || '校内考试')} · ${escapeHtml(exam.date || '日期待确认')}</h3>
       <p><b>范围：</b>${escapeHtml(exam.scope || '待学校确认')}　<b>考前可用课时：</b>${escapeHtml(exam.hours === '' || exam.hours == null ? '未确认' : exam.hours + 'h')}</p>`;
+    if (isSchoolFinal(exam)) item.innerHTML += '<p>考前按校内范围复习；考后结合试卷、错题或短测复盘，与正式大考重合的内容不重复计课时。</p>';
     if (!examPage) examPage = makePage(overviewPages, 'overview', '<div class="page-kicker">课程规划</div><h2>校内考试安排</h2>');
     getBody(examPage).append(item);
     if (item.previousElementSibling?.classList.contains('phase-brief') && overflows(examPage)) {
