@@ -71,7 +71,7 @@ export function resolveTargetScore(subjectCode, targetScore) {
  * @param {{ studentName: string; currentScore: string; targetScore: string; examDate: string; teacherNotes: string }} formData 表单原始数据。
  * @returns {object} 与 AI 生成报告结构兼容的报告数据。
  */
-export function buildFallbackReport(subjectCode, formData) {
+export function buildFallbackReport(subjectCode, formData, savedPlan = null) {
   const vm = createSubjectViewModel(subjectCode);
   const name = formData.studentName || '学生';
   const target = resolveTargetScore(subjectCode, formData.targetScore) || '待老师确认';
@@ -79,8 +79,8 @@ export function buildFallbackReport(subjectCode, formData) {
   const totalHours = normalizeFallbackTotalHours(formData.totalHours);
   const planningScenario = resolvePlanningScenario(formData.planningScenario);
   const planningFocusAreas = normalizePlanningFocusAreas(formData.planningFocusAreas, subjectCode);
-  const lessonDurations = buildLessonDurationSlots(totalHours, formData.lessonCount);
-  const coursePlan = applyFallbackPlanningFocus(
+  const lessonDurations = savedPlan ? savedPlan.stages.flatMap(stage => stage.lessons.map(lesson => lesson.duration)) : buildLessonDurationSlots(totalHours, formData.lessonCount);
+  const coursePlan = savedPlan || applyFallbackPlanningFocus(
     vm.code.startsWith('ap_')
       ? buildTopicPreview(vm, notes, totalHours, lessonDurations, planningScenario)
       : resizeFallbackCoursePlan(buildGenericCoursePlan(vm), totalHours, lessonDurations),

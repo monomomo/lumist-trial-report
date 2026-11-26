@@ -2384,7 +2384,14 @@ function buildHistoricalTeacherProfile(snapshot) {
 async function openHistoricalReport(reportId) {
   const result = await requestGeneratedJson(`/api/reports?id=${encodeURIComponent(reportId)}`, undefined, 'GET');
   if (!result.report) throw new Error('REPORT_NOT_FOUND');
-  const record = result.report;
+  try {
+    displayHistoricalReport(result.report);
+  } catch (cause) {
+    throw new Error('HISTORICAL_REPORT_RENDER_FAILED', { cause });
+  }
+}
+
+function displayHistoricalReport(record) {
   const subjectCode = resolveStoredSubjectCode(record.subject);
   applySubjectSelection(subjectCode);
   $('#student-name').value = record.student_name || '';
@@ -2420,11 +2427,12 @@ async function openHistoricalReport(reportId) {
   } else {
     $('#exam-date').value = record.exam_date_text || '';
   }
-  const fallback = buildFallbackReport(subjectCode, collectFormData());
+  const savedPlan = record.course_plan || record.report_data?.coursePlan;
+  const fallback = buildFallbackReport(subjectCode, {...collectFormData(),lessonCount:undefined}, savedPlan);
   currentReportData = {
     ...fallback,
     ...(record.report_data || {}),
-    coursePlan: record.course_plan || fallback.coursePlan,
+    coursePlan: fallback.coursePlan,
     salesFollowUp: {
       ...fallback.salesFollowUp,
       ...(record.sales_follow_up || {}),

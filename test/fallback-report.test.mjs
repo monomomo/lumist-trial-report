@@ -11,6 +11,13 @@ const baseForm = {
   teacherNotes: '学生课堂互动积极，能够完成部分中等难度题目，需要继续确认各模块掌握情况。',
 };
 
+test('historical report uses saved lessons without validating old duration rules', () => {
+  const savedPlan = {totalHours:6,rationale:'历史规划',stages:[{title:'旧阶段',lessons:[{duration:3},{duration:3}]}]};
+  const report = buildFallbackReport('ap_chemistry',{...baseForm,totalHours:6,lessonCount:2},savedPlan);
+  assert.equal(report.coursePlan,savedPlan);
+  assert.equal(report.planningContext.lessonCount,2);
+});
+
 test('AP previews distinguish numbered units, history periods, and school-specific numbering', () => {
   const stages = (subject,teacherNotes) => buildFallbackReport(subject,{...baseForm,teacherNotes,totalHours:30,lessonCount:30}).coursePlan.stages;
   assert.equal(stages('ap_chemistry','Unit 3，近期 Quiz').length,7);

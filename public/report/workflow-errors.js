@@ -47,6 +47,7 @@ const ERRORS = {
   REPORT_NOT_FOUND: ['这份历史报告不存在，或不属于当前账号', '请返回历史报告列表刷新；若报告仍不见，请联系管理员。', 'history'],
   REPORT_LIST_FAILED: ['暂时无法读取历史报告列表', '请点击“重试读取”；这不表示历史报告已丢失。', 'history'],
   REPORT_READ_FAILED: ['暂时无法打开这份历史报告', '请点击“重试打开”；不要重复新建同一份报告。', 'history'],
+  HISTORICAL_REPORT_RENDER_FAILED: ['报告已读取，但暂时无法展示', '报告仍在历史记录中。请点击“重试打开”；如果仍失败，请联系管理员，无需重新生成。', 'history'],
   REPORT_SAVE_FAILED: ['报告暂时未能保存', '请保留当前页面，点击“重新保存”；不要重新生成，也不要直接关闭页面。', 'save'],
   LOCAL_STORAGE_UNAVAILABLE: ['浏览器暂时无法保存本地草稿', '请保留当前页面，并复制课堂记录备份；报告生成后及时保存到历史报告。', 'service'],
   REPORT_RENDER_FAILED: ['报告已生成，但页面暂时无法展示', '请先保存报告，再点击“重新加载报告”；也可在保存成功后从历史报告重新打开，无需重新生成。', 'render'],
