@@ -90,8 +90,8 @@ export const stageGenerationRequestSchema = generationInputBaseSchema.extend({
 export type GenerationInput = z.infer<typeof generationInputSchema>;
 export type OutlineGenerationRequest = z.infer<typeof outlineGenerationRequestSchema>;
 export type StageGenerationRequest = z.infer<typeof stageGenerationRequestSchema>;
-export type GenerationOutlineResult = z.infer<typeof generationOutlineSchema> & {
-  stages: Array<z.infer<typeof generationOutlineStageSchema> & { durations: number[]; startLessonNumber: number }>;
+export type GenerationOutlineResult = Omit<z.infer<typeof generationOutlineSchema>, 'stages'> & {
+  stages: Array<z.infer<typeof generationOutlineStageSchema> & { assessment: z.infer<typeof stageAssessmentSchema>; durations: number[]; startLessonNumber: number }>;
 };
 export type GenerationLesson = Omit<z.infer<typeof generationLessonSchema>, 'satMathAllocations'> & { duration: number };
 
@@ -254,9 +254,15 @@ ${input.subjectCode.startsWith('ap_') ? `先确定本次教学范围，再依据
       const calculusUnits = getCalculusUnits(input.subjectCode);
       const examWeights = stage.unitCodes.map((code) => calculusUnits.find((unit) => unit.code === code)).filter(Boolean)
         .map((unit) => `Unit ${unit!.number}：${unit!.examWeight.minimum}%–${unit!.examWeight.maximum}%`);
-      const evidenceSafeAssessment = hasMasteryEvidence
-        ? stage.assessment
-        : {...stage.assessment,currentMasteryPercent:undefined,currentMasteryEvidence:undefined};
+      const hasGeneratedMastery = hasMasteryEvidence
+        && typeof stage.assessment.currentMasteryPercent === 'number'
+        && typeof stage.assessment.currentMasteryEvidence === 'string';
+      const evidenceSafeAssessment = {
+        ...stage.assessment,
+        currentMasteryPercent:hasGeneratedMastery ? stage.assessment.currentMasteryPercent : undefined,
+        currentMasteryEvidence:hasGeneratedMastery ? stage.assessment.currentMasteryEvidence : undefined,
+        examWeight:undefined,
+      };
       const assessment = examWeights.length ? {...evidenceSafeAssessment,examWeight:`对应完整单元的官方考试权重：${examWeights.join('；')}`} : evidenceSafeAssessment;
       return { ...stage, assessment, durations, startLessonNumber };
     });

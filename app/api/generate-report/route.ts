@@ -2,7 +2,7 @@ import OpenAI from 'openai';
 import { zodTextFormat } from 'openai/helpers/zod';
 import { NextResponse } from 'next/server';
 import { z } from 'zod';
-import { generatedStageAssessmentSchema } from '@/lib/reports/stage-assessment';
+import { generatedStageAssessmentSchema, normalizeGeneratedStageAssessment } from '@/lib/reports/stage-assessment';
 import { SUBJECT_CODES, resolveSubject, validateSubjectScores } from '@/lib/subjects/catalog';
 import { buildSystemPrompt, buildUserInput } from '@/lib/subjects/prompt';
 import { hasSubjectScopeViolation } from '@/lib/subjects/scope';
@@ -411,7 +411,7 @@ export async function POST(request: Request) {
       const { assessments, ...summaryFields } = summary;
       reportCoursePlan.stages = reportCoursePlan.stages.map((item, index) => ({
         ...item,
-        assessment: item.assessment || assessments[stagesNeedingAssessment.findIndex((stage) => stage.index === index)],
+        assessment: item.assessment || normalizeGeneratedStageAssessment(assessments[stagesNeedingAssessment.findIndex((stage) => stage.index === index)]),
       }));
       const sanitizedReport = sanitizeParentReport({ ...summaryFields, coursePlan: reportCoursePlan }, subject.code);
       const finalReport = {
