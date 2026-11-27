@@ -679,8 +679,11 @@ function renderCoursePlan(coursePlan) {
           <h2 data-layout-path="${stagePath}.title">${escapeHtml(stage.title)}</h2>
           <p class="report-stage-locator">${unitLabel ? escapeHtml(unitLabel)+' · ' : ''}<span data-page-lesson-range></span> · 阶段共 ${hours} 小时</p>
           ${continuation ? '' : `<div class="report-stage-objectives">
-            ${objective ? `<p><b>${stage.assessment?.objective ? '学完能做到什么' : '阶段重点'}</b><span data-layout-path="${stagePath}.${objectivePath}">${escapeHtml(objective)}</span></p>` : ''}
-            ${stage.assessment?.examValue ? `<p><b>对考试有什么用</b><span data-layout-path="${stagePath}.assessment.examValue">${escapeHtml(stage.assessment.examValue)}</span></p>` : ''}
+            ${objective ? `<p><b>${stage.assessment?.objective ? '学习目标' : '阶段重点'}</b><span data-layout-path="${stagePath}.${objectivePath}">${escapeHtml(objective)}</span></p>` : ''}
+            ${stage.assessment?.examValue ? `<p><b>备考重点</b><span data-layout-path="${stagePath}.assessment.examValue">${escapeHtml(stage.assessment.examValue)}</span></p>` : ''}
+            ${stage.assessment?.currentMasteryPercent !== undefined && stage.assessment?.currentMasteryEvidence ? `<p><b>当前掌握度</b><span>${escapeHtml(stage.assessment.currentMasteryPercent)}% · ${escapeHtml(stage.assessment.currentMasteryEvidence)}</span></p>` : ''}
+            ${stage.assessment?.targetMasteryPercent !== undefined ? `<p><b>阶段验收目标</b><span>${escapeHtml(stage.assessment.targetMasteryPercent)}%</span></p>` : ''}
+            ${stage.assessment?.examWeight ? `<p><b>考试内容占比</b><span>${escapeHtml(stage.assessment.examWeight)}</span></p>` : ''}
             ${stage.description && objectivePath !== 'description' ? `<p><b>课程安排</b><span data-layout-path="${stagePath}.description">${escapeHtml(stage.description)}</span></p>` : ''}
           </div>`}
           <div class="report-lesson-list"></div>
@@ -2540,6 +2543,7 @@ async function generateAiReport({ source, formData, subjectCode, preserveCourseP
               title: stage.title,
               description: stage.description,
               lessonCount: stage.lessonCount,
+              unitCodes: stage.unitCodes || [],
               ...(stage.assessment ? { assessment: stage.assessment } : {}),
             },
             stageIndex,

@@ -5,7 +5,7 @@ import { z } from 'zod';
 import { PLANNING_FOCUS_AREA_CODES, PLANNING_SCENARIO_CODES, normalizePlanningFocusAreas } from '@/lib/reports/planning-context';
 import { SUBJECT_CODES, resolveSubject, validateSubjectScores } from '@/lib/subjects/catalog';
 import { buildApFrameworkPrompt } from '@/lib/subjects/ap-framework';
-import { buildCalculusSyllabusPrompt } from '@/lib/subjects/ap-calculus-syllabus.js';
+import { buildCalculusSyllabusPrompt, getCalculusUnits } from '@/lib/subjects/ap-calculus-syllabus.js';
 import { buildSystemPrompt, buildUserInput } from '@/lib/subjects/prompt';
 import { buildLessonDurationSlots } from '@/lib/subjects/lesson-slots';
 import { parseModelResponse } from '@/lib/reports/model-response';
@@ -35,6 +35,7 @@ export const generationOutlineStageSchema = z.object({
   title: z.string().min(2).max(50),
   description: z.string().min(8).max(100),
   lessonCount: z.number().int().min(1).max(10),
+  unitCodes: z.array(z.string().min(1).max(30)).max(10),
 });
 
 const generationOutlineSchema = z.object({
@@ -234,12 +235,13 @@ export async function generateReportOutline(input: GenerationInput) {
 ${input.subjectCode.startsWith('ap_') ? `先确定本次教学范围，再依据考纲知识点和先修关系划阶段，不预设三个阶段或均分课时。以老师明确的范围、顺序、各模块课时为硬约束；在其余可分配课时中，结合单元教学难度、近期校内考试范围、已掌握内容和具体作答证据决定各阶段的课次数。用给定 lessonDurations 顺序核算每阶段实际小时。相等只有在教学需要相近时才合理；不要为了外观而制造差异。
 每个阶段标题直接点明考纲知识点或题型，不单用“基础诊断 / 专项突破 / 综合提升”。description 用家长能懂的一句话解释为何此时为该模块安排这些课时；尚未测过的知识点写成待确认，不可把提及某个 Unit 当成学生的弱项。老师提到学到 Unit N 时，这是当前教学起点，默认规划到 AP 大考：按顺序覆盖当前及后续所有统考单元，近期 Quiz 只影响优先级。前面单元仅按证据回补；只有明确说“只补 Unit N”或“只到本次 Quiz”才限制范围。先预留后续单元课时，再安排当前模块；不以重复课次填满预算。超过单批课次上限时，按不同子知识点拆分。阶段测只检验该阶段实际教授的内容。
 
-` : ''}请返回摘要字段、rationale 和阶段数组。阶段标题体现可观察的能力变化，description 说明优先解决的问题。assessment.objective 写孩子学完后能在具体情境中独立完成的知识或技能动作，不写教学安排或分数；assessment.examValue 用一句话说明这项能力在对应学科考试任务中的用途，不写题量、权重或分数换算。微积分可写读题选法则，历史可写以史料支持论点。验收必须检查同一能力，校内考试只有范围一致才作为复核。assessment.task 只用一句家长能懂的话概括阶段测重点检查的知识或能力，不写测评分钟数、题数、逐题安排、分值或题型配比；assessment.target 用可观察的能力描述达标表现，不列具体题量或分数线，assessment.adjustment 写未达标后如何调整。按当前学生、科目及本阶段课时制定，不套用固定分数。仅在老师提供可比起点时写进步幅度；否则安排阶段初测。所有目标均为计划，不声称已达成或保证最终成绩。`;
+` : ''}请返回摘要字段、rationale 和阶段数组。AP 阶段的 unitCodes 只能使用 syllabus 中的合法 code，且只标记本阶段实际覆盖的单元；非 AP 科目返回空数组。阶段标题体现可观察的能力变化，description 说明优先解决的问题。assessment.objective 写孩子学完后能在具体情境中独立完成的知识或技能动作，不写教学安排或分数；assessment.examValue 用一句话说明这项能力在对应学科考试任务中的用途，不写题量或分数换算。assessment.targetMasteryPercent 是本阶段完成后的验收目标百分比，取 50–100 的整数，它是计划目标而非当前成绩或最终考试承诺。只有 teacherNotes 明确给出与本阶段对应的测评正确率、得分比例或已检查能力项比例时，才填写 assessment.currentMasteryPercent 和 assessment.currentMasteryEvidence；证据不足时两项都省略，不估算、不显示“暂不评定”。assessment.examWeight 不由模型填写，系统会根据已核实考纲补充。验收必须检查同一能力，校内考试只有范围一致才作为复核。assessment.task 只用一句家长能懂的话概括阶段测重点检查的知识或能力，不写测评分钟数、题数、逐题安排、分值或题型配比；assessment.target 用可观察的能力描述达标表现，不列具体题量或分数线，assessment.adjustment 写未达标后如何调整。所有目标均为计划，不声称已达成或保证最终成绩。`;
   try {
     const outline = await requestStructuredOutput(client, generationOutlineSchema, 'trial_report_outline', systemPrompt, userPrompt, 9000, normalizeOutlineResult);
     if (!outline) throw new GenerationRequestError('EMPTY_MODEL_OUTPUT', 502, 'AI 没有返回可用的阶段规划。');
     if (outline.stages.length > maxStages) throw new GenerationRequestError('OUTLINE_STAGE_COUNT_MISMATCH', 422, `当前科目最多支持 ${maxStages} 个阶段，请重新生成。`);
     const guardedOutline = applyClassroomFactGuard(outline, context.subject.displayName, input.teacherNotes);
+    const hasMasteryEvidence = /(?:正确率|得分率|掌握率|完成率)[^。；\n]{0,16}\d{1,3}\s*[%％]|\d+\s*[/／]\s*\d+\s*(?:题|项)/.test(input.teacherNotes);
     const plannedCount = guardedOutline.stages.reduce((total, stage) => total + stage.lessonCount, 0);
     if (plannedCount !== context.lessonDurations.length) {
       throw new GenerationRequestError('OUTLINE_LESSON_COUNT_MISMATCH', 422, `阶段规划共 ${plannedCount} 个课次，与要求的 ${context.lessonDurations.length} 个课次不一致。`);
@@ -249,7 +251,14 @@ ${input.subjectCode.startsWith('ap_') ? `先确定本次教学范围，再依据
       const durations = context.lessonDurations.slice(durationIndex, durationIndex + stage.lessonCount);
       const startLessonNumber = durationIndex + 1;
       durationIndex += stage.lessonCount;
-      return { ...stage, durations, startLessonNumber };
+      const calculusUnits = getCalculusUnits(input.subjectCode);
+      const examWeights = stage.unitCodes.map((code) => calculusUnits.find((unit) => unit.code === code)).filter(Boolean)
+        .map((unit) => `Unit ${unit!.number}：${unit!.examWeight.minimum}%–${unit!.examWeight.maximum}%`);
+      const evidenceSafeAssessment = hasMasteryEvidence
+        ? stage.assessment
+        : {...stage.assessment,currentMasteryPercent:undefined,currentMasteryEvidence:undefined};
+      const assessment = examWeights.length ? {...evidenceSafeAssessment,examWeight:`对应完整单元的官方考试权重：${examWeights.join('；')}`} : evidenceSafeAssessment;
+      return { ...stage, assessment, durations, startLessonNumber };
     });
     return { outline: { ...guardedOutline, stages } as GenerationOutlineResult, targetScore: context.targetScore };
   } catch (error) {

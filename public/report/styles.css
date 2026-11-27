@@ -850,6 +850,9 @@ details[open]> .quality-notice-header::after,details[open]> .editor-disclosure::
 .report-lesson-field b,.report-stage-objectives b { color:#745522; }
 .report-lesson-goal span { font-weight:700; }
 .report-lesson-field span,.report-stage-objectives span { white-space:pre-wrap; }
+.report-stage-objectives { display:grid; gap:5px; margin-top:10px; }
+.report-stage-objectives p { grid-template-columns:max-content minmax(0,1fr); gap:12px; margin:0; line-height:1.6; }
+.report-stage-objectives b { white-space:nowrap; }
 .report-page-number { position:absolute; inset:auto 16mm 22px; display:flex; justify-content:space-between; gap:8px; border-top:1px solid #e7decc; padding-top:5px; color:#766749; font-size:10px; }
 .report-page-number span { margin-left:auto; }
 .report-trial-observations { display:grid; gap:1px; margin:12px 0; border:1px solid #eadfca; border-radius:5px; background:#eadfca; overflow:hidden; }
