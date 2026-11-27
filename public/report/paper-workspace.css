@@ -234,6 +234,36 @@
   .paper-observation #teacher-notes { height: 152px; min-height: 112px; padding: 10px; font-weight: 400; }
   .paper-options { margin: 12px 0; padding: 9px 12px; border: 1px solid var(--paper-rule); border-radius: 7px; background: #fcf3e3; }
   .paper-options > summary { color: #665327; font-size: 13px; cursor: pointer; }
+  .paper-options:has(#school-exams) > summary {
+    color:var(--paper-ink);
+    font-size:14px;
+    font-weight:600;
+  }
+  #school-exams .school-exam legend {
+    padding-inline:4px;
+    color:var(--paper-ink);
+    font-size:14px;
+    font-weight:600;
+    line-height:1.5;
+  }
+  #school-exams .school-exam label {
+    color:var(--paper-muted);
+    font-size:13px;
+    font-weight:500;
+    line-height:1.5;
+  }
+  #school-exams .school-exam input {
+    font-family:inherit;
+    font-size:14px;
+    font-weight:400;
+    line-height:1.5;
+  }
+  #school-exams .school-exam .text-btn,
+  .paper-options :is(#add-school-exam,[data-ui-control="add-school-exam"]) {
+    font-size:13px;
+    font-weight:600;
+    line-height:1.5;
+  }
   .paper-options .feedback-review { margin-top: 10px; }
   .recommended-feedback-import { margin-top:18px; border-color:#d4a21b; background:#fff6d8; }
   .recommended-feedback-import > summary { color:#5f4300; }
@@ -686,4 +716,8 @@
     color:#756954;
     opacity:1;
   }
+}
+
+@media screen and (max-width:600px) {
+  #school-exams .school-exam input { font-size:16px; }
 }
