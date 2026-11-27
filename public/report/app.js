@@ -1,4 +1,4 @@
-import { mountPaperWorkspace } from './paper-workspace.js?v=8';
+import { mountPaperWorkspace } from './paper-workspace.js?v=9';
 import { ALLOWED_DURATIONS, cloneCoursePlan, calculateTotalHours, validateCoursePlan, moveItem, moveLesson, createStage, createLesson } from './course-plan-utils.js';
 import { SUBJECT_CODES, SUBJECT_CATALOG, resolveSubject, validateSubjectScores } from './catalog.js';
 import { createSubjectViewModel, normalizeTeacherProfile, buildFallbackReport, resolveTargetScore } from './report-domain.js';

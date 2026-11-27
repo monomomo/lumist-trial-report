@@ -11,6 +11,14 @@ test('report app declares current report state before initialization', async () 
   assert.ok(declarationIndex < initializationIndex);
 });
 
+test('group feedback review is the recommended classroom record entry', async () => {
+  const source = await readFile(new URL('../public/report/paper-workspace.js', import.meta.url), 'utf8');
+  assert.doesNotMatch(source, /家长版试听结论（选填）/);
+  assert.match(source, /推荐：从两份群反馈自动整理课堂记录/);
+  assert.match(source, /feedbackImport\.open = true/);
+  assert.ok(source.indexOf('sourceNotes.before(conclusion, feedbackImport)') < source.indexOf('sourceNotes.after'));
+});
+
 test('stage shortcuts stay inside the course plan editor', async () => {
   const html = await readFile(new URL('../public/report/index.html', import.meta.url), 'utf8');
   const courseEditorIndex = html.indexOf('id="course-plan-modal"');

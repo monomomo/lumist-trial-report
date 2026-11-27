@@ -235,6 +235,8 @@
   .paper-options { margin: 12px 0; padding: 9px 12px; border: 1px solid var(--paper-rule); border-radius: 7px; background: #fcf3e3; }
   .paper-options > summary { color: #665327; font-size: 13px; cursor: pointer; }
   .paper-options .feedback-review { margin-top: 10px; }
+  .recommended-feedback-import { margin-top:18px; border-color:#d4a21b; background:#fff6d8; }
+  .recommended-feedback-import > summary { color:#5f4300; }
   .paper-view :is(.form-module-nav, #form-review, .report-module-nav) { display: none !important; }
   .paper-view:not(.paper-sample) :is(#report-mode-banner, #back-edit),
   .paper-sample :is(.paper-rail,.paper-mobile-nav,.paper-mode-button),

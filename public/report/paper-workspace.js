@@ -83,25 +83,22 @@ export function mountPaperWorkspace({
   studentGrid.after(disclosure('当前成绩、考试日期与语言基础', extraStudentFields));
 
   const sourceNotes = $('#teacher-notes').closest('label');
-  const observation = element('div', 'analysis-box paper-observation');
-  observation.id = 'draft-feedback';
   const conclusion = element('textarea', '');
   conclusion.id = 'parent-conclusion';
   conclusion.name = 'parentConclusion';
   conclusion.maxLength = SUMMARY_FIELD_RULES.overview.maximum;
-  conclusion.placeholder = '留空时，AI 根据课堂记录起草结论';
-  const conclusionLabel = element('label', 'textarea-label', '家长版试听结论（选填）');
-  conclusionLabel.append(conclusion);
-  observation.append(conclusionLabel);
+  conclusion.hidden = true;
   sourceNotes.querySelector('textarea').placeholder = '记录课堂内容、学生表现和建议，供生成报告参考…';
   sourceNotes.querySelector('textarea').setAttribute('aria-label', '课堂原始记录');
   const feedbackReview = $('.feedback-review');
   const schoolExams = element('div', '');
   schoolExams.append($('#school-exams'), $('#add-school-exam'));
   planning.querySelector('.generation-mode-tabs').after(disclosure('校内考试安排（选填）', schoolExams));
-  feedbackReview.before(observation, sourceNotes);
-  sourceNotes.after(element('p', 'paper-help', '课堂原始记录用于生成报告。家长看到上方填写或生成的结论。'));
-  sourceNotes.after(disclosure('从群反馈整理课堂记录', feedbackReview));
+  const feedbackImport = disclosure('推荐：从两份群反馈自动整理课堂记录', feedbackReview);
+  feedbackImport.classList.add('recommended-feedback-import');
+  feedbackImport.open = true;
+  sourceNotes.before(conclusion, feedbackImport);
+  sourceNotes.after(element('p', 'paper-help', '请核对自动整理结果，也可以直接补充或修改。AI 将根据这份课堂记录生成家长版试听总结。'));
 
   const draftContent = $('.form-module-main');
   draftContent.prepend(summary, plan);
