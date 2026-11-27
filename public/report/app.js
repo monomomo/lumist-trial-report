@@ -622,7 +622,7 @@ function stageRecapHtml(stage,index) {
   const logistics = /[0-9０-９零一二两三四五六七八九十百半]+\s*(?:分钟|小时|秒钟|道|小题|题|分\b|%|％)|\d+\s*\/\s*\d+|逐题/;
   const concise = task && !logistics.test(task);
   const focus = concise ? task : stage.assessment?.objective || stage.title;
-  const fields = [['task','阶段测重点',focus,concise],['adjustment','后续调整',stage.assessment?.adjustment,true]];
+  const fields = [['task','怎么确认掌握',focus,concise],['adjustment','后续调整',stage.assessment?.adjustment,true]];
   const detail = stage.assessment ? fields.filter(([, , value]) => value && !logistics.test(value)).map(([key,label,value,editable]) =>
     `<p><b>${label}：</b><span${index === undefined || !editable ? '' : ` data-layout-path="plan.${index}.assessment.${key}"`}>${escapeHtml(value)}</span></p>`).join('') : '';
   return '<h3>阶段测与学情反馈</h3>' + (detail || '<p>本阶段结束后，由老师结合学生作答反馈掌握情况与下一步建议。</p>');
@@ -679,7 +679,8 @@ function renderCoursePlan(coursePlan) {
           <h2 data-layout-path="${stagePath}.title">${escapeHtml(stage.title)}</h2>
           <p class="report-stage-locator">${unitLabel ? escapeHtml(unitLabel)+' · ' : ''}<span data-page-lesson-range></span> · 阶段共 ${hours} 小时</p>
           ${continuation ? '' : `<div class="report-stage-objectives">
-            ${objective ? `<p><b>阶段目标</b><span data-layout-path="${stagePath}.${objectivePath}">${escapeHtml(objective)}</span></p>` : ''}
+            ${objective ? `<p><b>${stage.assessment?.objective ? '学完能做到什么' : '阶段重点'}</b><span data-layout-path="${stagePath}.${objectivePath}">${escapeHtml(objective)}</span></p>` : ''}
+            ${stage.assessment?.examValue ? `<p><b>对考试有什么用</b><span data-layout-path="${stagePath}.assessment.examValue">${escapeHtml(stage.assessment.examValue)}</span></p>` : ''}
             ${stage.description && objectivePath !== 'description' ? `<p><b>课程安排</b><span data-layout-path="${stagePath}.description">${escapeHtml(stage.description)}</span></p>` : ''}
           </div>`}
           <div class="report-lesson-list"></div>
@@ -1355,7 +1356,7 @@ function renderPlanEditor() {
       if (stage.assessment) {
         const assessment = document.createElement('div');
         assessment.className = 'stage-assessment-fields';
-        for (const [field, label, limit] of [['objective', '阶段目标（学生能独立做到什么）', 100], ['task', '阶段测任务与评分依据', 120], ['target', '计划达标线', 100], ['adjustment', '未达标时怎么调整', 120]]) {
+        for (const [field, label, limit] of [['objective', '阶段目标（学生能独立做到什么）', 100], ['examValue', '对考试有什么用', 100], ['task', '阶段测任务与评分依据', 120], ['target', '计划达标线', 100], ['adjustment', '未达标时怎么调整', 120]]) {
           const path = `stages.${stageIndex}.assessment.${field}`;
           const control = createEditorField(label, stage.assessment[field] || '', path, true);
           const textarea = control.querySelector('textarea');
@@ -3201,6 +3202,7 @@ const layoutPlanFieldRules = {
   goal: { label: '当课目标', maximum: 180 },
   difficulty: { label: '重难点', maximum: 180 },
   task: { label: '阶段测任务与评分依据', maximum: 120, required: true },
+  examValue: { label: '对考试有什么用', maximum: 100, required: false },
   objective: { label: '阶段目标', maximum: 100, required: true },
   target: { label: '计划达标线', maximum: 100, required: true },
   adjustment: { label: '未达标时怎么调整', maximum: 120, required: true },
