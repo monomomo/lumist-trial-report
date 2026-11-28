@@ -1,6 +1,7 @@
 import { SUBJECT_CATALOG, type SubjectCode } from './catalog.js';
 import { apExamSections } from '../../public/report/ap-plan-scope.js';
 import { apCedVersion } from './ap-ced-version.js';
+import { getApExamWeightProfile } from './ap-exam-weight.js';
 
 type FrameworkType = 'units' | 'bigIdeas' | 'skillAreas';
 
@@ -72,15 +73,17 @@ export function getApFramework(subjectCode: string) {
   const subject = SUBJECT_CATALOG[subjectCode];
   const meta = FRAMEWORK_META[subjectCode] as FrameworkMeta;
   const prefix = CODE_PREFIXES[subjectCode] as string;
+  const weightProfile = getApExamWeightProfile(subjectCode);
   return {
     catalogSnapshot: '2026-10-02',
     effectiveSchoolYear: '2026-27',
     source: `https://apcentral.collegeboard.org/courses/${meta.slug}`,
     sources: [meta.slug, ...(meta.additionalSlugs ?? [])].map((slug) => `https://apcentral.collegeboard.org/courses/${slug}`),
     frameworkType: meta.type,
-    sections: subject.modules.map((title, index) => ({ code: `${prefix}_u${index + 1}`, number: index + 1, title })),
+    sections: subject.modules.map((title, index) => ({ code: `${prefix}_u${index + 1}`, number: index + 1, title, examWeight:weightProfile?.sectionWeights?.[index] ?? null })),
     practices: meta.practices,
     subjectRules: meta.rules ?? [],
+    assessmentBreakdown:weightProfile?.assessmentBreakdown ?? null,
   };
 }
 
@@ -95,6 +98,7 @@ export function buildApFrameworkPrompt(subjectCode: string, notes = '') {
     officialSources: framework.sources,
     frameworkType: framework.frameworkType,
     allowedSections: framework.sections,
+    assessmentBreakdown:framework.assessmentBreakdown,
     examPlanningSections: apExamSections(subjectCode, framework.sections.map(s=>s.title), notes).map(n=>framework.sections[n-1].code),
     practices: framework.practices,
     rules: [

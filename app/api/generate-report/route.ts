@@ -20,6 +20,7 @@ import { parseModelResponse } from '@/lib/reports/model-response';
 import { lockedCoursePlanSchema } from '@/lib/course-plan-upload/schema';
 import { buildLockedReportInput, buildLockedReportPrompt } from '@/lib/course-plan-upload/prompt';
 import { satSubjectContextShape } from '@/lib/reports/sat-context-validation.js';
+import { formatApStageExamWeight, inferApSectionCodes } from '@/lib/subjects/ap-exam-weight';
 
 export const runtime = 'nodejs';
 export const maxDuration = 300;
@@ -409,10 +410,14 @@ export async function POST(request: Request) {
       });
       if (!summary) return failureResponse('EMPTY_MODEL_OUTPUT', 502);
       const { assessments, ...summaryFields } = summary;
-      reportCoursePlan.stages = reportCoursePlan.stages.map((item, index) => ({
-        ...item,
-        assessment: item.assessment || normalizeGeneratedStageAssessment(assessments[stagesNeedingAssessment.findIndex((stage) => stage.index === index)]),
-      }));
+      reportCoursePlan.stages = reportCoursePlan.stages.map((item, index) => {
+        const generatedAssessment = item.assessment ?? normalizeGeneratedStageAssessment(assessments[stagesNeedingAssessment.findIndex((stage) => stage.index === index)]);
+        const stageText = [item.title,item.description,...item.lessons.flatMap((lesson) => [lesson.theme,lesson.content])].join('\n');
+        const existingCodes = [...new Set(item.lessons.flatMap((lesson) => lesson.unitCodes))];
+        const unitCodes = existingCodes.length ? existingCodes : inferApSectionCodes(subject.code, stageText);
+        const examWeight = formatApStageExamWeight(subject.code, unitCodes);
+        return {...item,assessment:examWeight ? {...generatedAssessment,examWeight} : generatedAssessment};
+      });
       const sanitizedReport = sanitizeParentReport({ ...summaryFields, coursePlan: reportCoursePlan }, subject.code);
       const finalReport = {
         ...sanitizedReport,

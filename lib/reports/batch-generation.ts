@@ -5,7 +5,8 @@ import { z } from 'zod';
 import { PLANNING_FOCUS_AREA_CODES, PLANNING_SCENARIO_CODES, normalizePlanningFocusAreas } from '@/lib/reports/planning-context';
 import { SUBJECT_CODES, resolveSubject, validateSubjectScores } from '@/lib/subjects/catalog';
 import { buildApFrameworkPrompt } from '@/lib/subjects/ap-framework';
-import { buildCalculusSyllabusPrompt, getCalculusUnits } from '@/lib/subjects/ap-calculus-syllabus.js';
+import { buildCalculusSyllabusPrompt } from '@/lib/subjects/ap-calculus-syllabus.js';
+import { formatApStageExamWeight } from '@/lib/subjects/ap-exam-weight';
 import { buildSystemPrompt, buildUserInput } from '@/lib/subjects/prompt';
 import { buildLessonDurationSlots } from '@/lib/subjects/lesson-slots';
 import { parseModelResponse } from '@/lib/reports/model-response';
@@ -240,6 +241,10 @@ ${input.subjectCode.startsWith('ap_') ? `先确定本次教学范围，再依据
     const outline = await requestStructuredOutput(client, generationOutlineSchema, 'trial_report_outline', systemPrompt, userPrompt, 9000, normalizeOutlineResult);
     if (!outline) throw new GenerationRequestError('EMPTY_MODEL_OUTPUT', 502, 'AI 没有返回可用的阶段规划。');
     if (outline.stages.length > maxStages) throw new GenerationRequestError('OUTLINE_STAGE_COUNT_MISMATCH', 422, `当前科目最多支持 ${maxStages} 个阶段，请重新生成。`);
+    const allowedOutlineCodes = getAllowedUnitCodes(input.subjectCode, input.planningScenario, input.teacherNotes);
+    if (input.subjectCode.startsWith('ap_') && outline.stages.some((stage) => !stage.unitCodes.length || stage.unitCodes.some((code) => !allowedOutlineCodes.includes(code)))) {
+      throw new GenerationRequestError('INVALID_UNIT_CODE', 422, 'AI 没有为课程阶段关联正确的 AP 考纲部分。');
+    }
     const guardedOutline = applyClassroomFactGuard(outline, context.subject.displayName, input.teacherNotes);
     const hasMasteryEvidence = /(?:正确率|得分率|掌握率|完成率)[^。；\n]{0,16}\d{1,3}\s*[%％]|\d+\s*[/／]\s*\d+\s*(?:题|项)/.test(input.teacherNotes);
     const plannedCount = guardedOutline.stages.reduce((total, stage) => total + stage.lessonCount, 0);
@@ -251,9 +256,6 @@ ${input.subjectCode.startsWith('ap_') ? `先确定本次教学范围，再依据
       const durations = context.lessonDurations.slice(durationIndex, durationIndex + stage.lessonCount);
       const startLessonNumber = durationIndex + 1;
       durationIndex += stage.lessonCount;
-      const calculusUnits = getCalculusUnits(input.subjectCode);
-      const examWeights = stage.unitCodes.map((code) => calculusUnits.find((unit) => unit.code === code)).filter(Boolean)
-        .map((unit) => `Unit ${unit!.number}：${unit!.examWeight.minimum}%–${unit!.examWeight.maximum}%`);
       const hasGeneratedMastery = hasMasteryEvidence
         && typeof stage.assessment.currentMasteryPercent === 'number'
         && typeof stage.assessment.currentMasteryEvidence === 'string';
@@ -263,7 +265,8 @@ ${input.subjectCode.startsWith('ap_') ? `先确定本次教学范围，再依据
         currentMasteryEvidence:hasGeneratedMastery ? stage.assessment.currentMasteryEvidence : undefined,
         examWeight:undefined,
       };
-      const assessment = examWeights.length ? {...evidenceSafeAssessment,examWeight:`对应完整单元的官方考试权重：${examWeights.join('；')}`} : evidenceSafeAssessment;
+      const examWeight = formatApStageExamWeight(input.subjectCode, stage.unitCodes);
+      const assessment = examWeight ? {...evidenceSafeAssessment,examWeight} : evidenceSafeAssessment;
       return { ...stage, assessment, durations, startLessonNumber };
     });
     return { outline: { ...guardedOutline, stages } as GenerationOutlineResult, targetScore: context.targetScore };
